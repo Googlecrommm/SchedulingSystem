@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600&display=swap');
+
+@theme {
+ /* color*/ 
+  --color-primary: #1B2A6B;
+  --color-primary-light: #2C3E9E;
+  --color-primary-dark: #111D4E;
+
+  --color-accent: #C0392B;
+  --color-accent-light: #E74C3C;
+  --color-accent-dark: #922B21;
+
+
+  --color-surface-bg: #F0F2F5;
+  --color-surface-card: #FFFFFF;
+  --color-surface-input: #F7F8FA;
+  --color-surface-border: #D1D5DB;
+
+/* font */ 
+  --font-heading: 'Playfair Display', serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-montserrat: 'Montserrat', sans-serif;
+
+/* Hover */ 
+  --shadow-card: 0 8px 40px rgba(27, 42, 107, 0.12);
+  --shadow-card-hover: 0 16px 60px rgba(27, 42, 107, 0.18);
+}
+
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  background-color: var(--color-surface-bg);
+}
