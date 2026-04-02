@@ -23,7 +23,7 @@ import {
 import DGMCIcon from "../../assets/DGMC-icon.svg";
 
 const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
+  { label: "Dashboard", icon: LayoutDashboard, path: "../components/admin/Dashboard" },
   { label: "User Management", icon: Users, path: "/admin/user-management" },
 ];
 
