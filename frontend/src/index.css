@@ -4,6 +4,9 @@
 
 @theme {
  /* color*/ 
+  --color-dgblue: #223E92;
+  --color-bading: #DEDEDE;
+  --color-muted: #C0BFBF;
   --color-primary: #1B2A6B;
   --color-primary-light: #2C3E9E;
   --color-primary-dark: #111D4E;
