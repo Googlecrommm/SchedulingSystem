@@ -24,7 +24,7 @@ import DGMCIcon from "../../assets/DGMC-icon.svg";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, path: "../components/admin/Dashboard" },
-  { label: "User Management", icon: Users, path: "/admin/user-management" },
+  { label: "User Management", icon: Users, path: "/admin/user-management" }, 
 ];
 
 const tabs = [
@@ -90,7 +90,7 @@ function CreateUserModal({ onClose }) {
 
         <div className="relative flex items-center justify-center px-6 pt-6 pb-4 border-b border-gray-200">
           <h2 className="text-xl font-bold text-primary font-montserrat">
-            Create User
+            Create Users
           </h2>
           <button
             onClick={onClose}
