@@ -23,8 +23,8 @@ import {
 import DGMCIcon from "../../assets/DGMC-icon.svg";
 
 const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "../components/admin/Dashboard" },
-  { label: "User Management", icon: Users, path: "/admin/user-management" }, 
+  { label: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" }, 
+  { label: "User Management", icon: Users, path: "/admin/user-management" },
 ];
 
 const tabs = [
@@ -241,8 +241,6 @@ export default function UserManagement() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const userDropdownRef = useRef(null);
 
-
-
   useEffect(() => {
     const handler = (e) => {
       if (userDropdownRef.current && !userDropdownRef.current.contains(e.target)) {
@@ -272,8 +270,8 @@ export default function UserManagement() {
       )}
 
       <aside
-        className={`fixed top-0 left-0 h-screen z-30 w-64 bg-bading border-r
-           border-gray-100 flex flex-col
+        className={`fixed top-0 left-0 h-screen z-30 w-64 bg-white border-r
+          border-gray-100 flex flex-col
           transition-transform duration-300
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:w-72 lg:shrink-0`}
@@ -303,7 +301,7 @@ export default function UserManagement() {
             General
           </p>
           <ul className="space-y-1">
-            {navItems.map(({ label, icon: Icon, path }) => {
+            {navItems.map(({ label, icon: Icon, path, badge }) => {
               const isActive = location.pathname === path;
               return (
                 <li key={label}>
@@ -318,7 +316,15 @@ export default function UserManagement() {
                       }`}
                   >
                     <Icon size={18} />
-                    {label}
+                    <span className="flex-1">{label}</span>
+
+                    {/* ✅ Live indicator badge */}
+                    {badge && (
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-600 text-[10px] font-bold leading-none">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
+                        {badge}
+                      </span>
+                    )}
                   </Link>
                 </li>
               );

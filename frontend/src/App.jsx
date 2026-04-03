@@ -8,12 +8,10 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/admin/user-management" replace />} />
-        <Route path="/Dashboard" element={<Dashboard/>}/>
+        <Route path="/admin/dashboard" element={<Dashboard/>}/>
         <Route path="/login" element={<Loginpage />} />
         <Route path="/admin/user-management" element={<UserManagement />} />
-      
       </Routes>
     </BrowserRouter>
   );
 }
- 
