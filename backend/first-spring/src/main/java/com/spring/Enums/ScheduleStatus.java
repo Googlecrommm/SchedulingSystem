@@ -4,5 +4,6 @@ public enum ScheduleStatus {
     Confirmed,
     Cancelled,
     Discharged,
-    Pending
+    Pending,
+    Archived
 }

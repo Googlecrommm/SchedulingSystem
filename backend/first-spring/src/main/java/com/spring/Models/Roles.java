@@ -17,6 +17,9 @@ public class Roles {
     @Column(name = "roleId")
     private int roleId;
 
+    @ManyToOne
+    @JoinColumn(name = "departmentId")
+    private Departments department;
 
     @NotBlank
     @Size(max = 100)
@@ -50,5 +53,13 @@ public class Roles {
 
     public void setRoleName(String roleName) {
         this.roleName = roleName;
+    }
+
+    public Departments getDepartment() {
+        return department;
+    }
+
+    public void setDepartment(Departments department) {
+        this.department = department;
     }
 }

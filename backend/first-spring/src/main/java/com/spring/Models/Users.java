@@ -2,10 +2,7 @@ package com.spring.Models;
 
 import com.spring.Enums.AccountStatus;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 
 import java.util.List;
 
@@ -19,11 +16,6 @@ public class Users {
     private int userId;
 
     @ManyToOne
-    @JoinColumn(name = "departmentId")
-    private Departments department;
-
-
-    @ManyToOne
     @JoinColumn(name = "roleId")
     private Roles role;
 
@@ -31,21 +23,18 @@ public class Users {
     @Enumerated(EnumType.STRING )
     private AccountStatus accountStatus = AccountStatus.Active;
 
-    @NotNull
-    @NotEmpty
-    @Size(min = 1, max = 100)
+    @NotBlank
+    @Size(max = 100)
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    @NotNull
-    @NotEmpty
+    @NotBlank
     @Size(max = 100)
     @Email
     @Column(name = "email", nullable = false, length = 150)
     private String email;
 
-    @NotNull
-    @NotEmpty
+    @NotBlank
     @Size(min = 1, max = 255)
     @Column(name = "password", nullable = false, length = 255)
     private String password;
@@ -69,14 +58,6 @@ public class Users {
 
     public void setUserId(int userId) {
         this.userId = userId;
-    }
-
-    public Departments getDepartment() {
-        return department;
-    }
-
-    public void setDepartment(Departments department) {
-        this.department = department;
     }
 
     public Roles getRole() {

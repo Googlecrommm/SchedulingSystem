@@ -73,7 +73,10 @@ POST http://localhost:8080/Roles/CreateRole
 Content-Type: application/json
 
 {
-  "roleName": "Physical Therapist"
+  "roleName": "Admin",
+  "department": {
+    "departmentId": 1
+  }
 }
 
 ###
@@ -81,7 +84,7 @@ POST http://localhost:8080/Departments/createDepartment
 Content-Type: application/json
 
 {
-  "departmentName": "Rehabilitation"
+  "departmentName": "ICT"
 }
 
 ###
@@ -94,3 +97,19 @@ Content-Type: application/json
 {
   "departmentName": "ICT"
 }
+
+
+###
+POST http://localhost:8080/Users/createUser
+Content-Type: application/json
+
+{
+  "role": {
+    "roleId": 6
+  },
+  "accountStatus": "Active",
+  "name": "Cromwell Naval",
+  "email": "navalcromwell@gmail.com",
+  "password": "ICTD@123"
+}
+

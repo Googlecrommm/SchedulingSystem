@@ -2,6 +2,7 @@ package com.spring.Models;
 import com.spring.Enums.PatientStatus;
 import com.spring.Enums.Sex;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -18,14 +19,28 @@ public class Patients {
     private int patientId;
 
 
-    @NotNull
-    @NotEmpty
-    @Size(min = 1, max = 100)
+    @NotBlank
+    @Size(max = 100)
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
+    @NotBlank
+    @Size(max = 255)
+    @Column(nullable = false, name = "address")
+    private String address;
+
+    @NotBlank
+    @Size(max = 11)
+    @Column(nullable = false, name = "contactNumber")
+    private String contactNumber;
+
     @Column(name = "birthDate", nullable = false)
     private LocalDate birthDate;
+
+    @NotBlank
+    @Size(max = 255)
+    @Column(nullable = false, name = "occupation")
+    private String occupation;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -86,5 +101,29 @@ public class Patients {
 
     public void setSchedule(List<Schedules> schedule) {
         this.schedule = schedule;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public String getContactNumber() {
+        return contactNumber;
+    }
+
+    public void setContactNumber(String contactNumber) {
+        this.contactNumber = contactNumber;
+    }
+
+    public String getOccupation() {
+        return occupation;
+    }
+
+    public void setOccupation(String occupation) {
+        this.occupation = occupation;
     }
 }

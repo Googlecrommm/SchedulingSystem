@@ -3,6 +3,8 @@ package com.spring.Models;
 
 import com.spring.Enums.ScheduleStatus;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
@@ -20,12 +22,25 @@ public class Schedules {
     private Patients patient;
 
     @ManyToOne
+    @JoinColumn(name = "machineId")
+    private Machines machine;
+
+    @ManyToOne
     @JoinColumn(name = "userId")
     private Users user;
 
     @Column(name = "status", nullable = false)
     @Enumerated(EnumType.STRING)
     private ScheduleStatus scheduleStatus = ScheduleStatus.Pending;
+
+    @NotBlank
+    @Size(max = 255)
+    @Column(nullable = false, name = "procedure_name")
+    private String procedure_name;
+
+    @NotBlank
+    @Column(nullable = false, name = "remarks", columnDefinition = "TEXT")
+    private String remarks;
 
     @Column(name = "startDate", nullable = false)
     private LocalDate startDate;
@@ -81,5 +96,29 @@ public class Schedules {
 
     public void setEndDate(LocalDate endDate) {
         this.endDate = endDate;
+    }
+
+    public Machines getMachine() {
+        return machine;
+    }
+
+    public void setMachine(Machines machine) {
+        this.machine = machine;
+    }
+
+    public String getProcedure_name(){
+        return procedure_name;
+    }
+
+    public void setProcedure_name(String procedure_name){
+        this.procedure_name = procedure_name;
+    }
+
+    public String getRemarks() {
+        return remarks;
+    }
+
+    public void setRemarks(String remarks) {
+        this.remarks = remarks;
     }
 }

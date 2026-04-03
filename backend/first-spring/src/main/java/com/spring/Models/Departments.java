@@ -22,16 +22,11 @@ public class Departments {
 
     public Departments(){}
 
+    @OneToMany(mappedBy = "departments")
+    private List<Machines> machines;
+
     @OneToMany(mappedBy = "department")
-    private List<Users> users;
-
-    public List<Users> getUsers(){
-        return users;
-    }
-
-    public void setUsers(List<Users> user){
-        this.users = user;
-    }
+    private List<Roles> roles;
 
     public int getDepartmentId() {
         return departmentId;
@@ -47,6 +42,22 @@ public class Departments {
 
     public void setDepartmentName(String departmentName) {
         this.departmentName = departmentName;
+    }
+
+    public List<Machines> getMachines() {
+        return machines;
+    }
+
+    public void setMachines(List<Machines> machines) {
+        this.machines = machines;
+    }
+
+    public List<Roles> getRoles() {
+        return roles;
+    }
+
+    public void setRoles(List<Roles> roles) {
+        this.roles = roles;
     }
 
 
