@@ -1,5 +1,6 @@
 package com.spring.Service;
 
+import com.spring.Exceptions.EmptyDepartment;
 import com.spring.Models.Departments;
 import com.spring.Repositories.DepartmentsRepository;
 import org.springframework.stereotype.Service;
@@ -26,11 +27,11 @@ public class DepartmentsService {
     }
 
     //READ
-    public List<Departments> getDepartments() throws Exception{
+    public List<Departments> getDepartments(){
         List<Departments> departments = departmentsRepository.findAll();
 
         if (departments.isEmpty()){
-            throw new Exception("No Departments Yet");
+            throw new EmptyDepartment("No departments");
         }
         return departments;
     }

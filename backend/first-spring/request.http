@@ -1,73 +1,3 @@
-### GET request to example server
-GET http://localhost:8080/
-
-###
-GET http://localhost:8080/e
-
-###
-GET http://localhost:8080/Users/getUsers
-
-###
-GET http://localhost:8080/Users/2
-
-###
-POST http://localhost:8080/Users/createUsers
-Content-Type: application/json
-
-{
-    "userID" : 3,
-    "name": "Ralf",
-    "role": "PATIENT"
-}
-
-###
-POST http://localhost:8080/Accounts/createAccount
-Content-Type: application/json
-
-{
-  "email": "hacker@gmail.com",
-  "password": "hacker123",
-  "role": "ADMIN"
-}
-
-
-###
-DELETE http://localhost:8080/Accounts/deleteAccount/5
-
-###
-GET http://localhost:8080/Accounts/getAccounts
-
-###
-GET http://localhost:8080/Accounts/getAccount/4
-
-###
-GET http://localhost:8080/Accounts/findByEmail/ralfreneva@gmail.com
-
-###
-DELETE http://localhost:8080/Users/0
-
-###
-PUT http://localhost:8080/Users/0
-Content-Type: application/json
-
-{
-  "name": "Rhon",
-  "role": "PATIENT"
-}
-
-###
-GET http://localhost:8080/Users/search?name=Ralf
-
-###
-PUT http://localhost:8080/Accounts/updateRole/1
-Content-Type: application/json
-
-{
-  "email": "navalcromwell@gmail.com",
-  "password": "luciano123?",
-  "role": "PATIENT"
-}
-
 ###
 POST http://localhost:8080/Roles/CreateRole
 Content-Type: application/json
@@ -112,4 +42,8 @@ Content-Type: application/json
   "email": "navalcromwell@gmail.com",
   "password": "ICTD@123"
 }
+
+###
+GET localhost:8080/Users/getUsers
+
 

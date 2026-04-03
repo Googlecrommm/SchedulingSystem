@@ -1,5 +1,6 @@
 package com.spring.Models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.spring.Enums.AccountStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
@@ -41,6 +42,7 @@ public class Users {
 
     public Users(){}
 
+    @JsonIgnore
     @OneToMany(mappedBy = "user")
     private List<Schedules> schedule;
 

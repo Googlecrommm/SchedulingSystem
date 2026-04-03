@@ -4,10 +4,9 @@ import com.spring.Models.Users;
 import com.spring.Service.UsersService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/Users")
@@ -24,4 +23,11 @@ public class UserController {
     public ResponseEntity<Users> addUser(@Valid @RequestBody Users user) throws Exception{
         return ResponseEntity.ok(usersService.addUser(user));
     }
+
+    //READ
+    @GetMapping("/getUsers")
+    public ResponseEntity<List<Users>> getUsers() throws Exception{
+        return ResponseEntity.ok(usersService.getUsers());
+    }
+
 }

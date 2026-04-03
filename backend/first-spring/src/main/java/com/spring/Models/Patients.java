@@ -1,4 +1,5 @@
 package com.spring.Models;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.spring.Enums.PatientStatus;
 import com.spring.Enums.Sex;
 import jakarta.persistence.*;
@@ -52,6 +53,7 @@ public class Patients {
 
     public Patients(){}
 
+    @JsonIgnore
     @OneToMany(mappedBy = "patient")
     private List<Schedules> schedule;
 
