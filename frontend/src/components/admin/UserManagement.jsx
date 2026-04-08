@@ -79,19 +79,14 @@ function getActionItems(activeTab, userStatus) {
 
 
 function StatusBadge({ status }) {
-  const isEnabled = status !== "Disabled";
+  const color =
+    status === "Enabled"  ? "text-green-500"  :
+    status === "Disabled" ? "text-yellow-500" :
+    "text-gray-400"; 
+
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold
-        ${isEnabled
-          ? "bg-green-100 text-green-700"
-          : "bg-red-100 text-red-600"
-        }`}
-    >
-      <span
-        className={`w-1.5 h-1.5 rounded-full ${isEnabled ? "bg-green-500" : "bg-red-500"}`}
-      />
-      {isEnabled ? "Enabled" : "Disabled"}
+    <span className={`text-sm font-semibold ${color}`}>
+      {status}
     </span>
   );
 }
@@ -193,14 +188,7 @@ function CreateUserModal({ onClose }) {
     initialValues: { fullName: "", password: "", department: "", role: "" },
     validationSchema: createUserSchema,
     onSubmit: async (values, { setSubmitting }) => {
-      // TODO: replace with axios call once backend is ready:
-      // await axios.post("/users/createUser", {
-      //   fullName:   values.fullName,
-      //   password:   values.password,
-      //   department: values.department,
-      //   role:       values.role,
-      // });
-      // onRefresh(); // re-fetch the users list
+      
       console.log("TODO: POST /users/createUser →", values);
       setSubmitting(false);
       onClose();
@@ -208,7 +196,8 @@ function CreateUserModal({ onClose }) {
   });
 
   const inputClass = (field) =>
-    `w-full px-4 py-2.5 rounded-xl border bg-surface-input text-primary placeholder-gray-400 text-sm
+    `w-full px-4 py-2.5 rounded-xl border bg-surface-input 
+  text-primary placeholder-gray-400 text-sm
      focus:outline-none focus:ring-2 focus:border-primary transition-all duration-200
      ${formik.touched[field] && formik.errors[field]
        ? "border-red-400 focus:ring-red-200"
@@ -216,10 +205,12 @@ function CreateUserModal({ onClose }) {
      }`;
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center
+     justify-center px-4">
       <div className="bg-white rounded-2xl shadow-card w-full max-w-sm max-h-[90vh] overflow-y-auto">
 
-        <div className="relative flex items-center justify-center px-6 pt-6 pb-4 border-b border-gray-200 sticky top-0 bg-white rounded-t-2xl z-10">
+        <div className="relative flex items-center justify-center px-6 pt-6
+         pb-4 border-b border-gray-200 sticky top-0 bg-white rounded-t-2xl z-10">
           <h2 className="text-xl font-bold text-primary font-montserrat">Create User</h2>
           <button onClick={onClose} className="absolute right-6 text-gray-400 hover:text-primary transition-colors">
             <X size={20} />
@@ -246,7 +237,8 @@ function CreateUserModal({ onClose }) {
               <select className={`${inputClass("department")} appearance-none`} {...formik.getFieldProps("department")}>
                 <option value="" disabled></option>
               </select>
-              <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <ChevronDown size={16} className="absolute right-3.5 top-1/2 
+              -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
             <FieldError message={formik.touched.department && formik.errors.department} />
           </div>
@@ -257,18 +249,22 @@ function CreateUserModal({ onClose }) {
               <select className={`${inputClass("role")} appearance-none`} {...formik.getFieldProps("role")}>
                 <option value="" disabled></option>
               </select>
-              <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2
+               text-gray-400 pointer-events-none" />
             </div>
             <FieldError message={formik.touched.role && formik.errors.role} />
           </div>
 
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={() => formik.resetForm()}
-              className="flex-1 py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white text-sm font-semibold transition-colors duration-200 cursor-pointer">
+              className="flex-1 py-2.5 rounded-xl bg-accent hover:bg-accent-dark
+               text-white text-sm font-semibold transition-colors duration-200 cursor-pointer">
               Clear
             </button>
             <button type="submit" disabled={formik.isSubmitting}
-              className="flex-1 py-2.5 rounded-xl bg-primary hover:bg-primary-light active:bg-primary-dark text-white text-sm font-semibold transition-colors duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+              className="flex-1 py-2.5 rounded-xl bg-primary hover:bg-primary-light
+               active:bg-primary-dark text-white text-sm font-semibold transition-colors
+               duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
               {formik.isSubmitting ? "Submitting…" : "Submit"}
             </button>
           </div>
