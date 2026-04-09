@@ -27,7 +27,7 @@ import DGMCIcon from "../../assets/DGMC-icon.svg";
 
 
 const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/frontdesk/dashboard" },
+  { label: "Dashboard", icon: LayoutDashboard, path: "/frontdesk/rehab-dashboard" },
   { label: "Schedules", icon: Calendar, path: "/frontdesk/schedules" },
 ];
 
