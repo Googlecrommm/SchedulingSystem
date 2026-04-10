@@ -1,6 +1,7 @@
 package com.spring.Models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.spring.Enums.SoftDelete;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -26,6 +27,10 @@ public class Roles {
     @Size(max = 100)
     @Column(name = "roleName", nullable = false, length = 100)
     private String roleName;
+
+    @Column(name = "roleStatus", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private SoftDelete softDelete = SoftDelete.Active;
 
     public Roles(){}
 
@@ -63,5 +68,13 @@ public class Roles {
 
     public void setDepartment(Departments department) {
         this.department = department;
+    }
+
+    public SoftDelete getRoleStatus(){
+        return softDelete;
+    }
+
+    public void setRoleStatus(SoftDelete softDelete){
+        this.softDelete = softDelete;
     }
 }

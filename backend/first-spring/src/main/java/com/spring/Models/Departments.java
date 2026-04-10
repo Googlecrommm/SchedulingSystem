@@ -1,5 +1,6 @@
 package com.spring.Models;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.spring.Enums.SoftDelete;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -30,9 +31,14 @@ public class Departments {
     @OneToMany(mappedBy = "department")
     private List<Roles> roles;
 
+    @Column(name = "departmentStatus", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private SoftDelete softDelete = SoftDelete.Active;
+
     public int getDepartmentId() {
         return departmentId;
     }
+
 
     public void setDepartmentId(int departmentId) {
         this.departmentId = departmentId;
@@ -60,6 +66,14 @@ public class Departments {
 
     public void setRoles(List<Roles> roles) {
         this.roles = roles;
+    }
+
+    public SoftDelete getDepartmentStatus(){
+        return softDelete;
+    }
+
+    public void setDepartmentStatus(SoftDelete softDelete){
+        this.softDelete = softDelete;
     }
 
 

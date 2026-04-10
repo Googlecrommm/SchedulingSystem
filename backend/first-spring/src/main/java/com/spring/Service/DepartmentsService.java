@@ -1,10 +1,15 @@
 package com.spring.Service;
 
+import com.spring.Enums.SoftDelete;
 import com.spring.Exceptions.EmptyDepartment;
+import com.spring.Exceptions.NoChangesDetected;
+import com.spring.Exceptions.NotFound;
 import com.spring.Models.Departments;
+import com.spring.Models.Roles;
 import com.spring.Repositories.DepartmentsRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedList;
 import java.util.List;
 
 @Service
@@ -38,10 +43,33 @@ public class DepartmentsService {
 
     //UPDATE
     public Departments updateById(int departmentId, Departments department){
+        Departments initialValue = departmentsRepository.findById(departmentId).orElseThrow(() -> new NotFound("Department not found"));
+
+        if (department.getDepartmentName().equals(initialValue.getDepartmentName())){
+            throw new NoChangesDetected("No changes detected");
+        }
 
         department.setDepartmentId(departmentId);
-
         return departmentsRepository.save(department);
+    }
+
+    //ARCHIVE
+    public Departments archiveDepartment(int departmentId){
+        Departments deptToArchive = departmentsRepository.findById(departmentId).orElseThrow(() -> new NotFound("Department not found"));
+        deptToArchive.setDepartmentStatus(SoftDelete.Archived);
+        deptToArchive.getRoles().forEach(roles -> roles.setRoleStatus(SoftDelete.Archived));
+
+        return departmentsRepository.save(deptToArchive);
+    }
+
+    //RESTORE
+    public Departments restoreDepartment(int departmentId){
+        Departments departmentToRestore = departmentsRepository.findById(departmentId).orElseThrow(() -> new NotFound("Department not found"));
+        departmentToRestore.setDepartmentStatus(SoftDelete.Active);
+        departmentToRestore.getRoles().forEach(roles -> roles.setRoleStatus(SoftDelete.Active));
+
+        return departmentsRepository.save(departmentToRestore);
+
     }
 
 }

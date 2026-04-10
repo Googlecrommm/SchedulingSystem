@@ -25,7 +25,6 @@ public class UsersService {
     //READ
     public List<Users> getUsers() throws Exception{
         List<Users> users = usersRepository.findAll();
-
         if (users.isEmpty()){
             throw new Exception("No existing users");
         }

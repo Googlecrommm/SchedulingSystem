@@ -44,7 +44,7 @@ public class Patients {
     private String occupation;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Column(name = "patientStatus", nullable = false)
     private PatientStatus status;
 
     @Enumerated(EnumType.STRING)
@@ -128,4 +128,6 @@ public class Patients {
     public void setOccupation(String occupation) {
         this.occupation = occupation;
     }
+
+
 }

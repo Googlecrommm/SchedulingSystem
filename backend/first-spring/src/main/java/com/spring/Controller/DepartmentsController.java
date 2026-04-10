@@ -34,4 +34,16 @@ public class DepartmentsController {
     public ResponseEntity<Departments> updateDepartment(@PathVariable int departmentId, @RequestBody Departments department){
         return ResponseEntity.ok(departmentsService.updateById(departmentId, department));
     }
+
+    //ARCHIVE
+    @PutMapping("/archiveDepartment/{departmentId}")
+    public ResponseEntity<Departments> archiveDepartment(@PathVariable int departmentId){
+        return ResponseEntity.ok(departmentsService.archiveDepartment(departmentId));
+    }
+
+    //RESTORE
+    @PutMapping("/restoreDepartment/{departmentId}")
+    public ResponseEntity<Departments> restoreDepartment(@PathVariable int departmentId){
+        return ResponseEntity.ok(departmentsService.restoreDepartment(departmentId));
+    }
 }

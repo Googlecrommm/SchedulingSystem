@@ -3,31 +3,36 @@ POST http://localhost:8080/Roles/CreateRole
 Content-Type: application/json
 
 {
-  "roleName": "Admin",
+  "roleName": "IT Staff",
   "department": {
     "departmentId": 1
   }
 }
 
 ###
-POST http://localhost:8080/Departments/createDepartment
+POST localhost:8080/Departments/createDepartment
 Content-Type: application/json
 
 {
-  "departmentName": "ICT"
+  "departmentName": "Rehabilitation"
 }
 
 ###
 GET http://localhost:8080/Departments/getDepartments
 
 ###
-PUT http://localhost:8080/Departments/updateDepartment/3
+PUT http://localhost:8080/Departments/updateDepartment/1
 Content-Type: application/json
 
 {
   "departmentName": "ICT"
 }
 
+###
+PUT localhost:8080/Departments/archiveDepartment/1
+
+###
+PUT localhost:8080/Departments/restoreDepartment/1
 
 ###
 POST http://localhost:8080/Users/createUser

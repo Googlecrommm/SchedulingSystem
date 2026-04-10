@@ -4,19 +4,23 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.spring.Enums.AccountStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.Collection;
 import java.util.List;
 
 @Entity
 @Table(name = "users")
-public class Users {
+public class Users implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "userId")
     private int userId;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "roleId")
     private Roles role;
 
@@ -37,10 +41,28 @@ public class Users {
 
     @NotBlank
     @Size(min = 1, max = 255)
-    @Column(name = "password", nullable = false, length = 255)
+    @Column(name = "password", nullable = false, length =  255)
     private String password;
 
     public Users(){}
+
+    @Override
+    public String getUsername(){
+        return email;
+    }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities(){
+        return List.of(new SimpleGrantedAuthority("ROLE_" + role.getRoleName()));
+    }
+    @Override
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
 
     @JsonIgnore
     @OneToMany(mappedBy = "user")
@@ -94,11 +116,5 @@ public class Users {
         this.email = email;
     }
 
-    public String getPassword() {
-        return password;
-    }
 
-    public void setPassword(String password) {
-        this.password = password;
-    }
 }
