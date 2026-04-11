@@ -9,6 +9,7 @@ import axios from "axios"
 
 
 function loginuser() {
+  
   axios.post("http://localhost:8080/auth/login", {
     email: "",
     password: ""
@@ -177,7 +178,7 @@ export default function LoginPage() {
                          transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer
                          disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             >
-              {formik.isSubmitting ? "Signing in…" : "Sign in"}
+              {formik.isSubmitting ? "Validating" : "Login"}
             </button>
           </form>
 
