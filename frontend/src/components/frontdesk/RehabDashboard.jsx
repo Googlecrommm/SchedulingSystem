@@ -196,7 +196,7 @@ export default function RehabilitationDashboard() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-primary">
-                    {["Name", "Time", "Status"].map((col) => (
+                    {["Name", "Date","Time", "Status"].map((col) => (
                       <th key={col} className="px-4 sm:px-6 py-4 text-sm font-bold text-white text-center tracking-wide">
                         {col}
                       </th>
@@ -208,6 +208,7 @@ export default function RehabilitationDashboard() {
                     recentSchedules.map((s) => (
                       <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                         <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">{s.name}</td>
+                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">{s.date}</td>
                         <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">{s.time}</td>
                         <td className="px-4 sm:px-6 py-4 text-center">
                           <span className={`text-sm font-semibold ${scheduleStatusColor(s.status)}`}>
@@ -218,7 +219,7 @@ export default function RehabilitationDashboard() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={3} className="px-4 sm:px-6 py-8 text-center text-sm text-gray-400">
+                      <td colSpan={4} className="px-4 sm:px-6 py-8 text-center text-sm text-gray-400">
                         No recent schedules found
                       </td>
                     </tr>
