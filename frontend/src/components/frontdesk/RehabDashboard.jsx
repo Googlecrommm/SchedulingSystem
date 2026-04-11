@@ -14,6 +14,8 @@ import {
   scheduleStatusColor,
 } from "../ui";
 
+import axios from "axios"
+
 const TIME_FRAMES = ["Daily", "Weekly", "Monthly", "Yearly", "Overall"];
 
 function LoadingSkeleton() {

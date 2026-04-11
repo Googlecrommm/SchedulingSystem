@@ -4,7 +4,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useNavigate } from "react-router-dom";
 import hospitalBg from "../../assets/hospital-bg.jpg";
-import axios from "axios";
+
 
 
 function loginuser() {
@@ -23,7 +23,6 @@ function loginuser() {
 const loginSchema = Yup.object({
   username:   Yup.string().required("Username is required"),
   password:   Yup.string().required("Password is required"),
-  rememberMe: Yup.boolean(),
 });
 
 function FieldError({ message }) {
@@ -40,12 +39,14 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [serverError,  setServerError]  = useState(null);
   const navigate = useNavigate();
+  
+  
 
   const formik = useFormik({
     initialValues: {
       username:   "",
       password:   "",
-      rememberMe: false,
+
     },
     validationSchema: loginSchema,
     onSubmit: async (values, { setSubmitting }) => {
@@ -160,6 +161,7 @@ export default function LoginPage() {
               <FieldError message={formik.touched.password && formik.errors.password} />
             </div>
 
+<<<<<<< HEAD
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <div
@@ -179,6 +181,9 @@ export default function LoginPage() {
               </label>
             </div>
 
+=======
+            {}
+>>>>>>> 636ab1446606b65efc1dfe66d51dea2f66d7989e
             {serverError && (
               <div className="bg-red-50 border border-red-300 text-red-600 text-sm rounded-lg px-4 py-3">
                 {serverError}
