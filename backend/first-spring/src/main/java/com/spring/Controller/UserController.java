@@ -4,12 +4,13 @@ import com.spring.Models.Users;
 import com.spring.Service.UsersService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/Users")
+@RequestMapping("/api")
 public class UserController {
 
     private final UsersService usersService;
@@ -20,11 +21,12 @@ public class UserController {
 
     //CREATE
     @PostMapping("/createUser")
-    public ResponseEntity<Users> addUser(@Valid @RequestBody Users user) throws Exception{
+    public ResponseEntity<Users> addUser(@RequestBody Users user) throws Exception{
         return ResponseEntity.ok(usersService.addUser(user));
     }
 
     //READ
+    @PreAuthorize("hasRole('FRONTDESK')")
     @GetMapping("/getUsers")
     public ResponseEntity<List<Users>> getUsers() throws Exception{
         return ResponseEntity.ok(usersService.getUsers());

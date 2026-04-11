@@ -28,7 +28,6 @@ public class Users implements UserDetails {
     @Enumerated(EnumType.STRING )
     private AccountStatus accountStatus = AccountStatus.Active;
 
-    @NotBlank
     @Size(max = 100)
     @Column(name = "name", nullable = false, length = 100)
     private String name;
@@ -40,7 +39,7 @@ public class Users implements UserDetails {
     private String email;
 
     @NotBlank
-    @Size(min = 1, max = 255)
+    @Size(max = 255)
     @Column(name = "password", nullable = false, length =  255)
     private String password;
 
@@ -53,7 +52,10 @@ public class Users implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities(){
-        return List.of(new SimpleGrantedAuthority("ROLE_" + role.getRoleName()));
+        if(role == null || role.getRoleName() == null) {
+            return List.of();
+        }
+        return List.of(new SimpleGrantedAuthority("ROLE_" + role.getRoleName().toUpperCase()));
     }
     @Override
     public String getPassword() {

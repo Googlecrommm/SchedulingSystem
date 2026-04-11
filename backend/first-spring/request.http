@@ -1,20 +1,47 @@
 ###
-POST http://localhost:8080/Roles/CreateRole
+POST http://localhost:8080/auth/register
 Content-Type: application/json
 
 {
-  "roleName": "IT Staff",
-  "department": {
-    "departmentId": 1
+  "email": "eronvidal07@gmail.com",
+  "name": "Rhon-Eric Vidal",
+  "password": "Frontdesk@123",
+  "role": {
+    "roleId": 2
   }
 }
 
 ###
-POST localhost:8080/Departments/createDepartment
+POST http://localhost:8080/auth/login
 Content-Type: application/json
 
 {
-  "departmentName": "Rehabilitation"
+  "email": "eronvidal07@gmail.com",
+  "password": "Frontdesk@123"
+}
+
+###
+GET http://localhost:8080/api/getUsers
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJlcm9udmlkYWwwN0BnbWFpbC5jb20iLCJyb2xlIjpbeyJhdXRob3JpdHkiOiJST0xFX0ZST05UREVTSyJ9XSwiaWF0IjoxNzc1ODk3MDU5LCJleHAiOjE3NzU5ODM0NTl9.qaUDezbgcU_FyZH3S2Zui3w0h6gB53pa-nIu0C36FVvpyyL_uSVvoYIcf5IyMw_L
+
+###
+POST http://localhost:8080/api/createRole
+Content-Type: application/json
+
+{
+  "roleName": "Frontdesk",
+  "department": {
+    "departmentId": 2
+  }
+}
+
+###
+POST localhost:8080/api/createDepartment
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NTg5NjQ2OCwiZXhwIjoxNzc1OTgyODY4fQ.ipuu3M_UkloCxHHqECcZzZMXZ2GvmnR6fWKZB0CVNOSQW0y3gn4zMNzXx1QgGT7C
+
+{
+  "departmentName": "Radiology"
 }
 
 ###
