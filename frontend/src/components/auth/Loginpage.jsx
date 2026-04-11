@@ -7,6 +7,19 @@ import hospitalBg from "../../assets/hospital-bg.jpg";
 import axios from "axios";
 
 
+function loginuser() {
+  axios.post("http://localhost:8080/auth/login", {
+    email: "",
+    password: ""
+  })
+  .then((response) => {
+    console.log("Login success:", response.data);
+  })
+  .catch((error) => {
+    console.error("Login error:", error);
+  });
+}
+
 const loginSchema = Yup.object({
   username:   Yup.string().required("Username is required"),
   password:   Yup.string().required("Password is required"),
@@ -38,7 +51,23 @@ export default function LoginPage() {
     onSubmit: async (values, { setSubmitting }) => {
       setServerError(null);
       try {
-        
+
+        const response = await axios.post(
+          "http://localhost:8080/auth/login",
+          {
+            email: values.username,
+            password: values.password
+          }
+        );
+
+        console.log("Login success:", response.data);
+
+       
+        localStorage.setItem("token", response.data.token);
+
+      
+        navigate("/admin/user-management");
+
       } catch (error) {
         
         setServerError(
@@ -83,7 +112,6 @@ export default function LoginPage() {
 
           <form onSubmit={formik.handleSubmit} noValidate className="space-y-5">
 
-            {}
             <div>
               <label htmlFor="username" className="block text-sm font-semibold text-primary mb-1.5">
                 Username
@@ -104,7 +132,6 @@ export default function LoginPage() {
               <FieldError message={formik.touched.username && formik.errors.username} />
             </div>
 
-            {}
             <div>
               <label htmlFor="password" className="block text-sm font-semibold text-primary mb-1.5">
                 Password
@@ -133,7 +160,6 @@ export default function LoginPage() {
               <FieldError message={formik.touched.password && formik.errors.password} />
             </div>
 
-            {}
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <div
@@ -153,14 +179,12 @@ export default function LoginPage() {
               </label>
             </div>
 
-            {}
             {serverError && (
               <div className="bg-red-50 border border-red-300 text-red-600 text-sm rounded-lg px-4 py-3">
                 {serverError}
               </div>
             )}
 
-            {}
             <button
               type="submit"
               disabled={formik.isSubmitting}
