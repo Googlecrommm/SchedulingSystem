@@ -4,13 +4,12 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useNavigate } from "react-router-dom";
 import hospitalBg from "../../assets/hospital-bg.jpg";
-import axios from "axios";
+
 
 
 const loginSchema = Yup.object({
   username:   Yup.string().required("Username is required"),
   password:   Yup.string().required("Password is required"),
-  rememberMe: Yup.boolean(),
 });
 
 function FieldError({ message }) {
@@ -27,12 +26,14 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [serverError,  setServerError]  = useState(null);
   const navigate = useNavigate();
+  
+  
 
   const formik = useFormik({
     initialValues: {
       username:   "",
       password:   "",
-      rememberMe: false,
+
     },
     validationSchema: loginSchema,
     onSubmit: async (values, { setSubmitting }) => {
@@ -131,26 +132,6 @@ export default function LoginPage() {
                 </button>
               </div>
               <FieldError message={formik.touched.password && formik.errors.password} />
-            </div>
-
-            {}
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <div
-                  onClick={() => formik.setFieldValue("rememberMe", !formik.values.rememberMe)}
-                  className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all duration-200 cursor-pointer
-                    ${formik.values.rememberMe
-                      ? "bg-primary border-primary"
-                      : "bg-white border-gray-300 hover:border-primary"}`}
-                >
-                  {formik.values.rememberMe && (
-                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12">
-                      <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </div>
-                <span className="text-sm text-gray-500">Remember Me</span>
-              </label>
             </div>
 
             {}
