@@ -4,6 +4,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useNavigate } from "react-router-dom";
 import hospitalBg from "../../assets/hospital-bg.jpg";
+import axios from "axios"
 
 
 
@@ -161,29 +162,7 @@ export default function LoginPage() {
               <FieldError message={formik.touched.password && formik.errors.password} />
             </div>
 
-<<<<<<< HEAD
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <div
-                  onClick={() => formik.setFieldValue("rememberMe", !formik.values.rememberMe)}
-                  className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all duration-200 cursor-pointer
-                    ${formik.values.rememberMe
-                      ? "bg-primary border-primary"
-                      : "bg-white border-gray-300 hover:border-primary"}`}
-                >
-                  {formik.values.rememberMe && (
-                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12">
-                      <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </div>
-                <span className="text-sm text-gray-500">Remember Me</span>
-              </label>
-            </div>
-
-=======
             {}
->>>>>>> 636ab1446606b65efc1dfe66d51dea2f66d7989e
             {serverError && (
               <div className="bg-red-50 border border-red-300 text-red-600 text-sm rounded-lg px-4 py-3">
                 {serverError}

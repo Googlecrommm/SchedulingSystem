@@ -12,7 +12,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/admin/user-management" element={<Navigate to="/admin/user-management" replace />} />
+          <Route path="/" element={<Navigate to="/admin/user-management" replace />} />
         <Route path="/login" element={<Loginpage />} />
         <Route path="/admin/user-management" element={<UserManagement />} />
         <Route path="/frontdesk/schedules" element={<ScheduleManagement />} />
