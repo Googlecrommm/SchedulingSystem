@@ -3,17 +3,23 @@ import Loginpage from "./components/auth/Loginpage";
 import UserManagement from "./components/admin/UserManagement";
 import ScheduleManagement from "./components/frontdesk/ScheduleManagement";
 import RehabilitationDashboard from "./components/frontdesk/RehabDashboard";
+import DepartmentManagement from "./components/admin/DepartmentManagement";
+import RoleManagement from "./components/admin/RoleManagement";
+import MachineManagement from "./components/admin/MachineManagement";
 
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/frontdesk/rehab-dashboard" replace />} />
+        <Route path="/" element={<Navigate to="/admin/user-management" replace />} />
         <Route path="/login" element={<Loginpage />} />
         <Route path="/admin/user-management" element={<UserManagement />} />
         <Route path="/frontdesk/schedules" element={<ScheduleManagement />} />
         <Route path="/frontdesk/rehab-dashboard" element={<RehabilitationDashboard />} />
+        <Route path="/admin/department-management" element={<DepartmentManagement />} />
+        <Route path="/admin/role-management" element={<RoleManagement />} />
+         <Route path="/admin/machine-management" element={<MachineManagement />} />
    
       </Routes>
     </BrowserRouter>
