@@ -57,6 +57,7 @@ public class Users implements UserDetails {
         }
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.getRoleName().toUpperCase()));
     }
+
     @Override
     public String getPassword() {
         return password;

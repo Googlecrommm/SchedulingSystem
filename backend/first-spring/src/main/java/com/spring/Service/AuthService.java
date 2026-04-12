@@ -1,5 +1,7 @@
 package com.spring.Service;
 
+import com.spring.Exceptions.AlreadyExists;
+import com.spring.Exceptions.NotFound;
 import com.spring.Models.Users;
 import com.spring.Repositories.UsersRepository;
 import com.spring.Security.JwtService;
@@ -25,7 +27,10 @@ public class AuthService {
         this.authenticationManager = authenticationManager;
     }
 
-    public Users register(Users user){
+    public Users register(Users user) throws AlreadyExists {
+        if (usersRepository.existsByEmail(user.getEmail())){
+            throw new AlreadyExists("User already exists");
+        }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         return usersRepository.save(user);
     }

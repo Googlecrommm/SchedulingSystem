@@ -1,13 +1,31 @@
 ###
+GET http://localhost:8080/api/getById/2
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJlcm9udmlkYWwwN0BnbWFpbC5jb20iLCJyb2xlIjpbeyJhdXRob3JpdHkiOiJST0xFX0FETUlOIn1dLCJpYXQiOjE3NzU5ODg3MjEsImV4cCI6MTc3NjA3NTEyMX0.kZAl48Rd4oq-qA1Z7tI9m8RAWqVtxrdBqfWpE4kXxR0MAq3rRltiybbqPYiRSDLe
+
+
+###
+GET http://localhost:8080/api/getUsers
+
+###
+PUT http://localhost:8080/api/updateUser/2
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJsdWNpYW5vQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NTk4ODYyMSwiZXhwIjoxNzc2MDc1MDIxfQ._cz0vCtbET6Gtc8eFfNjSPwyYko9lctwIUARwFkk5xH74O1lFfM5gLoGC0CtwTv7
+
+{
+  "name": "Rhon-Eric C. Vidal"
+}
+
+
+###
 POST http://localhost:8080/auth/register
 Content-Type: application/json
 
 {
-  "email": "eronvidal07@gmail.com",
-  "name": "Rhon-Eric Vidal",
-  "password": "Frontdesk@123",
+  "email": "navalcromwell@gmail.com",
+  "name": "Luciano Naval",
+  "password": "Admin@123",
   "role": {
-    "roleId": 2
+    "roleId": 1
   }
 }
 
@@ -17,7 +35,7 @@ Content-Type: application/json
 
 {
   "email": "eronvidal07@gmail.com",
-  "password": "Frontdesk@123"
+  "password": "Eron@123"
 }
 
 ###

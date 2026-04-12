@@ -28,4 +28,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(404).body(error);
     }
 
+    //AlreadyExists Exception
+    @ExceptionHandler(AlreadyExists.class)
+    public ResponseEntity<ErrorResponse> handleAlreadyExists(AlreadyExists alreadyExists){
+        ErrorResponse error = new ErrorResponse(409, alreadyExists.getMessage());
+        return ResponseEntity.status(409).body(error);
+    }
+
 }
