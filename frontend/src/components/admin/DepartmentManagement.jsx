@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Building2, Archive, Pencil, RefreshCw } from "lucide-react";
+import axios from "../../config/axiosInstance";
 
 import {
   AdminLayout,
@@ -27,6 +28,11 @@ const deptSchema = Yup.object({
   name: Yup.string().required("Department name is required"),
 });
 
+function getAuthHeader() {
+  const token = localStorage.getItem("token");
+  return { Authorization: `Bearer ${token}` };
+}
+
 function DeptForm({ initialName = "", submitLabel = "Submit", onSubmit, onClose }) {
   const formik = useFormik({
     initialValues: { name: initialName },
@@ -44,7 +50,6 @@ function DeptForm({ initialName = "", submitLabel = "Submit", onSubmit, onClose 
       <FormField label="Department Name" error={formik.touched.name && formik.errors.name}>
         <input
           type="text"
-         
           className={ic("name")}
           {...formik.getFieldProps("name")}
         />
@@ -52,6 +57,15 @@ function DeptForm({ initialName = "", submitLabel = "Submit", onSubmit, onClose 
       <ModalFooter onClear={() => formik.resetForm()} submitLabel={submitLabel} submitting={formik.isSubmitting} />
     </form>
   );
+}
+
+
+function mapDept(d) {
+  return {
+    id:       d.departmentId,
+    name:     d.departmentName,
+    archived: d.departmentStatus === "Archived",
+  };
 }
 
 export default function DepartmentManagement() {
@@ -70,9 +84,18 @@ export default function DepartmentManagement() {
   async function fetchDepartments() {
     setLoading(true);
     try {
-      
+      const res = await axios.get("/api/getDepartments", {
+        headers: getAuthHeader(),
+      });
+      const data = Array.isArray(res.data) ? res.data : [];
+      setDepartments(data.map(mapDept));
     } catch (err) {
-      console.error("Failed to fetch departments:", err);
+      
+      if (err.response?.status === 200 || err.response?.data?.message) {
+        setDepartments([]);
+      } else {
+        console.error("Failed to fetch departments:", err);
+      }
     } finally {
       setLoading(false);
     }
@@ -91,7 +114,17 @@ export default function DepartmentManagement() {
   async function applyConfirm() {
     const { type, dept } = confirmAction;
     try {
+      const endpoint =
+        type === "archive"
+          ? `/api/archiveDepartment/${dept.id}`
+          : `/api/restoreDepartment/${dept.id}`;
+
       
+      await axios.put(endpoint, null, {
+        headers: { ...getAuthHeader(), "Content-Type": "application/json" },
+      });
+
+      await fetchDepartments();
     } catch (err) {
       console.error(`Failed to ${type} department:`, err);
     } finally {
@@ -133,34 +166,57 @@ export default function DepartmentManagement() {
         )}
       />
 
-      {}
+      
       {showCreate && (
         <Modal title="Add Department" onClose={() => setShowCreate(false)}>
           <DeptForm
             submitLabel="Submit"
             onSubmit={async (values) => {
-              
+              try {
+                await axios.post(
+                  "/api/createDepartment",
+                  { departmentName: values.name },
+                  { headers: getAuthHeader() }
+                );
+                await fetchDepartments();
+              } catch (err) {
+                console.error("Failed to create department:", err);
+              }
             }}
             onClose={() => setShowCreate(false)}
           />
         </Modal>
       )}
 
-      {}
+      
       {editDept && (
         <Modal title="Edit Department" onClose={() => setEditDept(null)}>
           <DeptForm
             initialName={editDept.name}
             submitLabel="Save Changes"
             onSubmit={async (values) => {
-              
+              try {
+                await axios.put(
+                  `/api/updateDepartment/${editDept.id}`,
+                  {
+                    departmentName:   values.name,
+                    departmentStatus: editDept.archived ? "Archived" : "Active",
+                  },
+                  { headers: getAuthHeader() }
+                );
+                await fetchDepartments();
+              } catch (err) {
+                console.error("Failed to update department:", err);
+              } finally {
+                setEditDept(null);
+              }
             }}
             onClose={() => setEditDept(null)}
           />
         </Modal>
       )}
 
-      {}
+   
       {confirmAction && (
         <ConfirmDialog
           title={confirmAction.type === "archive" ? "Archive Department?" : "Unarchive Department?"}
