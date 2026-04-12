@@ -42,4 +42,21 @@ public class UserController {
         return ResponseEntity.ok(new SuccessResponse(200, "Update Success"));
     }
 
+    //DISABLE USER
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("disableUser/{userId}")
+    public ResponseEntity<SuccessResponse> disableUser(@PathVariable int userId){
+        usersService.disableAccount(userId);
+        return ResponseEntity.ok(new SuccessResponse(200, "Account Disabled"));
+    }
+
+    //ACTIVATE USER
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("activateUser/{userId}")
+    public ResponseEntity<SuccessResponse> activateUser(@PathVariable int userId){
+        usersService.activateAccount(userId);
+        return ResponseEntity.ok(new SuccessResponse(200, "Account Activated"));
+    }
+
+
 }

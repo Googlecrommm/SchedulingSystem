@@ -15,6 +15,10 @@ Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJsdWNpYW5vQGdtYWlsLmNvbSIsI
   "name": "Rhon-Eric C. Vidal"
 }
 
+###
+PUT http://localhost:8080/api/activateUser/2
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NTk5MDE0MiwiZXhwIjoxNzc2MDc2NTQyfQ.3BX98aTeAK9Oh_vSYrFgIQBBSGpCjqIWbw1Ry_Uir8BIlqQl9dktsJo5Fjhm5Uku
+
 
 ###
 POST http://localhost:8080/auth/register
@@ -34,8 +38,8 @@ POST http://localhost:8080/auth/login
 Content-Type: application/json
 
 {
-  "email": "eronvidal07@gmail.com",
-  "password": "Eron@123"
+  "email": "navalcromwell@gmail.com",
+  "password": "Admin@123"
 }
 
 ###

@@ -76,5 +76,19 @@ public class UsersService {
         usersRepository.save(userToUpdate);
     }
 
+    //DISABLE ACCOUNT
+    public void disableAccount(int userId){
+        Users userToDisable = usersRepository.findById(userId).orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        userToDisable.setAccountStatus(AccountStatus.Disabled);
+        usersRepository.save(userToDisable);
+    }
+
+    //ACTIVE ACCOUNT
+    public void activateAccount(int userId){
+        Users userToActivate = usersRepository.findById(userId).orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        userToActivate.setAccountStatus(AccountStatus.Active);
+        usersRepository.save(userToActivate);
+    }
+
 
 }
