@@ -66,7 +66,7 @@ export default function LoginPage() {
         console.log("Login success:", response.data);
 
        
-        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("token", response.data);
 
       
         navigate("/admin/user-management");

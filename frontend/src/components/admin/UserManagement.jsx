@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { Users, MinusCircle, Archive, Eye, UserCog, RefreshCw, ChevronDown } from "lucide-react";
+import { Users, MinusCircle, Eye, UserCog, RefreshCw, ChevronDown } from "lucide-react";
 
 import {
   AdminLayout,
@@ -20,38 +20,35 @@ import {
 const TABS = [
   { label: "All",      icon: Users },
   { label: "Disabled", icon: MinusCircle },
-  { label: "Archive",  icon: Archive },
 ];
 
-const ALL_COLUMNS     = ["Full Name", "Department", "Role", "Status", "Action"];
-const ARCHIVE_COLUMNS = ["Full Name", "Department", "Role", "Action"];
+const COLUMNS = ["Name", "Department", "Role", "Status", "Action"];
 
 function getActions(activeTab, userStatus) {
-  if (activeTab === "Archive")  return [{ label: "View", icon: Eye }, { label: "Unarchive", icon: RefreshCw }];
-  if (activeTab === "Disabled") return [{ label: "View", icon: Eye }, { label: "Enable",    icon: RefreshCw }];
+  if (activeTab === "Disabled") return [{ label: "View", icon: Eye }, { label: "Enable", icon: RefreshCw }];
   if (userStatus === "Disabled") return [
     { label: "View",    icon: Eye },
     { label: "Edit",    icon: UserCog },
     { label: "Enable",  icon: RefreshCw },
-    { label: "Archive", icon: Archive, danger: true },
   ];
   return [
     { label: "View",    icon: Eye },
     { label: "Edit",    icon: UserCog },
     { label: "Disable", icon: MinusCircle, danger: true },
-    { label: "Archive", icon: Archive,     danger: true },
   ];
 }
 
 const createSchema = Yup.object({
-  fullName:   Yup.string().required("Full name is required"),
+  name:       Yup.string().required("Name is required"),
+  email:      Yup.string().email("Invalid email").required("Email is required"),
   password:   Yup.string().min(6, "At least 6 characters").required("Password is required"),
   department: Yup.string().required("Department is required"),
   role:       Yup.string().required("Role is required"),
 });
 
 const editSchema = Yup.object({
-  fullName:   Yup.string().required("Full name is required"),
+  name:       Yup.string().required("Name is required"),
+  email:      Yup.string().email("Invalid email").required("Email is required"),
   password:   Yup.string().min(6, "At least 6 characters"),
   department: Yup.string().required("Department is required"),
   role:       Yup.string().required("Role is required"),
@@ -71,8 +68,12 @@ function UserForm({ initialValues, validationSchema, submitLabel, onSubmit, onCl
 
   return (
     <form onSubmit={formik.handleSubmit} noValidate className="space-y-4">
-      <FormField label="Full Name" error={formik.touched.fullName && formik.errors.fullName}>
-        <input type="text" placeholder="Full Name" className={ic("fullName")} {...formik.getFieldProps("fullName")} />
+      <FormField label="Name" error={formik.touched.name && formik.errors.name}>
+        <input type="text" placeholder="Name" className={ic("name")} {...formik.getFieldProps("name")} />
+      </FormField>
+
+      <FormField label="Email" error={formik.touched.email && formik.errors.email}>
+        <input type="email" placeholder="Email" className={ic("email")} {...formik.getFieldProps("email")} />
       </FormField>
 
       <FormField label="Password" error={formik.touched.password && formik.errors.password}>
@@ -83,7 +84,6 @@ function UserForm({ initialValues, validationSchema, submitLabel, onSubmit, onCl
         <div className="relative">
           <select className={`${ic("department")} appearance-none cursor-pointer`} {...formik.getFieldProps("department")}>
             <option value="" disabled>Select department</option>
-            {}
             {departments.map((d) => (
               <option key={d.id} value={d.id}>{d.name}</option>
             ))}
@@ -96,7 +96,6 @@ function UserForm({ initialValues, validationSchema, submitLabel, onSubmit, onCl
         <div className="relative">
           <select className={`${ic("role")} appearance-none cursor-pointer`} {...formik.getFieldProps("role")}>
             <option value="" disabled>Select role</option>
-            {}
             {roles.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
@@ -119,7 +118,8 @@ function ViewUserModal({ user, onClose }) {
     <Modal title="View User" onClose={onClose}>
       <div className="space-y-4">
         {[
-          { label: "Full Name",  value: user.fullName   },
+          { label: "Name",       value: user.name       },
+          { label: "Email",      value: user.email      },
           { label: "Department", value: user.department },
           { label: "Role",       value: user.role       },
         ].map(({ label, value }) => (
@@ -178,26 +178,22 @@ export default function UserManagement() {
 
   const filtered = users
     .filter((u) => {
-      if (activeTab === "Archive")  return u.status === "Archived";
       if (activeTab === "Disabled") return u.status === "Disabled";
-      return u.status !== "Archived";
+      return true;
     })
     .filter((u) =>
-      u.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.role.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-  const columns = activeTab === "Archive" ? ARCHIVE_COLUMNS : ALL_COLUMNS;
-
   function handleAction(action, user) {
     switch (action) {
-      case "View":      return setViewUser(user);
-      case "Edit":      return setEditUser(user);
-      case "Disable":   return setConfirmAction({ type: "disable",   user });
-      case "Enable":    return setConfirmAction({ type: "enable",    user });
-      case "Archive":   return setConfirmAction({ type: "archive",   user });
-      case "Unarchive": return setConfirmAction({ type: "unarchive", user });
+      case "View":    return setViewUser(user);
+      case "Edit":    return setEditUser(user);
+      case "Disable": return setConfirmAction({ type: "disable", user });
+      case "Enable":  return setConfirmAction({ type: "enable",  user });
     }
   }
 
@@ -213,10 +209,8 @@ export default function UserManagement() {
   }
 
   const confirmMeta = confirmAction && {
-    disable:   { title: "Disable User?",   msg: `"${confirmAction.user.fullName}" will be disabled.`,           label: "Disable",   danger: true  },
-    enable:    { title: "Enable User?",    msg: `"${confirmAction.user.fullName}" will be re-enabled.`,         label: "Enable",    danger: false },
-    archive:   { title: "Archive User?",   msg: `"${confirmAction.user.fullName}" will be moved to archive.`,   label: "Archive",   danger: true  },
-    unarchive: { title: "Unarchive User?", msg: `"${confirmAction.user.fullName}" will be restored to active.`, label: "Unarchive", danger: false },
+    disable: { title: "Disable User?", msg: `"${confirmAction.user.name}" will be disabled.`,   label: "Disable", danger: true  },
+    enable:  { title: "Enable User?",  msg: `"${confirmAction.user.name}" will be re-enabled.`, label: "Enable",  danger: false },
   }[confirmAction.type];
 
   return (
@@ -235,24 +229,19 @@ export default function UserManagement() {
       />
 
       <DataTable
-        columns={columns}
+        columns={COLUMNS}
         rows={filtered}
         loading={loading}
         emptyIcon={Users}
-        emptyText={
-          activeTab === "Archive"  ? "No archived users"  :
-          activeTab === "Disabled" ? "No disabled users"  : "No users found"
-        }
+        emptyText={activeTab === "Disabled" ? "No disabled users" : "No users found"}
         renderRow={(user) => (
           <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-            <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">{user.fullName}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">{user.name}</td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">{user.department}</td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">{user.role}</td>
-            {activeTab !== "Archive" && (
-              <td className="px-6 py-4 text-center">
-                <StatusBadge status={user.status} />
-              </td>
-            )}
+            <td className="px-6 py-4 text-center">
+              <StatusBadge status={user.status} />
+            </td>
             <td className="px-6 py-4 text-center">
               <ActionDropdown
                 items={getActions(activeTab, user.status)}
@@ -263,11 +252,11 @@ export default function UserManagement() {
         )}
       />
 
-      {}
+      {/* Create Modal */}
       {showCreate && (
         <Modal title="Create User" onClose={() => setShowCreate(false)} scrollable>
           <UserForm
-            initialValues={{ fullName: "", password: "", department: "", role: "" }}
+            initialValues={{ name: "", email: "", password: "", department: "", role: "" }}
             validationSchema={createSchema}
             submitLabel="Submit"
             departments={departments}
@@ -280,14 +269,14 @@ export default function UserManagement() {
         </Modal>
       )}
 
-      {}
+      {/* View Modal */}
       {viewUser && <ViewUserModal user={viewUser} onClose={() => setViewUser(null)} />}
 
-      {}
+      {/* Edit Modal */}
       {editUser && (
         <Modal title="Edit User" onClose={() => setEditUser(null)} scrollable>
           <UserForm
-            initialValues={{ fullName: editUser.fullName, password: "", department: editUser.department, role: editUser.role }}
+            initialValues={{ name: editUser.name, email: editUser.email, password: "", department: editUser.department, role: editUser.role }}
             validationSchema={editSchema}
             submitLabel="Save"
             departments={departments}
@@ -300,7 +289,7 @@ export default function UserManagement() {
         </Modal>
       )}
 
-      {}
+      {/* Confirm Dialog */}
       {confirmAction && (
         <ConfirmDialog
           title={confirmMeta.title}
