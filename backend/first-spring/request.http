@@ -26,7 +26,7 @@ Content-Type: application/json
 
 {
   "email": "navalcromwell@gmail.com",
-  "name": "Luciano Naval",
+  "name": "Cromwell Naval",
   "password": "Admin@123",
   "role": {
     "roleId": 1
@@ -47,6 +47,10 @@ GET http://localhost:8080/api/getUsers
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJlcm9udmlkYWwwN0BnbWFpbC5jb20iLCJyb2xlIjpbeyJhdXRob3JpdHkiOiJST0xFX0ZST05UREVTSyJ9XSwiaWF0IjoxNzc1ODk3MDU5LCJleHAiOjE3NzU5ODM0NTl9.qaUDezbgcU_FyZH3S2Zui3w0h6gB53pa-nIu0C36FVvpyyL_uSVvoYIcf5IyMw_L
 
 ###
+GET http://localhost:8080/api/getRoles
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjEyNzQxNywiZXhwIjoxNzc2MjEzODE3fQ.2ZHLf3qZy8IVQOFu41fqYgeOMeu4wgj_fcaUy7BOyuCKM2_Hedv49kcKiZaXvllx
+
+###
 POST http://localhost:8080/api/createRole
 Content-Type: application/json
 
@@ -58,12 +62,26 @@ Content-Type: application/json
 }
 
 ###
-POST localhost:8080/api/createDepartment
+PUT http://localhost:8080/api/restoreRole/2
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjEyNzQxNywiZXhwIjoxNzc2MjEzODE3fQ.2ZHLf3qZy8IVQOFu41fqYgeOMeu4wgj_fcaUy7BOyuCKM2_Hedv49kcKiZaXvllx
+
+###
+PUT http://localhost:8080/api/updateRole/2
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NTg5NjQ2OCwiZXhwIjoxNzc1OTgyODY4fQ.ipuu3M_UkloCxHHqECcZzZMXZ2GvmnR6fWKZB0CVNOSQW0y3gn4zMNzXx1QgGT7C
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjEyOTUzNSwiZXhwIjoxNzc2MjE1OTM1fQ.e2hUeB6nZUP2JDZYtxjGvStV6dk3_m8e9pTo8AXRjnR0rmxdkUiKTJvGLdrVvEwX
 
 {
-  "departmentName": "Radiology"
+  "department": {
+    "departmentId": 2
+  }
+}
+
+###
+POST localhost:8080/api/createDepartment
+Content-Type: application/json
+
+{
+  "departmentName": "Rehab"
 }
 
 ###
@@ -72,6 +90,7 @@ GET http://localhost:8080/Departments/getDepartments
 ###
 PUT http://localhost:8080/Departments/updateDepartment/1
 Content-Type: application/json
+Authorization: eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjEyOTUzNSwiZXhwIjoxNzc2MjE1OTM1fQ.e2hUeB6nZUP2JDZYtxjGvStV6dk3_m8e9pTo8AXRjnR0rmxdkUiKTJvGLdrVvEwX
 
 {
   "departmentName": "ICT"

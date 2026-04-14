@@ -35,4 +35,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(409).body(error);
     }
 
+    //RoleNotFound Exception
+    @ExceptionHandler(RoleNotFound.class)
+    public ResponseEntity<ErrorResponse> handleRoleNotFound(RoleNotFound roleNotFound){
+        ErrorResponse error = new ErrorResponse(404, roleNotFound.getMessage());
+        return ResponseEntity.status(404).body(error);
+    }
+
 }
