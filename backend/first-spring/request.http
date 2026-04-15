@@ -66,14 +66,12 @@ PUT http://localhost:8080/api/restoreRole/2
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjEyNzQxNywiZXhwIjoxNzc2MjEzODE3fQ.2ZHLf3qZy8IVQOFu41fqYgeOMeu4wgj_fcaUy7BOyuCKM2_Hedv49kcKiZaXvllx
 
 ###
-PUT http://localhost:8080/api/updateRole/2
+PUT http://localhost:8080/api/updateRole/1
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjEyOTUzNSwiZXhwIjoxNzc2MjE1OTM1fQ.e2hUeB6nZUP2JDZYtxjGvStV6dk3_m8e9pTo8AXRjnR0rmxdkUiKTJvGLdrVvEwX
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjI1NDQxOCwiZXhwIjoxNzc2MzQwODE4fQ.mI83_nAkTcK3ApWxDqPNR0uGpn8o79RoAQhG1CxG3P0eTJMYWkn76OPeaAGxPSR1
 
 {
-  "department": {
-    "departmentId": 2
-  }
+  "roleName": "Administrator"
 }
 
 ###

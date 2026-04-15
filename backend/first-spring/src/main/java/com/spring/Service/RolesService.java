@@ -50,7 +50,7 @@ public class RolesService {
     public void updateRole(int roleId, Roles role){
         Roles roleToUpdate = rolesRepository.findById(roleId).orElseThrow(() -> new RoleNotFound("Role doesn't exists"));
 
-        if (role.getRoleName() != null && !role.getRoleName().isEmpty()){
+        if (role.getRoleName() != null && !role.getRoleName().isEmpty() && !roleToUpdate.getRoleName().equalsIgnoreCase("Admin")){
             roleToUpdate.setRoleName(role.getRoleName());
         }
 
