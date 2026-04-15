@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { UserCog, Archive, Pencil, RefreshCw } from "lucide-react";
+import axios from "../../config/axiosInstance";
 
 import {
   AdminLayout,
@@ -27,6 +28,19 @@ const roleSchema = Yup.object({
   name: Yup.string().required("Role name is required"),
 });
 
+function getAuthHeader() {
+  const token = localStorage.getItem("token");
+  return { Authorization: `Bearer ${token}` };
+}
+
+function mapRole(r) {
+  return {
+    id:       r.roleId,
+    name:     r.roleName,
+    archived: r.roleStatus === "Archived",
+  };
+}
+
 function RoleForm({ initialName = "", submitLabel = "Submit", onSubmit, onClose }) {
   const formik = useFormik({
     initialValues: { name: initialName },
@@ -44,7 +58,6 @@ function RoleForm({ initialName = "", submitLabel = "Submit", onSubmit, onClose 
       <FormField label="Role Name" error={formik.touched.name && formik.errors.name}>
         <input
           type="text"
-    
           className={ic("name")}
           {...formik.getFieldProps("name")}
         />
@@ -70,7 +83,11 @@ export default function RoleManagement() {
   async function fetchRoles() {
     setLoading(true);
     try {
-      
+      const res = await axios.get("/api/getRoles", {
+        headers: getAuthHeader(),
+      });
+      const data = Array.isArray(res.data) ? res.data : [];
+      setRoles(data.map(mapRole));
     } catch (err) {
       console.error("Failed to fetch roles:", err);
     } finally {
@@ -91,7 +108,16 @@ export default function RoleManagement() {
   async function applyConfirm() {
     const { type, role } = confirmAction;
     try {
-      
+      const endpoint =
+        type === "archive"
+          ? `/api/archiveRole/${role.id}`
+          : `/api/restoreRole/${role.id}`;
+
+      await axios.put(endpoint, null, {
+        headers: getAuthHeader(),
+      });
+
+      await fetchRoles();
     } catch (err) {
       console.error(`Failed to ${type} role:`, err);
     } finally {
@@ -133,34 +159,54 @@ export default function RoleManagement() {
         )}
       />
 
-      {}
+    
       {showCreate && (
         <Modal title="Add Role" onClose={() => setShowCreate(false)}>
           <RoleForm
             submitLabel="Submit"
             onSubmit={async (values) => {
-              
+              try {
+                await axios.post(
+                  "/api/createRole",
+                  { roleName: values.name },
+                  { headers: getAuthHeader() }
+                );
+                await fetchRoles();
+              } catch (err) {
+                console.error("Failed to create role:", err);
+              }
             }}
             onClose={() => setShowCreate(false)}
           />
         </Modal>
       )}
 
-      {}
+      
       {editRole && (
         <Modal title="Edit Role" onClose={() => setEditRole(null)}>
           <RoleForm
             initialName={editRole.name}
             submitLabel="Save Changes"
             onSubmit={async (values) => {
-              
+              try {
+                await axios.put(
+                  `/api/updateRole/${editRole.id}`,
+                  { roleName: values.name },
+                  { headers: getAuthHeader() }
+                );
+                await fetchRoles();
+              } catch (err) {
+                console.error("Failed to update role:", err);
+              } finally {
+                setEditRole(null);
+              }
             }}
             onClose={() => setEditRole(null)}
           />
         </Modal>
       )}
 
-      {}
+     
       {confirmAction && (
         <ConfirmDialog
           title={confirmAction.type === "archive" ? "Archive Role?" : "Unarchive Role?"}
