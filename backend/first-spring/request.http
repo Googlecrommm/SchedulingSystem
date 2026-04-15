@@ -71,8 +71,18 @@ Content-Type: application/json
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjI1NDQxOCwiZXhwIjoxNzc2MzQwODE4fQ.mI83_nAkTcK3ApWxDqPNR0uGpn8o79RoAQhG1CxG3P0eTJMYWkn76OPeaAGxPSR1
 
 {
-  "roleName": "Administrator"
+  "roleName": "Administrator",
+  "roleStatus": "Archived"
 }
+
+###
+PUT http://localhost:8080/api/archiveRole/1
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjI1NTc5MywiZXhwIjoxNzc2MzQyMTkzfQ.yoWPNTetvHH5zm60VuL6uqpnhWS8HL334WE2JnNzS2F7z0LCATKwrJWxNeoURhUQ
+
+###
+PUT http://localhost:8080/api/restoreRole/1
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjI1NTc5MywiZXhwIjoxNzc2MzQyMTkzfQ.yoWPNTetvHH5zm60VuL6uqpnhWS8HL334WE2JnNzS2F7z0LCATKwrJWxNeoURhUQ
+
 
 ###
 POST localhost:8080/api/createDepartment
@@ -100,21 +110,5 @@ PUT localhost:8080/Departments/archiveDepartment/1
 ###
 PUT localhost:8080/Departments/restoreDepartment/1
 
-###
-POST http://localhost:8080/Users/createUser
-Content-Type: application/json
-
-{
-  "role": {
-    "roleId": 6
-  },
-  "accountStatus": "Active",
-  "name": "Cromwell Naval",
-  "email": "navalcromwell@gmail.com",
-  "password": "ICTD@123"
-}
-
-###
-GET localhost:8080/Users/getUsers
 
 

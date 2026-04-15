@@ -20,7 +20,7 @@ public class Roles {
     private int roleId;
 
     @ManyToOne
-    @JoinColumn(name = "departmentId")
+    @JoinColumn(name = "departmentId", nullable = false)
     private Departments department;
 
     @NotBlank

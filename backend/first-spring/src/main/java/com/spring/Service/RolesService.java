@@ -7,6 +7,7 @@ import com.spring.Exceptions.RoleNotFound;
 import com.spring.Models.Roles;
 import com.spring.Repositories.RolesRepository;
 import com.spring.dto.RoleResponseDTO;
+import com.spring.dto.SuccessResponse;
 import org.modelmapper.ModelMapper;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
@@ -54,13 +55,11 @@ public class RolesService {
             roleToUpdate.setRoleName(role.getRoleName());
         }
 
-        if (role.getRoleStatus() != null){
-            roleToUpdate.setRoleStatus(role.getRoleStatus());
-        }
-
         if (role.getDepartment() != null){
             roleToUpdate.setDepartment(role.getDepartment());
         }
+
+        roleToUpdate.setRoleStatus(roleToUpdate.getRoleStatus());
 
         rolesRepository.save(roleToUpdate);
     }
@@ -68,8 +67,11 @@ public class RolesService {
     //ARCHIVE
     public void archiveRole(int roleId){
         Roles roleToArchive = rolesRepository.findById(roleId).orElseThrow(() -> new RoleNotFound("Role doesn't exist"));
-        roleToArchive.setRoleStatus(SoftDelete.Archived);
-        rolesRepository.save(roleToArchive);
+        if (roleToArchive.getRoleId() != 1 && !roleToArchive.getRoleName().equalsIgnoreCase("Admin")){
+            roleToArchive.setRoleStatus(SoftDelete.Archived);
+            rolesRepository.save(roleToArchive);
+        }
+        new SuccessResponse(400, "Admin can't be archived");
     }
 
     //RESTORE
