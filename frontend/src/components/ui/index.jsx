@@ -6,7 +6,10 @@ import {
   Bell, ChevronDown, ChevronLeft, ChevronRight,
   Menu, X, Search, Plus, MoreHorizontal,
 } from "lucide-react";
-import DGMCIcon from "../../assets/DGMC-icon.svg";
+import DGMCLogo    from "../../assets/dgmc-logo.png";
+import DGMCIcon    from "../../assets/DGMC-icon.svg";
+import TUVLogo     from "../../assets/tuv-logo.svg";
+import TUVSmall    from "../../assets/tuvsmall-logo.svg";
 
 // Nav Configs
 export const adminNavItems = [
@@ -36,6 +39,7 @@ export function AdminLayout({
   userRole = "Admin",
 }) {
   const [sidebarOpen,       setSidebarOpen]       = useState(false);
+  const [collapsed,         setCollapsed]         = useState(() => localStorage.getItem("sidebarCollapsed") === "true");
   const [showUserDropdown,  setShowUserDropdown]  = useState(false);
   const userDropdownRef                            = useRef(null);
   const location                                   = useLocation();
@@ -62,35 +66,52 @@ export function AdminLayout({
 
       
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-bading shadow-card flex flex-col
-        transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-50 bg-bading shadow-card flex flex-col
+        transition-all duration-300 ease-in-out
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-        lg:relative lg:translate-x-0 lg:flex lg:z-auto lg:w-72 lg:shrink-0
+        lg:relative lg:translate-x-0 lg:flex lg:z-auto lg:shrink-0
+        ${collapsed ? "lg:w-[72px]" : "lg:w-72"}
+        w-64
       `}>
         {/* Logo */}
-        <div className="px-5 h-[73px] flex items-center justify-between ">
-          <div className="flex items-center gap-3 min-w-0">
-            <img src={DGMCIcon} alt="DGMC Logo" className="w-9 h-9 shrink-0 object-contain" />
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-primary font-montserrat leading-tight truncate">
-                Divine Grace Medical Center
-              </p>
-              <p className="text-xs font-semibold text-accent font-montserrat leading-tight">
-                Scheduling System
-              </p>
-            </div>
-          </div>
+        <div className={`relative flex flex-col items-center justify-center px-4 py-5 overflow-hidden transition-all duration-300 ${collapsed ? "px-2" : "px-6"}`}>
+          <img
+            src={collapsed ? DGMCIcon : DGMCLogo}
+            alt="DGMC Logo"
+            className={`object-contain drop-shadow-sm transition-all duration-300 ${collapsed ? "w-10 h-10" : "w-[160px]"}`}
+          />
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-1 rounded-lg text-gray-400 hover:text-primary"
+            className="lg:hidden absolute right-3 top-3 p-1 rounded-lg text-gray-400 hover:text-primary"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-4 py-6 overflow-y-auto">
-          <p className="text-xs font-bold text-primary uppercase tracking-widest mb-3 px-2">General</p>
+        <nav className="flex-1 px-2 py-3 overflow-y-auto overflow-x-hidden">
+          {/* GENERAL label + collapse button */}
+          <div className={`flex items-center mb-3 px-1 ${collapsed ? "justify-center" : "justify-between"}`}>
+            {!collapsed && (
+              <p className="text-xs font-bold text-primary uppercase tracking-widest px-1">General</p>
+            )}
+            <button
+              onClick={() => setCollapsed((v) => {
+                localStorage.setItem("sidebarCollapsed", String(!v));
+                return !v;
+              })}
+              className="hidden lg:flex items-center justify-center w-8 h-8 rounded-xl
+                         text-gray-500 hover:bg-gray-100 hover:text-primary
+                         transition-all duration-200 cursor-pointer shrink-0"
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {collapsed
+                ? <ChevronRight size={18} />
+                : <ChevronLeft  size={18} />
+              }
+            </button>
+          </div>
+
           <ul className="space-y-1">
             {navItems.map(({ label, icon: Icon, path, badge }) => {
               const isActive = location.pathname === path;
@@ -99,17 +120,23 @@ export function AdminLayout({
                   <Link
                     to={path}
                     onClick={() => setSidebarOpen(false)}
+                    title={collapsed ? label : undefined}
                     className={`
                       flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
                       transition-all duration-200
+                      ${collapsed ? "justify-center px-2" : ""}
                       ${isActive
                         ? "bg-primary/10 text-primary font-semibold"
                         : "text-gray-500 hover:bg-gray-100 hover:text-primary"}
                     `}
                   >
-                    <Icon size={18} />
-                    <span className="flex-1">{label}</span>
-                    {badge && (
+                    <Icon size={18} className="shrink-0" />
+                    {!collapsed && (
+                      <span className="flex-1 whitespace-nowrap overflow-hidden transition-all duration-200">
+                        {label}
+                      </span>
+                    )}
+                    {!collapsed && badge && (
                       <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-600 text-[10px] font-bold leading-none">
                         <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
                         {badge}
@@ -121,6 +148,15 @@ export function AdminLayout({
             })}
           </ul>
         </nav>
+
+        {/* TÜV Logo */}
+        <div className={`py-4 bg-bading flex items-center justify-center transition-all duration-300 ${collapsed ? "px-2" : "px-5"}`}>
+          <img
+            src={collapsed ? TUVSmall : TUVLogo}
+            alt="TÜV Rheinland Certified ISO 9001:2015"
+            className={`object-contain rounded-lg opacity-90 transition-all duration-300 ${collapsed ? "w-10 h-10" : "w-[160px]"}`}
+          />
+        </div>
       </aside>
 
       
