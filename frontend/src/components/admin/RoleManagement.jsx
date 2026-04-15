@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { UserCog, Archive, Pencil, RefreshCw } from "lucide-react";
+import { UserCog, Archive, Pencil, RefreshCw, ChevronDown } from "lucide-react";
 import axios from "../../config/axiosInstance";
 
 import {
@@ -25,7 +25,8 @@ const activeActions  = [{ label: "Edit", icon: Pencil }, { label: "Archive", ico
 const archiveActions = [{ label: "Unarchive", icon: RefreshCw }];
 
 const roleSchema = Yup.object({
-  name: Yup.string().required("Role name is required"),
+  name:         Yup.string().required("Role name is required"),
+  departmentId: Yup.string().required("Department is required"),
 });
 
 function getAuthHeader() {
@@ -35,15 +36,17 @@ function getAuthHeader() {
 
 function mapRole(r) {
   return {
-    id:       r.roleId,
-    name:     r.roleName,
-    archived: r.roleStatus === "Archived",
+    id:             r.roleId,
+    name:           r.roleName,
+    departmentName: r.departmentName,
+    archived:       r.roleStatus === "Archived",
+    isAdmin:        r.roleName?.toLowerCase() === "admin",
   };
 }
 
-function RoleForm({ initialName = "", submitLabel = "Submit", onSubmit, onClose }) {
+function RoleForm({ initialName = "", initialDepartmentId = "", submitLabel = "Submit", onSubmit, onClose, departments }) {
   const formik = useFormik({
-    initialValues: { name: initialName },
+    initialValues: { name: initialName, departmentId: initialDepartmentId },
     validationSchema: roleSchema,
     onSubmit: (values, { setSubmitting }) => {
       onSubmit(values);
@@ -62,6 +65,24 @@ function RoleForm({ initialName = "", submitLabel = "Submit", onSubmit, onClose 
           {...formik.getFieldProps("name")}
         />
       </FormField>
+
+      <FormField label="Department" error={formik.touched.departmentId && formik.errors.departmentId}>
+        <div className="relative">
+          <select
+            className={`${ic("departmentId")} appearance-none cursor-pointer`}
+            {...formik.getFieldProps("departmentId")}
+          >
+            <option value="" disabled>Select department</option>
+            {departments.map((d) => (
+              <option key={d.departmentId} value={d.departmentId}>
+                {d.departmentName}
+              </option>
+            ))}
+          </select>
+          <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        </div>
+      </FormField>
+
       <ModalFooter onClear={() => formik.resetForm()} submitLabel={submitLabel} submitting={formik.isSubmitting} />
     </form>
   );
@@ -74,10 +95,12 @@ export default function RoleManagement() {
   const [editRole,      setEditRole]      = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
   const [roles,         setRoles]         = useState([]);
+  const [departments,   setDepartments]   = useState([]);
   const [loading,       setLoading]       = useState(false);
 
   useEffect(() => {
     fetchRoles();
+    fetchDepartments();
   }, []);
 
   async function fetchRoles() {
@@ -95,6 +118,19 @@ export default function RoleManagement() {
     }
   }
 
+  async function fetchDepartments() {
+    try {
+      const res = await axios.get("/api/getDepartments", {
+        headers: getAuthHeader(),
+      });
+      const data = Array.isArray(res.data) ? res.data : [];
+      
+      setDepartments(data.filter((d) => d.departmentStatus === "Active"));
+    } catch (err) {
+      console.error("Failed to fetch departments:", err);
+    }
+  }
+
   const filtered = roles
     .filter((r) => (activeTab === "Archive" ? r.archived : !r.archived))
     .filter((r) => r.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -103,6 +139,13 @@ export default function RoleManagement() {
     if (action === "Edit")      return setEditRole(role);
     if (action === "Archive")   return setConfirmAction({ type: "archive",   role });
     if (action === "Unarchive") return setConfirmAction({ type: "unarchive", role });
+  }
+
+ 
+  function getRowActions(role) {
+    if (activeTab === "Archive") return archiveActions;
+    if (role.isAdmin) return [{ label: "Edit", icon: Pencil }];
+    return activeActions;
   }
 
   async function applyConfirm() {
@@ -141,7 +184,7 @@ export default function RoleManagement() {
       />
 
       <DataTable
-        columns={["Role Name", "Action"]}
+        columns={["Role Name", "Department", "Action"]}
         rows={filtered}
         loading={loading}
         emptyIcon={UserCog}
@@ -149,9 +192,10 @@ export default function RoleManagement() {
         renderRow={(role) => (
           <tr key={role.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
             <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">{role.name}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">{role.departmentName ?? "—"}</td>
             <td className="px-6 py-4 text-center">
               <ActionDropdown
-                items={activeTab === "Archive" ? archiveActions : activeActions}
+                items={getRowActions(role)}
                 onAction={(action) => handleAction(action, role)}
               />
             </td>
@@ -164,11 +208,15 @@ export default function RoleManagement() {
         <Modal title="Add Role" onClose={() => setShowCreate(false)}>
           <RoleForm
             submitLabel="Submit"
+            departments={departments}
             onSubmit={async (values) => {
               try {
                 await axios.post(
                   "/api/createRole",
-                  { roleName: values.name },
+                  {
+                    roleName:   values.name,
+                    department: { departmentId: parseInt(values.departmentId) },
+                  },
                   { headers: getAuthHeader() }
                 );
                 await fetchRoles();
@@ -181,17 +229,24 @@ export default function RoleManagement() {
         </Modal>
       )}
 
-      
+    
       {editRole && (
         <Modal title="Edit Role" onClose={() => setEditRole(null)}>
           <RoleForm
             initialName={editRole.name}
+            initialDepartmentId={
+              departments.find((d) => d.departmentName === editRole.departmentName)?.departmentId?.toString() ?? ""
+            }
             submitLabel="Save Changes"
+            departments={departments}
             onSubmit={async (values) => {
               try {
                 await axios.put(
                   `/api/updateRole/${editRole.id}`,
-                  { roleName: values.name },
+                  {
+                    roleName:   values.name,
+                    department: { departmentId: parseInt(values.departmentId) },
+                  },
                   { headers: getAuthHeader() }
                 );
                 await fetchRoles();
@@ -206,7 +261,7 @@ export default function RoleManagement() {
         </Modal>
       )}
 
-     
+      
       {confirmAction && (
         <ConfirmDialog
           title={confirmAction.type === "archive" ? "Archive Role?" : "Unarchive Role?"}
