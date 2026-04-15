@@ -39,6 +39,22 @@ public class RolesController {
                 .ok(rolesService.getRoles());
     }
 
+    // SEARCH BY ROLE NAME
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/searchRole/{searchName}")
+    public ResponseEntity<List<RoleResponseDTO>> searchRole(@PathVariable String searchName){
+        return ResponseEntity
+                .ok(rolesService.searchRole(searchName));
+    }
+
+    //COUNT ALL
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/countRoles")
+    public ResponseEntity<Long> countRoles(){
+        return ResponseEntity
+                .ok(rolesService.countRoles());
+    }
+
     //UPDATE
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/updateRole/{roleId}")

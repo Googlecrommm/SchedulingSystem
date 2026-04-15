@@ -76,6 +76,11 @@ Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsL
 }
 
 ###
+GET http://localhost:8080/api/searchRole/Admin
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjI1NTc5MywiZXhwIjoxNzc2MzQyMTkzfQ.yoWPNTetvHH5zm60VuL6uqpnhWS8HL334WE2JnNzS2F7z0LCATKwrJWxNeoURhUQ
+
+
+###
 PUT http://localhost:8080/api/archiveRole/1
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjI1NTc5MywiZXhwIjoxNzc2MzQyMTkzfQ.yoWPNTetvHH5zm60VuL6uqpnhWS8HL334WE2JnNzS2F7z0LCATKwrJWxNeoURhUQ
 

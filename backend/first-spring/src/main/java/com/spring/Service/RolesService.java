@@ -9,6 +9,7 @@ import com.spring.Repositories.RolesRepository;
 import com.spring.dto.RoleResponseDTO;
 import com.spring.dto.SuccessResponse;
 import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
@@ -45,6 +46,24 @@ public class RolesService {
         }
 
         return allRolesDTO;
+    }
+
+    //SEARCH ROLE BY NAME
+    public List<RoleResponseDTO> searchRole(String searchName){
+        return rolesRepository
+                .searchRoleByName(searchName)
+                .stream()
+                .map(roles -> {
+                    RoleResponseDTO roleDto = modelMapper.map(roles, RoleResponseDTO.class);
+                    roleDto.setDepartmentName(roles.getDepartment().getDepartmentName());
+                    return roleDto;
+                })
+                .toList();
+    }
+
+    //COUNT ROLES
+    public long countRoles(){
+        return rolesRepository.count();
     }
 
     //UPDATE
