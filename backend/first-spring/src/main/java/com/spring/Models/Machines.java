@@ -29,7 +29,7 @@ public class Machines {
 
     @Column(name = "machineStatus")
     @Enumerated(EnumType.STRING)
-    private MachineStatus machineStatus;
+    private MachineStatus machineStatus = MachineStatus.Available;
 
     public Machines(){}
 

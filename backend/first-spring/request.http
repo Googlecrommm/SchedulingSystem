@@ -72,6 +72,5 @@ Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsL
 Content-Type: application/json
 
 {
-  "machineName": "MRI",
-  "machineStatus": "Available"
+  "machineName": "Ultrasound"
 }
