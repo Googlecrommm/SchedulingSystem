@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import {
-  Calendar, Eye, UserCheck, UserX, UserCog, Trash2, RefreshCw, ChevronDown,
+  Calendar, CalendarCheck, CalendarX, Clock, Archive, CheckCircle,
+  Eye, UserCheck, UserX, Pencil, Trash2, RefreshCw, ChevronDown,
 } from "lucide-react";
 
 import {
@@ -17,15 +18,16 @@ import {
   readonlyInputClass,
   scheduleStatusColor,
   frontdeskNavItems,
+  ConfirmDialog,
 } from "../ui";
 
 const TABS = [
-  { label: "All",       icon: Calendar },
-  { label: "Confirmed", icon: Calendar },
-  { label: "Canceled",  icon: Calendar },
-  { label: "Pending",   icon: Calendar },
-  { label: "Archived",  icon: Calendar },
-  { label: "Done",      icon: Calendar },
+  { label: "All",       icon: Calendar      },
+  { label: "Confirmed", icon: CalendarCheck },
+  { label: "Cancelled",  icon: CalendarX     },
+  { label: "Pending",   icon: Clock         },
+  { label: "Archived",  icon: Archive       },
+  { label: "Done",      icon: CheckCircle   },
 ];
 
 const COLUMNS = ["Name", "Date", "Time", "Therapist", "Status", "Action"];
@@ -39,17 +41,20 @@ for (let h = 0; h <= 23; h++) {
   });
 }
 
+// TODO: replace with API data
+const THERAPIST_OPTIONS = [];
+
 function getActions(status) {
   switch (status?.toLowerCase()) {
     case "confirmed": return [{ label: "View", icon: Eye }, { label: "Done", icon: UserCheck }];
-    case "canceled":  return [{ label: "View", icon: Eye }];
+    case "cancelled":  return [{ label: "View", icon: Eye }];
     case "archived":  return [{ label: "View", icon: Eye }, { label: "Unarchive", icon: RefreshCw }];
     case "done":      return [{ label: "View", icon: Eye }];
     default:          return [
       { label: "View",    icon: Eye       },
-      { label: "Accept",  icon: UserCheck },
-      { label: "Reject",  icon: UserX,    danger: true },
-      { label: "Edit",    icon: UserCog   },
+      { label: "Confirm",  icon: UserCheck },
+      { label: "Reject",  icon: UserX     },
+      { label: "Edit",    icon: Pencil    },
       { label: "Archive", icon: Trash2,   danger: true },
     ];
   }
@@ -87,7 +92,7 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose }) {
   return (
     <form onSubmit={formik.handleSubmit} noValidate className="space-y-4">
 
-      {}
+      {/* Row 1 */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <FormField label="Patient Name" error={formik.touched.patientName && formik.errors.patientName}>
           <input type="text" placeholder="Full Name" className={ic("patientName")} {...formik.getFieldProps("patientName")} />
@@ -100,7 +105,7 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose }) {
         </FormField>
       </div>
 
-      {}
+      {/* Row 2 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Sex" error={formik.touched.sex && formik.errors.sex}>
           <div className="relative">
@@ -117,27 +122,30 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose }) {
         </FormField>
       </div>
 
-      {}
+      {/* Address */}
       <FormField label="Address" error={formik.touched.address && formik.errors.address}>
         <input type="text" placeholder="City, Province" className={ic("address")} {...formik.getFieldProps("address")} />
       </FormField>
 
-      {}
+      {/* Date & Therapist */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Date" error={formik.touched.date && formik.errors.date}>
           <input type="date" className={ic("date")} {...formik.getFieldProps("date")} />
         </FormField>
         <FormField label="Therapist" error={formik.touched.therapist && formik.errors.therapist}>
-          <input
-            type="text"
-            placeholder="Therapist name"
-            className={ic("therapist")}
-            {...formik.getFieldProps("therapist")}
-          />
+          <div className="relative">
+            <select className={sic("therapist")} {...formik.getFieldProps("therapist")}>
+              <option value="" disabled>Select therapist</option>
+              {THERAPIST_OPTIONS.map((t) => (
+                <option key={t.id} value={t.name}>{t.name}</option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          </div>
         </FormField>
       </div>
 
-      {}
+      {/* Time */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Start Time" error={formik.touched.startTime && formik.errors.startTime}>
           <div className="relative">
@@ -159,7 +167,7 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose }) {
         </FormField>
       </div>
 
-      {}
+      {/* Remarks */}
       <FormField label="Remarks" error={formik.touched.remarks && formik.errors.remarks}>
         <textarea
           rows={3}
@@ -239,14 +247,23 @@ const BLANK_PATIENT = {
   endTime: "", therapist: "", remarks: "",
 };
 
+const confirmMeta = {
+  accept:    { title: "Confirm Schedule?",    label: "Confirm",    danger: false, msg: (n) => `"${n}" will be marked as confirmed.`           },
+  reject:    { title: "Reject Schedule?",    label: "Reject",    danger: true,  msg: (n) => `"${n}" will be marked as cancelled.`             },
+  archive:   { title: "Archive Schedule?",   label: "Archive",   danger: true,  msg: (n) => `"${n}" will be moved to the archive.`           },
+  unarchive: { title: "Unarchive Schedule?", label: "Unarchive", danger: false, msg: (n) => `"${n}" will be restored to pending.`            },
+  done:      { title: "Mark as Done?",       label: "Done",      danger: false, msg: (n) => `"${n}" will be marked as done.`                 },
+};
+
 export default function ScheduleManagement() {
-  const [activeTab,   setActiveTab]   = useState("All");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showAdd,     setShowAdd]     = useState(false);
-  const [viewPatient, setViewPatient] = useState(null);
-  const [editPatient, setEditPatient] = useState(null);
-  const [schedules,   setSchedules]   = useState([]);
-  const [loading,     setLoading]     = useState(false);
+  const [activeTab,     setActiveTab]     = useState("All");
+  const [searchQuery,   setSearchQuery]   = useState("");
+  const [showAdd,       setShowAdd]       = useState(false);
+  const [viewPatient,   setViewPatient]   = useState(null);
+  const [editPatient,   setEditPatient]   = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [schedules,     setSchedules]     = useState([]);
+  const [loading,       setLoading]       = useState(false);
 
   useEffect(() => {
     fetchSchedules();
@@ -255,7 +272,7 @@ export default function ScheduleManagement() {
   async function fetchSchedules() {
     setLoading(true);
     try {
-      
+      // axios call here later
     } catch (err) {
       console.error("Failed to fetch schedules:", err);
     } finally {
@@ -273,23 +290,38 @@ export default function ScheduleManagement() {
 
   async function updateStatus(id, status) {
     try {
-      
+      // axios call here later
     } catch (err) {
       console.error("Failed to update schedule status:", err);
     }
+  }
+
+  async function applyConfirm() {
+    const { type, schedule } = confirmAction;
+    const statusMap = {
+      accept:    "confirmed",
+      reject:    "cancelled",
+      archive:   "archived",
+      unarchive: "pending",
+      done:      "done",
+    };
+    await updateStatus(schedule.id, statusMap[type]);
+    setConfirmAction(null);
   }
 
   function handleAction(action, s) {
     switch (action) {
       case "View":      return setViewPatient(s);
       case "Edit":      return setEditPatient(s);
-      case "Accept":    return updateStatus(s.id, "confirmed");
-      case "Reject":    return updateStatus(s.id, "canceled");
-      case "Archive":   return updateStatus(s.id, "archived");
-      case "Unarchive": return updateStatus(s.id, "pending");
-      case "Done":      return updateStatus(s.id, "done");
+      case "Confirm":    return setConfirmAction({ type: "accept",    schedule: s });
+      case "Reject":    return setConfirmAction({ type: "reject",    schedule: s });
+      case "Archive":   return setConfirmAction({ type: "archive",   schedule: s });
+      case "Unarchive": return setConfirmAction({ type: "unarchive", schedule: s });
+      case "Done":      return setConfirmAction({ type: "done",      schedule: s });
     }
   }
+
+  const meta = confirmAction && confirmMeta[confirmAction.type];
 
   return (
     <AdminLayout
@@ -335,24 +367,24 @@ export default function ScheduleManagement() {
         )}
       />
 
-      {}
+      {/* Add Modal */}
       {showAdd && (
         <Modal title="Add Patient Form" onClose={() => setShowAdd(false)} maxWidth="max-w-2xl" scrollable>
           <PatientForm
             initialValues={BLANK_PATIENT}
             submitLabel="Submit"
             onSubmit={async (values) => {
-              
+              // axios call here later
             }}
             onClose={() => setShowAdd(false)}
           />
         </Modal>
       )}
 
-      {}
+      {/* View Modal */}
       {viewPatient && <ViewPatientModal patient={viewPatient} onClose={() => setViewPatient(null)} />}
 
-      {}
+      {/* Edit Modal */}
       {editPatient && (
         <Modal title="Edit Patient Form" onClose={() => setEditPatient(null)} maxWidth="max-w-2xl" scrollable>
           <PatientForm
@@ -371,11 +403,23 @@ export default function ScheduleManagement() {
             }}
             submitLabel="Save"
             onSubmit={async (values) => {
-              
+              // axios call here later
             }}
             onClose={() => setEditPatient(null)}
           />
         </Modal>
+      )}
+
+      {/* Confirm Dialog */}
+      {confirmAction && meta && (
+        <ConfirmDialog
+          title={meta.title}
+          message={meta.msg(confirmAction.schedule.name)}
+          confirmLabel={meta.label}
+          danger={meta.danger}
+          onConfirm={applyConfirm}
+          onCancel={() => setConfirmAction(null)}
+        />
       )}
     </AdminLayout>
   );

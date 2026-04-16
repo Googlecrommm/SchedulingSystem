@@ -188,7 +188,7 @@ export default function RehabilitationDashboard() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-bold text-primary font-montserrat">Recent Schedules</h3>
               <Link
-                to="/frontdesk/schedules"
+                to="/frontdesk/rehab-schedules"
                 className="text-sm font-semibold text-primary hover:text-primary-light transition-colors"
               >
                 See all

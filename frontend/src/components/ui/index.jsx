@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, Building2, UserCog, Cpu, Calendar,
-  Bell, ChevronDown, ChevronLeft, ChevronRight,
+  ChevronDown, ChevronLeft, ChevronRight,
   Menu, X, Search, Plus, MoreHorizontal,
 } from "lucide-react";
 import DGMCLogo    from "../../assets/dgmc-logo.png";
@@ -23,7 +23,7 @@ export const adminNavItems = [
 
 export const frontdeskNavItems = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/frontdesk/rehab-dashboard" },
-  { label: "Schedules", icon: Calendar,        path: "/frontdesk/schedules" },
+  { label: "Schedules", icon: Calendar,        path: "/frontdesk/rehab-schedules" },
 ];
 
 // Admin Layout
@@ -149,7 +149,7 @@ export function AdminLayout({
           </ul>
         </nav>
 
-        {/* TÜV Logo */}
+        {/* Tuv Logo */}
         <div className={`py-4 bg-bading flex items-center justify-center transition-all duration-300 ${collapsed ? "px-2" : "px-5"}`}>
           <img
             src={collapsed ? TUVSmall : TUVLogo}
@@ -175,9 +175,7 @@ export function AdminLayout({
           <div className="hidden lg:block" />
 
           <div className="flex items-center gap-3">
-            <button className="relative p-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
-              <Bell size={18} className="text-gray-500" />
-            </button>
+            
 
             <div className="relative" ref={userDropdownRef}>
               <button
