@@ -1,6 +1,8 @@
 package com.spring.Repositories;
 
 import com.spring.Models.Roles;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,4 +16,6 @@ public interface RolesRepository extends JpaRepository<Roles, Integer> {
 
     @Query("select role from Roles role where role.roleName like %:searchName%")
     List<Roles> searchRoleByName(@Param("searchName") String searchName);
+
+    Page<Roles> findAll(Pageable pageable);
 }

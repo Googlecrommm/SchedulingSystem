@@ -6,6 +6,8 @@ import com.spring.Service.RolesService;
 import com.spring.dto.RoleResponseDTO;
 import com.spring.dto.SuccessResponse;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -34,9 +36,9 @@ public class RolesController {
     //READ ALL
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/getRoles")
-    public ResponseEntity<List<RoleResponseDTO>> getRoles(){
+    public ResponseEntity<Page<RoleResponseDTO>> getRoles(Pageable pageable){
         return ResponseEntity
-                .ok(rolesService.getRoles());
+                .ok(rolesService.getRoles(pageable));
     }
 
     // SEARCH BY ROLE NAME

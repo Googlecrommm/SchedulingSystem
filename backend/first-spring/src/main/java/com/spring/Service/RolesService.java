@@ -9,7 +9,9 @@ import com.spring.Repositories.RolesRepository;
 import com.spring.dto.RoleResponseDTO;
 import com.spring.dto.SuccessResponse;
 import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
@@ -36,16 +38,14 @@ public class RolesService {
     }
 
     //READ ALL
-    public List<RoleResponseDTO> getRoles(){
-        List<Roles> allRoles = rolesRepository.findAll();
-        List<RoleResponseDTO> allRolesDTO = new LinkedList<>();
-        for (Roles allRole : allRoles) {
-            RoleResponseDTO roleDTO = modelMapper.map(allRole, RoleResponseDTO.class);
-            roleDTO.setDepartmentName(allRole.getDepartment().getDepartmentName());
-            allRolesDTO.add(roleDTO);
-        }
-
-        return allRolesDTO;
+    public Page<RoleResponseDTO> getRoles(Pageable pageable){
+        return rolesRepository
+                .findAll(pageable)
+                .map(roles -> {
+                    RoleResponseDTO roleDTO = modelMapper.map(roles, RoleResponseDTO.class);
+                    roleDTO.setDepartmentName(roles.getDepartment().getDepartmentName());
+                    return roleDTO;
+                });
     }
 
     //SEARCH ROLE BY NAME

@@ -2,6 +2,10 @@ package com.spring.Controller;
 
 import java.util.List;
 
+import com.spring.dto.DepartmentResponseDTO;
+import com.spring.dto.SuccessResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,8 +39,14 @@ public class DepartmentsController {
     //READ
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/getDepartments")
-    public ResponseEntity<List<Departments>> getDepartments() throws Exception {
-        return ResponseEntity.ok(departmentsService.getDepartments());
+    public ResponseEntity<Page<DepartmentResponseDTO>> getDepartments(Pageable pageable) throws Exception {
+        return ResponseEntity.ok(departmentsService.getDepartments(pageable));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/searchDepartment/{searchDept}")
+    public ResponseEntity<Page<DepartmentResponseDTO>> searchDepartment(@PathVariable String searchDept,Pageable pageable){
+        return ResponseEntity.ok(departmentsService.searchDepartment(searchDept, pageable));
     }
 
     //UPDATE
@@ -49,14 +59,16 @@ public class DepartmentsController {
     //ARCHIVE
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/archiveDepartment/{departmentId}")
-    public ResponseEntity<Departments> archiveDepartment(@PathVariable int departmentId){
-        return ResponseEntity.ok(departmentsService.archiveDepartment(departmentId));
+    public ResponseEntity<SuccessResponse> archiveDepartment(@PathVariable int departmentId){
+        departmentsService.archiveDepartment(departmentId);
+        return ResponseEntity.ok().body(new SuccessResponse(200, "Deparment Archived"));
     }
 
     //RESTORE
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/restoreDepartment/{departmentId}")
-    public ResponseEntity<Departments> restoreDepartment(@PathVariable int departmentId){
-        return ResponseEntity.ok(departmentsService.restoreDepartment(departmentId));
+    public ResponseEntity<SuccessResponse> restoreDepartment(@PathVariable int departmentId){
+        departmentsService.restoreDepartment(departmentId);
+        return ResponseEntity.ok().body(new SuccessResponse(200, "Department restored"));
     }
 }

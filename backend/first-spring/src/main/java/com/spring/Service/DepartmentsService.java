@@ -5,20 +5,23 @@ import com.spring.Exceptions.EmptyDepartment;
 import com.spring.Exceptions.NoChangesDetected;
 import com.spring.Exceptions.NotFound;
 import com.spring.Models.Departments;
-import com.spring.Models.Roles;
 import com.spring.Repositories.DepartmentsRepository;
+import com.spring.dto.DepartmentResponseDTO;
+import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-
-import java.util.LinkedList;
 import java.util.List;
 
 @Service
 public class DepartmentsService {
 
     private final DepartmentsRepository departmentsRepository;
+    private final ModelMapper modelMapper;
 
-    public DepartmentsService(DepartmentsRepository departmentsRepository){
+    public DepartmentsService(DepartmentsRepository departmentsRepository, ModelMapper modelMapper){
         this.departmentsRepository = departmentsRepository;
+        this.modelMapper = modelMapper;
     }
 
     //CREATE
@@ -32,13 +35,22 @@ public class DepartmentsService {
     }
 
     //READ
-    public List<Departments> getDepartments(){
-        List<Departments> departments = departmentsRepository.findAll();
+    public Page<DepartmentResponseDTO> getDepartments(Pageable pageable){
+        return departmentsRepository
+                .findAll(pageable)
+                .map(departments -> {
+                    return modelMapper.map(departments, DepartmentResponseDTO.class);
+                });
 
-        if (departments.isEmpty()){
-            throw new EmptyDepartment("No departments");
-        }
-        return departments;
+    }
+
+    //SEARCH DEPARTMENT BY NAME
+    public Page<DepartmentResponseDTO> searchDepartment(String searchDept, Pageable pageable){
+        return departmentsRepository
+                .searchByDepartmentName(searchDept, pageable)
+                .map(departments -> {
+                    return modelMapper.map(departments, DepartmentResponseDTO.class);
+                });
     }
 
     //UPDATE
@@ -54,21 +66,29 @@ public class DepartmentsService {
     }
 
     //ARCHIVE
-    public Departments archiveDepartment(int departmentId){
+    public void archiveDepartment(int departmentId){
         Departments deptToArchive = departmentsRepository.findById(departmentId).orElseThrow(() -> new NotFound("Department not found"));
+        if (deptToArchive.getDepartmentStatus().equals(SoftDelete.Archived)){
+            throw new NoChangesDetected("Department is already Archived");
+        }
         deptToArchive.setDepartmentStatus(SoftDelete.Archived);
         deptToArchive.getRoles().forEach(roles -> roles.setRoleStatus(SoftDelete.Archived));
 
-        return departmentsRepository.save(deptToArchive);
+        departmentsRepository.save(deptToArchive);
     }
 
     //RESTORE
-    public Departments restoreDepartment(int departmentId){
+    public void restoreDepartment(int departmentId){
         Departments departmentToRestore = departmentsRepository.findById(departmentId).orElseThrow(() -> new NotFound("Department not found"));
+
+        if (departmentToRestore.getDepartmentStatus().equals(SoftDelete.Active)){
+            throw new NoChangesDetected("Department is already Active");
+        }
+
         departmentToRestore.setDepartmentStatus(SoftDelete.Active);
         departmentToRestore.getRoles().forEach(roles -> roles.setRoleStatus(SoftDelete.Active));
 
-        return departmentsRepository.save(departmentToRestore);
+        departmentsRepository.save(departmentToRestore);
 
     }
 
