@@ -52,8 +52,8 @@ Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsL
 Content-Type: application/json
 
 {
-  "departmentId": 3,
-  "departmentName": "Radio"
+  "departmentId": 2,
+  "departmentName": "Radiology"
 }
 
 ###
@@ -64,3 +64,14 @@ Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsL
 ###
 PUT http://localhost:8080/api/restoreDepartment/1
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjMyNTIyOSwiZXhwIjoxNzc2NDExNjI5fQ.08ftM6WzXGfHpVRHQRfxSQd0nA7ier2FoY1nHsHt_p5AItyDU0Pot-qqXdGGvvq7
+
+
+###
+POST http://localhost:8080/api/createMachine
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjMyNTIyOSwiZXhwIjoxNzc2NDExNjI5fQ.08ftM6WzXGfHpVRHQRfxSQd0nA7ier2FoY1nHsHt_p5AItyDU0Pot-qqXdGGvvq7
+Content-Type: application/json
+
+{
+  "machineName": "MRI",
+  "machineStatus": "Available"
+}

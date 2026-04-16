@@ -72,4 +72,6 @@ public class Machines {
     public void setMachineStatus(MachineStatus machineStatus) {
         this.machineStatus = machineStatus;
     }
+
+
 }

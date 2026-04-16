@@ -9,13 +9,19 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface DepartmentsRepository extends JpaRepository<Departments, Integer> {
 
     boolean existsByDepartmentName(String departmentName);
+
     Departments findByDepartmentId(int departmentId, Departments department);
+
+    Optional<Departments> findByDepartmentName(String departmentName);
+
     Page<Departments> findAll(Pageable pageable);
+
     @Query("SELECT department from Departments department WHERE department.departmentName LIKE %:searchDept%")
     Page<Departments> searchByDepartmentName(@Param("searchDept") String searchDept, Pageable pageable);
 }
