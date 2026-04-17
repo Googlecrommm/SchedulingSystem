@@ -22,7 +22,7 @@ Content-Type: application/json
 }
 
 ###
-GET http://localhost:8080/api/getRoles
+GET http://localhost:8080/api/getRoles?deparmentName=ICT
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjMyNTIyOSwiZXhwIjoxNzc2NDExNjI5fQ.08ftM6WzXGfHpVRHQRfxSQd0nA7ier2FoY1nHsHt_p5AItyDU0Pot-qqXdGGvvq7
 
 ###
@@ -35,6 +35,11 @@ Content-Type: application/json
     "departmentId": 1
   }
 }
+
+###
+PUT http://localhost:8080/api/archiveRole/6
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQwMjY2MywiZXhwIjoxNzc2NDg5MDYzfQ.Nd5fRE2-5Hdd0gfEMtBQ55Q6Nw0UrjFy6EeXf0FVGP-uJPgLlETjrf1hVf1t6z-t
+
 
 ###
 GET http://localhost:8080/api/getDepartments

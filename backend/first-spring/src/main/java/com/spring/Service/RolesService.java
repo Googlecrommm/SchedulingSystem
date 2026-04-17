@@ -6,12 +6,14 @@ import com.spring.Exceptions.NotFound;
 import com.spring.Exceptions.RoleNotFound;
 import com.spring.Models.Roles;
 import com.spring.Repositories.RolesRepository;
+import com.spring.Specifications.RoleSpecification;
 import com.spring.dto.RoleResponseDTO;
 import com.spring.dto.SuccessResponse;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
@@ -38,9 +40,13 @@ public class RolesService {
     }
 
     //READ ALL
-    public Page<RoleResponseDTO> getRoles(Pageable pageable){
+    public Page<RoleResponseDTO> getRoles(String status, String departmentName, Pageable pageable){
+        Specification<Roles> filters = Specification
+                .where(RoleSpecification.hasStatus(status))
+                .and(RoleSpecification.hasDepartment(departmentName));
+
         return rolesRepository
-                .findAll(pageable)
+                .findAll(filters, pageable)
                 .map(roles -> {
                     RoleResponseDTO roleDTO = modelMapper.map(roles, RoleResponseDTO.class);
                     roleDTO.setDepartmentName(roles.getDepartment().getDepartmentName());

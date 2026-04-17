@@ -36,9 +36,11 @@ public class RolesController {
     //READ ALL
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/getRoles")
-    public ResponseEntity<Page<RoleResponseDTO>> getRoles(Pageable pageable){
+    public ResponseEntity<Page<RoleResponseDTO>> getRoles(
+            @RequestParam(required = false) String status, @RequestParam(required = false)
+            String deparmentName, Pageable pageable){
         return ResponseEntity
-                .ok(rolesService.getRoles(pageable));
+                .ok(rolesService.getRoles(status, deparmentName, pageable));
     }
 
     // SEARCH BY ROLE NAME
