@@ -1,16 +1,25 @@
 
 ###
+GET http://localhost:8080/api/getUsers?accountStatus=Disabled
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
+
+
+###
 POST http://localhost:8080/auth/register
 Content-Type: application/json
 
 {
-  "email": "lucianonaval@gmail.com",
-  "name": "Luciano naval",
-  "password": "Admin@123",
+  "email": "dexter.dgmc@gmail.com",
+  "name": "Dexter",
+  "password": "Radiologist@123",
   "role": {
-    "roleId": 1
+    "roleId": 3
   }
 }
+
+###
+PUT http://localhost:8080/api/disableUser/3
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
 
 ###
 POST http://localhost:8080/auth/login
@@ -30,9 +39,9 @@ POST http://localhost:8080/api/createRole
 Content-Type: application/json
 
 {
-  "roleName": "Assistant Supervisor",
+  "roleName": "Radio FrontDesk",
   "department": {
-    "departmentId": 1
+    "departmentId": 2
   }
 }
 
@@ -42,8 +51,16 @@ Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsL
 
 
 ###
+POST http://localhost:8080/api/createDepartment
+Content-Type: application/json
+
+{
+  "departmentName": "Rehabilitation"
+}
+
+###
 GET http://localhost:8080/api/getDepartments
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjMyNTIyOSwiZXhwIjoxNzc2NDExNjI5fQ.08ftM6WzXGfHpVRHQRfxSQd0nA7ier2FoY1nHsHt_p5AItyDU0Pot-qqXdGGvvq7
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzMjUyMSwiZXhwIjoxNzc2NTE4OTIxfQ.qNXeeHRNhE-vvjQ_1UOo957XnPBaIPbjP9quYoBBX9sDkmbFh9J1uPSZSSsM9-lf
 
 
 ###

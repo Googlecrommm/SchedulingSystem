@@ -32,6 +32,9 @@ public class MachineService {
         machinesRepository.save(machine);
     }
 
+    //READ ALL
+
+
 
 
 }

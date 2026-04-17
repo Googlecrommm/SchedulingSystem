@@ -6,6 +6,7 @@ public class UserResponseDTO {
     private String name;
     private String email;
     private String roleName;
+    private String departmentName;
     private AccountStatus accountStatus;
 
     public String getName() {
@@ -38,5 +39,13 @@ public class UserResponseDTO {
 
     public void setAccountStatus(AccountStatus accountStatus) {
         this.accountStatus = accountStatus;
+    }
+
+    public String getDepartmentName() {
+        return departmentName;
+    }
+
+    public void setDepartmentName(String departmentName) {
+        this.departmentName = departmentName;
     }
 }

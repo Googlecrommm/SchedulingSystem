@@ -4,8 +4,12 @@ import com.spring.Enums.AccountStatus;
 import com.spring.Exceptions.NotFound;
 import com.spring.Models.Users;
 import com.spring.Repositories.UsersRepository;
+import com.spring.Specifications.UserSpecification;
 import com.spring.dto.UserResponseDTO;
 import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,17 +30,21 @@ public class UsersService {
     }
 
     //READ
-    public List<UserResponseDTO> getUsers() throws Exception{
-        List<Users> allUsers = usersRepository.findAll();
-        List<UserResponseDTO> userDTO = new LinkedList<>();
+    public Page<UserResponseDTO> getUsers(String accountStatus, String departmentName, String roleName, Pageable pageable){
 
-        for (Users allUser : allUsers) {
-            UserResponseDTO dto = modelMapper.map(allUser, UserResponseDTO.class);
-            dto.setRoleName(allUser.getRole().getRoleName());
-            userDTO.add(dto);
-        }
+        Specification<Users> filters = Specification
+                .where(UserSpecification.hasAccountStatus(accountStatus))
+                .and(UserSpecification.hasDepartment(departmentName))
+                .and(UserSpecification.hasRole(roleName));
 
-        return userDTO;
+        return usersRepository
+                .findAll(filters, pageable)
+                .map(users -> {
+                    UserResponseDTO userResponseDTO = modelMapper.map(users, UserResponseDTO.class);
+                    userResponseDTO.setRoleName(users.getRole().getRoleName());
+                    userResponseDTO.setDepartmentName(users.getRole().getDepartment().getDepartmentName());
+                    return userResponseDTO;
+                });
     }
 
     //READ (ID)

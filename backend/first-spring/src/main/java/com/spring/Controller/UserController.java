@@ -5,6 +5,8 @@ import com.spring.Service.UsersService;
 import com.spring.dto.SuccessResponse;
 import com.spring.dto.UserResponseDTO;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -23,8 +25,13 @@ public class UserController {
 
     //READ
     @GetMapping("getUsers")
-    public ResponseEntity<List<UserResponseDTO>> getUsers() throws Exception{
-        return ResponseEntity.ok(usersService.getUsers());
+    public ResponseEntity<Page<UserResponseDTO>> getUsers(
+            @RequestParam(required = false) String accountStatus,
+            @RequestParam(required = false) String departmentName,
+            @RequestParam(required = false) String roleName,
+            Pageable pageable
+    ){
+        return ResponseEntity.ok(usersService.getUsers(accountStatus, departmentName, roleName, pageable));
     }
 
     //READ BY ID
