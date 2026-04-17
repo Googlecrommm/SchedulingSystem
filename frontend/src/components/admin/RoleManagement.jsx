@@ -21,6 +21,8 @@ const TABS = [
   { label: "Archive", icon: Archive },
 ];
 
+const PAGE_SIZE = 10;
+
 const activeActions  = [{ label: "Edit", icon: Pencil }, { label: "Archive", icon: Archive, danger: true }];
 const archiveActions = [{ label: "Unarchive", icon: RefreshCw }];
 
@@ -98,19 +100,43 @@ export default function RoleManagement() {
   const [departments,   setDepartments]   = useState([]);
   const [loading,       setLoading]       = useState(false);
 
+  // Pagination state
+  const [page,       setPage]       = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Reset to page 1 whenever tab or search changes
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, searchQuery]);
+
   useEffect(() => {
     fetchRoles();
+  }, [activeTab, page]);
+
+  useEffect(() => {
     fetchDepartments();
   }, []);
 
   async function fetchRoles() {
     setLoading(true);
     try {
+      const status = activeTab === "Archive" ? "Archived" : "Active";
       const res = await axios.get("/api/getRoles", {
         headers: getAuthHeader(),
+        params: {
+          status,
+          page: page - 1,   // Spring Boot Pageable is 0-indexed
+          size: PAGE_SIZE,
+        },
       });
-      const data = Array.isArray(res.data) ? res.data : [];
-      setRoles(data.map(mapRole));
+
+      // Spring Page response: { content: [...], totalPages: N, ... }
+      const pageData   = res.data;
+      const content    = Array.isArray(pageData) ? pageData : pageData?.content ?? [];
+      const serverTotalPages = pageData?.totalPages ?? 1;
+
+      setRoles(content.map(mapRole));
+      setTotalPages(serverTotalPages);
     } catch (err) {
       console.error("Failed to fetch roles:", err);
     } finally {
@@ -123,17 +149,17 @@ export default function RoleManagement() {
       const res = await axios.get("/api/getDepartments", {
         headers: getAuthHeader(),
       });
-      const data = Array.isArray(res.data) ? res.data : [];
-      
+      const data = Array.isArray(res.data) ? res.data : res.data?.content ?? [];
       setDepartments(data.filter((d) => d.departmentStatus === "Active"));
     } catch (err) {
       console.error("Failed to fetch departments:", err);
     }
   }
 
-  const filtered = roles
-    .filter((r) => (activeTab === "Archive" ? r.archived : !r.archived))
-    .filter((r) => r.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  // Client-side search filter (only filters the current page)
+  const filtered = roles.filter((r) =>
+    r.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   function handleAction(action, role) {
     if (action === "Edit")      return setEditRole(role);
@@ -141,7 +167,6 @@ export default function RoleManagement() {
     if (action === "Unarchive") return setConfirmAction({ type: "unarchive", role });
   }
 
- 
   function getRowActions(role) {
     if (activeTab === "Archive") return archiveActions;
     if (role.isAdmin) return [{ label: "Edit", icon: Pencil }];
@@ -156,10 +181,7 @@ export default function RoleManagement() {
           ? `/api/archiveRole/${role.id}`
           : `/api/restoreRole/${role.id}`;
 
-      await axios.put(endpoint, null, {
-        headers: getAuthHeader(),
-      });
-
+      await axios.put(endpoint, null, { headers: getAuthHeader() });
       await fetchRoles();
     } catch (err) {
       console.error(`Failed to ${type} role:`, err);
@@ -189,6 +211,10 @@ export default function RoleManagement() {
         loading={loading}
         emptyIcon={UserCog}
         emptyText={activeTab === "Archive" ? "No archived roles" : "No roles found"}
+        page={page}
+        totalPages={totalPages}
+        onPrev={() => setPage((p) => Math.max(p - 1, 1))}
+        onNext={() => setPage((p) => Math.min(p + 1, totalPages))}
         renderRow={(role) => (
           <tr key={role.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
             <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">{role.name}</td>
@@ -203,7 +229,6 @@ export default function RoleManagement() {
         )}
       />
 
-    
       {showCreate && (
         <Modal title="Add Role" onClose={() => setShowCreate(false)}>
           <RoleForm
@@ -229,7 +254,6 @@ export default function RoleManagement() {
         </Modal>
       )}
 
-    
       {editRole && (
         <Modal title="Edit Role" onClose={() => setEditRole(null)}>
           <RoleForm
@@ -261,7 +285,6 @@ export default function RoleManagement() {
         </Modal>
       )}
 
-      
       {confirmAction && (
         <ConfirmDialog
           title={confirmAction.type === "archive" ? "Archive Role?" : "Unarchive Role?"}
