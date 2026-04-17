@@ -21,11 +21,11 @@ public class Users implements UserDetails {
     private int userId;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "roleId")
+    @JoinColumn(name = "roleId", nullable = false)
     private Roles role;
 
     @Column(name = "accountStatus", nullable = false)
-    @Enumerated(EnumType.STRING )
+    @Enumerated(EnumType.STRING)
     private AccountStatus accountStatus = AccountStatus.Active;
 
     @Size(max = 100)
@@ -33,15 +33,18 @@ public class Users implements UserDetails {
     private String name;
 
     @NotBlank
-    @Size(max = 100)
+    @Size(max = 150)
     @Email
     @Column(name = "email", nullable = false, length = 150)
     private String email;
 
     @NotBlank
     @Size(max = 255)
-    @Column(name = "password", nullable = false, length =  255)
+    @Column(name = "password", nullable = false, length = 255)
     private String password;
+
+    @OneToMany(mappedBy = "user")
+    private List<Logs> logs;
 
     public Users(){}
 
@@ -65,18 +68,6 @@ public class Users implements UserDetails {
 
     public void setPassword(String password) {
         this.password = password;
-    }
-
-    @JsonIgnore
-    @OneToMany(mappedBy = "user")
-    private List<Schedules> schedule;
-
-    public List<Schedules> getSchedule() {
-        return schedule;
-    }
-
-    public void setSchedule(List<Schedules> schedule) {
-        this.schedule = schedule;
     }
 
     public int getUserId() {
@@ -119,5 +110,11 @@ public class Users implements UserDetails {
         this.email = email;
     }
 
+    public List<Logs> getLogs() {
+        return logs;
+    }
 
+    public void setLogs(List<Logs> logs) {
+        this.logs = logs;
+    }
 }

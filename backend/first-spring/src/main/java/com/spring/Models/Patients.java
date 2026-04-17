@@ -19,7 +19,6 @@ public class Patients {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int patientId;
 
-
     @NotBlank
     @Size(max = 100)
     @Column(name = "name", nullable = false, length = 100)
@@ -32,20 +31,20 @@ public class Patients {
 
     @NotBlank
     @Size(max = 11)
-    @Column(nullable = false, name = "contactNumber")
+    @Column(nullable = false, name = "contactNumber", length = 11)
     private String contactNumber;
 
     @Column(name = "birthDate", nullable = false)
     private LocalDate birthDate;
 
     @NotBlank
-    @Size(max = 255)
-    @Column(nullable = false, name = "occupation")
+    @Size(max = 100)
+    @Column(nullable = false, name = "occupation", length = 100)
     private String occupation;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "patientStatus", nullable = false)
-    private PatientStatus status;
+    private PatientStatus status = PatientStatus.Active;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "sex", nullable = false)
@@ -53,7 +52,6 @@ public class Patients {
 
     public Patients(){}
 
-    @JsonIgnore
     @OneToMany(mappedBy = "patient")
     private List<Schedules> schedule;
 

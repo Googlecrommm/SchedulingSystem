@@ -3,6 +3,7 @@ package com.spring.Models;
 
 import com.spring.Enums.ScheduleStatus;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -18,7 +19,7 @@ public class Schedules {
     private int scheduleId;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "patientId")
+    @JoinColumn(name = "patientId", nullable = false)
     private Patients patient;
 
     @ManyToOne(fetch = FetchType.EAGER)
@@ -26,17 +27,26 @@ public class Schedules {
     private Machines machine;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "userId")
-    private Users user;
+    @JoinColumn(name = "doctorId", nullable = false)
+    private Doctors doctor;
 
-    @Column(name = "schedule_status", nullable = false)
+    @NotBlank
+    @Size(max = 100)
+    @Column(nullable = false, name = "procedureName", length = 100)
+    private String procedureName;
+
+    @NotBlank
+    @Column(name = "remarks", columnDefinition = "TEXT")
+    private String remarks;
+
+    @Column(name = "scheduleStatus", nullable = false)
     @Enumerated(EnumType.STRING)
     private ScheduleStatus scheduleStatus = ScheduleStatus.Pending;
 
     @NotBlank
-    @Size(max = 255)
-    @Column(nullable = false, name = "procedureName")
-    private String procedureName;
+    @Size(max = 100)
+    @Column(name = "explainBy", nullable = false, length = 100)
+    private String explainBy;
 
     @Column(name = "startDate", nullable = false)
     private LocalDate startDate;
@@ -62,13 +72,13 @@ public class Schedules {
         this.patient = patient;
     };
 
-    public Users getUser() {
-        return user;
-    };
+    public Doctors getDoctor() {
+        return doctor;
+    }
 
-    public void setUser(Users user) {
-        this.user = user;
-    };
+    public void setDoctor(Doctors doctor) {
+        this.doctor = doctor;
+    }
 
     public ScheduleStatus getScheduleStatus() {
         return scheduleStatus;
@@ -106,6 +116,19 @@ public class Schedules {
 
     public void setProcedureName(String procedureName){ this.procedureName = procedureName;}
 
+    public String getRemarks() {
+        return remarks;
+    }
 
+    public void setRemarks(String remarks) {
+        this.remarks = remarks;
+    }
 
+    public String getExplainBy() {
+        return explainBy;
+    }
+
+    public void setExplainBy(String explainBy) {
+        this.explainBy = explainBy;
+    }
 }

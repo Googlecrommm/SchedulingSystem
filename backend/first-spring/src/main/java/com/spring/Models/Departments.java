@@ -22,6 +22,10 @@ public class Departments {
     @Column(name = "departmentName", length = 100, nullable = false)
     private String departmentName;
 
+    @Column(name = "departmentStatus", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private SoftDelete departmentStatus = SoftDelete.Active;
+
     public Departments(){}
 
     @OneToMany(mappedBy = "departments")
@@ -30,10 +34,6 @@ public class Departments {
     @JsonIgnore
     @OneToMany(mappedBy = "department")
     private List<Roles> roles;
-
-    @Column(name = "departmentStatus", nullable = false)
-    @Enumerated(EnumType.STRING)
-    private SoftDelete softDelete = SoftDelete.Active;
 
     public int getDepartmentId() {
         return departmentId;
@@ -68,13 +68,11 @@ public class Departments {
         this.roles = roles;
     }
 
-    public SoftDelete getDepartmentStatus(){
-        return softDelete;
+    public SoftDelete getDepartmentStatus() {
+        return departmentStatus;
     }
 
-    public void setDepartmentStatus(SoftDelete softDelete){
-        this.softDelete = softDelete;
+    public void setDepartmentStatus(SoftDelete departmentStatus) {
+        this.departmentStatus = departmentStatus;
     }
-
-
 }

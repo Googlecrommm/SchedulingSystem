@@ -34,9 +34,11 @@ public class Roles {
 
     public Roles(){}
 
-    @JsonIgnore
     @OneToMany(mappedBy = "role")
     private List<Users> users;
+
+    @OneToMany(mappedBy = "role")
+    private List<Doctors> doctors;
 
     public List<Users> getUsers() {
         return users;
@@ -76,5 +78,21 @@ public class Roles {
 
     public void setRoleStatus(SoftDelete softDelete){
         this.softDelete = softDelete;
+    }
+
+    public SoftDelete getSoftDelete() {
+        return softDelete;
+    }
+
+    public void setSoftDelete(SoftDelete softDelete) {
+        this.softDelete = softDelete;
+    }
+
+    public List<Doctors> getDoctors() {
+        return doctors;
+    }
+
+    public void setDoctors(List<Doctors> doctors) {
+        this.doctors = doctors;
     }
 }

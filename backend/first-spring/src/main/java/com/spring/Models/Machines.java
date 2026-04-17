@@ -18,8 +18,8 @@ public class Machines {
     @OneToMany(mappedBy = "machine")
     private List<Schedules> schedules;
 
-    @ManyToOne
-    @JoinColumn(name = "departmentId")
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "departmentId", nullable = false)
     private Departments departments;
 
     @NotBlank
