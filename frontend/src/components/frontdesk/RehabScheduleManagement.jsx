@@ -24,22 +24,13 @@ import {
 const TABS = [
   { label: "All",       icon: Calendar      },
   { label: "Confirmed", icon: CalendarCheck },
-  { label: "Cancelled",  icon: CalendarX     },
+  { label: "Cancelled", icon: CalendarX     },
   { label: "Pending",   icon: Clock         },
   { label: "Archived",  icon: Archive       },
   { label: "Done",      icon: CheckCircle   },
 ];
 
-const COLUMNS = ["Name", "Date", "Time", "Therapist", "Status", "Action"];
-
-const timeOptions = [];
-for (let h = 0; h <= 23; h++) {
-  ["00", "30"].forEach((m) => {
-    const period = h < 12 ? "AM" : "PM";
-    const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    timeOptions.push(`${hour12}:${m} ${period}`);
-  });
-}
+const COLUMNS = ["Name", "Start Date & Time", "End Date & Time", "Therapist", "Status", "Action"];
 
 // TODO: replace with API data
 const THERAPIST_OPTIONS = [];
@@ -47,12 +38,12 @@ const THERAPIST_OPTIONS = [];
 function getActions(status) {
   switch (status?.toLowerCase()) {
     case "confirmed": return [{ label: "View", icon: Eye }, { label: "Done", icon: UserCheck }];
-    case "cancelled":  return [{ label: "View", icon: Eye }];
+    case "cancelled": return [{ label: "View", icon: Eye }];
     case "archived":  return [{ label: "View", icon: Eye }, { label: "Unarchive", icon: RefreshCw }];
     case "done":      return [{ label: "View", icon: Eye }];
     default:          return [
       { label: "View",    icon: Eye       },
-      { label: "Confirm",  icon: UserCheck },
+      { label: "Confirm", icon: UserCheck },
       { label: "Reject",  icon: UserX     },
       { label: "Edit",    icon: Pencil    },
       { label: "Archive", icon: Trash2,   danger: true },
@@ -69,9 +60,8 @@ const patientSchema = Yup.object({
     .required("Contact number is required"),
   address:     Yup.string().required("Address is required"),
   occupation:  Yup.string().required("Occupation is required"),
-  date:        Yup.string().required("Date is required"),
-  startTime:   Yup.string().required("Start time is required"),
-  endTime:     Yup.string().required("End time is required"),
+  startDate:   Yup.string().required("Start date & time is required"),
+  endDate:     Yup.string().required("End date & time is required"),
   therapist:   Yup.string().required("Therapist is required"),
   remarks:     Yup.string(),
 });
@@ -127,43 +117,26 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose }) {
         <input type="text" placeholder="City, Province" className={ic("address")} {...formik.getFieldProps("address")} />
       </FormField>
 
-      {/* Date & Therapist */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <FormField label="Date" error={formik.touched.date && formik.errors.date}>
-          <input type="date" className={ic("date")} {...formik.getFieldProps("date")} />
-        </FormField>
-        <FormField label="Therapist" error={formik.touched.therapist && formik.errors.therapist}>
-          <div className="relative">
-            <select className={sic("therapist")} {...formik.getFieldProps("therapist")}>
-              <option value="" disabled>Select therapist</option>
-              {THERAPIST_OPTIONS.map((t) => (
-                <option key={t.id} value={t.name}>{t.name}</option>
-              ))}
-            </select>
-            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          </div>
-        </FormField>
-      </div>
+      {/* Therapist */}
+      <FormField label="Therapist" error={formik.touched.therapist && formik.errors.therapist}>
+        <div className="relative">
+          <select className={sic("therapist")} {...formik.getFieldProps("therapist")}>
+            <option value="" disabled>Select therapist</option>
+            {THERAPIST_OPTIONS.map((t) => (
+              <option key={t.id} value={t.name}>{t.name}</option>
+            ))}
+          </select>
+          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        </div>
+      </FormField>
 
-      {/* Time */}
+      {/* Start Date & Time / End Date & Time */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <FormField label="Start Time" error={formik.touched.startTime && formik.errors.startTime}>
-          <div className="relative">
-            <select className={sic("startTime")} {...formik.getFieldProps("startTime")}>
-              <option value="" disabled>Select</option>
-              {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          </div>
+        <FormField label="Start Date & Time" error={formik.touched.startDate && formik.errors.startDate}>
+          <input type="datetime-local" className={ic("startDate")} {...formik.getFieldProps("startDate")} />
         </FormField>
-        <FormField label="End Time" error={formik.touched.endTime && formik.errors.endTime}>
-          <div className="relative">
-            <select className={sic("endTime")} {...formik.getFieldProps("endTime")}>
-              <option value="" disabled>Select</option>
-              {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          </div>
+        <FormField label="End Date & Time" error={formik.touched.endDate && formik.errors.endDate}>
+          <input type="datetime-local" className={ic("endDate")} {...formik.getFieldProps("endDate")} />
         </FormField>
       </div>
 
@@ -200,7 +173,10 @@ function ViewPatientModal({ patient, onClose }) {
           ))}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {[{ label: "Sex", value: patient.sex }, { label: "Occupation", value: patient.occupation }].map(({ label, value }) => (
+          {[
+            { label: "Sex",        value: patient.sex        },
+            { label: "Occupation", value: patient.occupation },
+          ].map(({ label, value }) => (
             <div key={label}>
               <label className="block text-sm font-semibold text-primary mb-1.5">{label}</label>
               <input readOnly value={value ?? "—"} className={ro} />
@@ -211,9 +187,8 @@ function ViewPatientModal({ patient, onClose }) {
           <label className="block text-sm font-semibold text-primary mb-1.5">Address</label>
           <input readOnly value={patient.address ?? "—"} className={ro} />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
-            { label: "Date",      value: patient.date      },
             { label: "Therapist", value: patient.therapist },
             { label: "Status",    value: patient.status    },
           ].map(({ label, value }) => (
@@ -224,10 +199,13 @@ function ViewPatientModal({ patient, onClose }) {
           ))}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {[{ label: "Start Time", value: patient.startTime }, { label: "End Time", value: patient.endTime }].map(({ label, value }) => (
+          {[
+            { label: "Start Date & Time", value: patient.start_date ? new Date(patient.start_date).toLocaleString() : "—" },
+            { label: "End Date & Time",   value: patient.end_date   ? new Date(patient.end_date).toLocaleString()   : "—" },
+          ].map(({ label, value }) => (
             <div key={label}>
               <label className="block text-sm font-semibold text-primary mb-1.5">{label}</label>
-              <input readOnly value={value ?? "—"} className={ro} />
+              <input readOnly value={value} className={ro} />
             </div>
           ))}
         </div>
@@ -243,16 +221,16 @@ function ViewPatientModal({ patient, onClose }) {
 
 const BLANK_PATIENT = {
   patientName: "", dob: "", sex: "", contactNo: "",
-  address: "", occupation: "", date: "", startTime: "",
-  endTime: "", therapist: "", remarks: "",
+  address: "", occupation: "", startDate: "",
+  endDate: "", therapist: "", remarks: "",
 };
 
 const confirmMeta = {
-  accept:    { title: "Confirm Schedule?",    label: "Confirm",    danger: false, msg: (n) => `"${n}" will be marked as confirmed.`           },
-  reject:    { title: "Reject Schedule?",    label: "Reject",    danger: true,  msg: (n) => `"${n}" will be marked as cancelled.`             },
-  archive:   { title: "Archive Schedule?",   label: "Archive",   danger: true,  msg: (n) => `"${n}" will be moved to the archive.`           },
-  unarchive: { title: "Unarchive Schedule?", label: "Unarchive", danger: false, msg: (n) => `"${n}" will be restored to pending.`            },
-  done:      { title: "Mark as Done?",       label: "Done",      danger: false, msg: (n) => `"${n}" will be marked as done.`                 },
+  accept:    { title: "Confirm Schedule?",   label: "Confirm",   danger: false, msg: (n) => `"${n}" will be marked as confirmed.`  },
+  reject:    { title: "Reject Schedule?",    label: "Reject",    danger: true,  msg: (n) => `"${n}" will be marked as cancelled.`  },
+  archive:   { title: "Archive Schedule?",   label: "Archive",   danger: true,  msg: (n) => `"${n}" will be moved to the archive.` },
+  unarchive: { title: "Unarchive Schedule?", label: "Unarchive", danger: false, msg: (n) => `"${n}" will be restored to pending.`  },
+  done:      { title: "Mark as Done?",       label: "Done",      danger: false, msg: (n) => `"${n}" will be marked as done.`       },
 };
 
 export default function ScheduleManagement() {
@@ -313,7 +291,7 @@ export default function ScheduleManagement() {
     switch (action) {
       case "View":      return setViewPatient(s);
       case "Edit":      return setEditPatient(s);
-      case "Confirm":    return setConfirmAction({ type: "accept",    schedule: s });
+      case "Confirm":   return setConfirmAction({ type: "accept",    schedule: s });
       case "Reject":    return setConfirmAction({ type: "reject",    schedule: s });
       case "Archive":   return setConfirmAction({ type: "archive",   schedule: s });
       case "Unarchive": return setConfirmAction({ type: "unarchive", schedule: s });
@@ -351,8 +329,12 @@ export default function ScheduleManagement() {
         renderRow={(s) => (
           <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.name}</td>
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.date}</td>
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.startTime} – {s.endTime}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">
+              {s.start_date ? new Date(s.start_date).toLocaleString() : "—"}
+            </td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">
+              {s.end_date ? new Date(s.end_date).toLocaleString() : "—"}
+            </td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.therapist}</td>
             <td className={`px-6 py-4 text-center text-sm font-semibold ${scheduleStatusColor(s.status)}`}>
               {s.status.charAt(0).toUpperCase() + s.status.slice(1)}
@@ -374,7 +356,19 @@ export default function ScheduleManagement() {
             initialValues={BLANK_PATIENT}
             submitLabel="Submit"
             onSubmit={async (values) => {
-              // axios call here later
+              const payload = {
+                patientName: values.patientName,
+                dob:         values.dob,
+                sex:         values.sex,
+                contactNo:   values.contactNo,
+                address:     values.address,
+                occupation:  values.occupation,
+                therapist:   values.therapist,
+                remarks:     values.remarks,
+                start_date:  new Date(values.startDate).toISOString(),
+                end_date:    new Date(values.endDate).toISOString(),
+              };
+              // axios.post("/api/schedules", payload) here later
             }}
             onClose={() => setShowAdd(false)}
           />
@@ -389,21 +383,36 @@ export default function ScheduleManagement() {
         <Modal title="Edit Patient Form" onClose={() => setEditPatient(null)} maxWidth="max-w-2xl" scrollable>
           <PatientForm
             initialValues={{
-              patientName: editPatient.name       ?? "",
-              dob:         editPatient.dob        ?? "",
-              sex:         editPatient.sex        ?? "",
-              contactNo:   editPatient.contactNo  ?? "",
-              address:     editPatient.address    ?? "",
-              occupation:  editPatient.occupation ?? "",
-              date:        editPatient.date       ?? "",
-              startTime:   editPatient.startTime  ?? "",
-              endTime:     editPatient.endTime    ?? "",
-              therapist:   editPatient.therapist  ?? "",
-              remarks:     editPatient.remarks    ?? "",
+              patientName: editPatient.name           ?? "",
+              dob:         editPatient.dob            ?? "",
+              sex:         editPatient.sex            ?? "",
+              contactNo:   editPatient.contactNo      ?? "",
+              address:     editPatient.address        ?? "",
+              occupation:  editPatient.occupation     ?? "",
+              startDate:   editPatient.start_date
+                ? new Date(editPatient.start_date).toISOString().slice(0, 16)
+                : "",
+              endDate:     editPatient.end_date
+                ? new Date(editPatient.end_date).toISOString().slice(0, 16)
+                : "",
+              therapist:   editPatient.therapist      ?? "",
+              remarks:     editPatient.remarks        ?? "",
             }}
             submitLabel="Save"
             onSubmit={async (values) => {
-              // axios call here later
+              const payload = {
+                patientName: values.patientName,
+                dob:         values.dob,
+                sex:         values.sex,
+                contactNo:   values.contactNo,
+                address:     values.address,
+                occupation:  values.occupation,
+                therapist:   values.therapist,
+                remarks:     values.remarks,
+                start_date:  new Date(values.startDate).toISOString(),
+                end_date:    new Date(values.endDate).toISOString(),
+              };
+              // axios.put(`/api/schedules/${editPatient.id}`, payload) here later
             }}
             onClose={() => setEditPatient(null)}
           />

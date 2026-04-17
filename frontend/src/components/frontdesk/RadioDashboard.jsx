@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
-  UserCheck, UserX, Clock, AlertCircle,
+  UserCheck, UserX, Clock, AlertCircle, ChevronDown, LayoutDashboard, Calendar, Cpu,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -10,11 +10,68 @@ import {
 
 import {
   AdminLayout,
-  frontdeskNavItems,
   scheduleStatusColor,
 } from "../ui";
 
+
+const radiologyNavItems = [
+  { label: "Dashboard", icon: LayoutDashboard, path: "/radiology/dashboard" },
+  { label: "Schedules", icon: Calendar,        path: "/radiology/schedules" },
+  { label: "Machine",   icon: Cpu,             path: "/radiology/machine"   },
+];
+
 const TIME_FRAMES = ["Daily", "Weekly", "Monthly", "Yearly", "Overall"];
+
+
+function ModalityDropdown({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const ref             = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const label = value === "all" ? "All Modality" : value;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary transition-colors cursor-pointer"
+      >
+        {label}
+        <ChevronDown size={14} className="text-gray-400" />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 mt-1.5 w-44 bg-white rounded-xl shadow-card border border-gray-100 py-1 z-50">
+          <button
+            onClick={() => { onChange("all"); setOpen(false); }}
+            className={`w-full text-left px-4 py-2.5 text-sm transition-colors
+              ${value === "all" ? "text-primary font-semibold bg-primary/5" : "text-gray-600 hover:bg-primary/5 hover:text-primary"}`}
+          >
+            All Modality
+          </button>
+          {options.map((m) => (
+            <button
+              key={m}
+              onClick={() => { onChange(m); setOpen(false); }}
+              className={`w-full text-left px-4 py-2.5 text-sm transition-colors
+                ${value === m ? "text-primary font-semibold bg-primary/5" : "text-gray-600 hover:bg-primary/5 hover:text-primary"}`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function LoadingSkeleton() {
   return (
@@ -34,6 +91,7 @@ function LoadingSkeleton() {
     </div>
   );
 }
+
 
 function ErrorMessage({ message, onRetry }) {
   return (
@@ -55,8 +113,11 @@ function ErrorMessage({ message, onRetry }) {
   );
 }
 
-export default function RehabilitationDashboard() {
+
+export default function RadiologyDashboard() {
   const [activeTimeFrame, setActiveTimeFrame] = useState("Daily");
+  const [modalityFilter,  setModalityFilter]  = useState("all");
+  const [modalities,      setModalities]      = useState([]);
   const [stats,           setStats]           = useState({ confirmed: 0, cancelled: 0, pending: 0 });
   const [chartData,       setChartData]       = useState([]);
   const [recentSchedules, setRecentSchedules] = useState([]);
@@ -64,13 +125,13 @@ export default function RehabilitationDashboard() {
   const [loading,         setLoading]         = useState(true);
   const [error,           setError]           = useState(null);
 
-  useEffect(() => { fetchDashboardData(); }, [activeTimeFrame]);
+  useEffect(() => { fetchDashboardData(); }, [activeTimeFrame, modalityFilter]);
 
   async function fetchDashboardData() {
     setLoading(true);
     setError(null);
     try {
-      // axios calls here later
+      
     } catch (err) {
       setError(err.response?.data?.message || "Failed to load dashboard data");
     } finally {
@@ -86,11 +147,20 @@ export default function RehabilitationDashboard() {
 
   return (
     <AdminLayout
-      navItems={frontdeskNavItems}
-      pageTitle="Rehabilitation Dashboard"
-      pageSubtitle="Overview & Analytics"
-      userName="Rehab"
-      userRole="Rehabilitation Frontdesk"
+      navItems={radiologyNavItems}
+      pageTitle={
+        <span className="flex items-center gap-3">
+          Radiology Dashboard
+          <ModalityDropdown
+            value={modalityFilter}
+            onChange={setModalityFilter}
+            options={modalities}
+          />
+        </span>
+      }
+      pageSubtitle="Overview And Analysis"
+      userName="Radiology"
+      userRole="Radiology Frontdesk"
     >
       {error && <ErrorMessage message={error} onRetry={fetchDashboardData} />}
 
@@ -98,7 +168,7 @@ export default function RehabilitationDashboard() {
         <LoadingSkeleton />
       ) : (
         <>
-          {/* Stats Cards */}
+      
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
             {statsCards.map(({ icon: Icon, label, value, color }) => (
               <div
@@ -114,13 +184,13 @@ export default function RehabilitationDashboard() {
             ))}
           </div>
 
-          {/* Chart */}
+      
           <div className="bg-white rounded-2xl shadow-card p-6 mb-6">
             <h2 className="text-lg font-bold text-primary mb-4 font-montserrat">
-              Appointment Status Overview
+              Status Chart
             </h2>
 
-            <div className="flex items-center gap-1 border-b border-gray-200 mb-6 overflow-y-hidden">
+            <div className="flex items-center gap-1 border-b border-gray-200 mb-6 overflow-x-auto overflow-y-hidden">
               {TIME_FRAMES.map((label) => (
                 <button
                   key={label}
@@ -137,9 +207,9 @@ export default function RehabilitationDashboard() {
 
             <div className="flex items-center justify-end gap-4 sm:gap-6 mb-4 flex-wrap">
               {[
-                { color: "bg-primary",    label: "Confirmed" },
-                { color: "bg-accent",     label: "Cancelled" },
-                { color: "bg-yellow-500", label: "Pending"   },
+                { color: "bg-green-500", label: "Accepted"  },
+                { color: "bg-accent",    label: "Cancelled" },
+                { color: "bg-yellow-500",label: "Pending"   },
               ].map(({ color, label }) => (
                 <div key={label} className="flex items-center gap-2">
                   <div className={`w-3 h-3 ${color} rounded-sm`} />
@@ -155,8 +225,8 @@ export default function RehabilitationDashboard() {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                    <XAxis dataKey="day" tick={{ fontSize: 12, fill: "#6B7280" }} stroke="#D1D5DB" />
-                    <YAxis                tick={{ fontSize: 12, fill: "#6B7280" }} stroke="#D1D5DB" />
+                    <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6B7280" }} stroke="#D1D5DB" />
+                    <YAxis                 tick={{ fontSize: 12, fill: "#6B7280" }} stroke="#D1D5DB" />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "#fff",
@@ -166,7 +236,7 @@ export default function RehabilitationDashboard() {
                         boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                       }}
                     />
-                    <Line type="monotone" dataKey="confirmed" stroke="#1B2A6B" strokeWidth={2} dot={{ fill: "#1B2A6B", r: 4 }} activeDot={{ r: 6 }} />
+                    <Line type="monotone" dataKey="confirmed" stroke="#22C55E" strokeWidth={2} dot={{ fill: "#22C55E", r: 4 }} activeDot={{ r: 6 }} />
                     <Line type="monotone" dataKey="cancelled" stroke="#C0392B" strokeWidth={2} dot={{ fill: "#C0392B", r: 4 }} activeDot={{ r: 6 }} />
                     <Line type="monotone" dataKey="pending"   stroke="#EAB308" strokeWidth={2} dot={{ fill: "#EAB308", r: 4 }} activeDot={{ r: 6 }} />
                   </LineChart>
@@ -179,12 +249,12 @@ export default function RehabilitationDashboard() {
             </div>
           </div>
 
-          {/* Recent Schedules */}
+          
           <div className="bg-white rounded-2xl shadow-card overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-bold text-primary font-montserrat">Recent Schedules</h3>
               <Link
-                to="/frontdesk/rehab-schedules"
+                to="/radiology/schedules"
                 className="text-sm font-semibold text-primary hover:text-primary-light transition-colors"
               >
                 See all
