@@ -31,12 +31,12 @@ Content-Type: application/json
 }
 
 ### DISABLE USER ACCOUNT
-PUT http://localhost:8080/api/disableUser/3
+PUT http://localhost:8080/api/disableUser/5
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
 
 
 ### ACTIVATE USER ACCOUNT
-PUT http://localhost:8080/api/activateUser/3
+PUT http://localhost:8080/api/activateUser/5
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
 
 ### LOGIN ENDPOINT
