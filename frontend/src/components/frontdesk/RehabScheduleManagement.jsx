@@ -30,9 +30,9 @@ const TABS = [
   { label: "Done",      icon: CheckCircle   },
 ];
 
-const COLUMNS = ["Name", "Start Date & Time", "End Date & Time", "Therapist", "Status", "Action"];
+const COLUMNS = ["Full Name", "Date", "Time", "Therapist", "Status", "Action"];
 
-// TODO: replace with API data
+
 const THERAPIST_OPTIONS = [];
 
 function getActions(status) {
@@ -82,7 +82,7 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose }) {
   return (
     <form onSubmit={formik.handleSubmit} noValidate className="space-y-4">
 
-      {/* Row 1 */}
+    
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <FormField label="Patient Name" error={formik.touched.patientName && formik.errors.patientName}>
           <input type="text" placeholder="Full Name" className={ic("patientName")} {...formik.getFieldProps("patientName")} />
@@ -95,7 +95,7 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose }) {
         </FormField>
       </div>
 
-      {/* Row 2 */}
+      
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Sex" error={formik.touched.sex && formik.errors.sex}>
           <div className="relative">
@@ -112,12 +112,12 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose }) {
         </FormField>
       </div>
 
-      {/* Address */}
+    
       <FormField label="Address" error={formik.touched.address && formik.errors.address}>
         <input type="text" placeholder="City, Province" className={ic("address")} {...formik.getFieldProps("address")} />
       </FormField>
 
-      {/* Therapist */}
+    
       <FormField label="Therapist" error={formik.touched.therapist && formik.errors.therapist}>
         <div className="relative">
           <select className={sic("therapist")} {...formik.getFieldProps("therapist")}>
@@ -130,7 +130,7 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose }) {
         </div>
       </FormField>
 
-      {/* Start Date & Time / End Date & Time */}
+      
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Start Date & Time" error={formik.touched.startDate && formik.errors.startDate}>
           <input type="datetime-local" className={ic("startDate")} {...formik.getFieldProps("startDate")} />
@@ -140,7 +140,7 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose }) {
         </FormField>
       </div>
 
-      {/* Remarks */}
+     
       <FormField label="Remarks" error={formik.touched.remarks && formik.errors.remarks}>
         <textarea
           rows={3}
@@ -250,7 +250,7 @@ export default function ScheduleManagement() {
   async function fetchSchedules() {
     setLoading(true);
     try {
-      // axios call here later
+     
     } catch (err) {
       console.error("Failed to fetch schedules:", err);
     } finally {
@@ -268,7 +268,7 @@ export default function ScheduleManagement() {
 
   async function updateStatus(id, status) {
     try {
-      // axios call here later
+     
     } catch (err) {
       console.error("Failed to update schedule status:", err);
     }
@@ -330,10 +330,10 @@ export default function ScheduleManagement() {
           <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.name}</td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">
-              {s.start_date ? new Date(s.start_date).toLocaleString() : "—"}
+              {s.start_date ? new Date(s.start_date).toLocaleDateString() : "—"}
             </td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">
-              {s.end_date ? new Date(s.end_date).toLocaleString() : "—"}
+              {s.start_date ? new Date(s.start_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
             </td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.therapist}</td>
             <td className={`px-6 py-4 text-center text-sm font-semibold ${scheduleStatusColor(s.status)}`}>
@@ -349,7 +349,7 @@ export default function ScheduleManagement() {
         )}
       />
 
-      {/* Add Modal */}
+      
       {showAdd && (
         <Modal title="Add Patient Form" onClose={() => setShowAdd(false)} maxWidth="max-w-2xl" scrollable>
           <PatientForm
@@ -368,17 +368,17 @@ export default function ScheduleManagement() {
                 start_date:  new Date(values.startDate).toISOString(),
                 end_date:    new Date(values.endDate).toISOString(),
               };
-              // axios.post("/api/schedules", payload) here later
+              
             }}
             onClose={() => setShowAdd(false)}
           />
         </Modal>
       )}
 
-      {/* View Modal */}
+     
       {viewPatient && <ViewPatientModal patient={viewPatient} onClose={() => setViewPatient(null)} />}
 
-      {/* Edit Modal */}
+      
       {editPatient && (
         <Modal title="Edit Patient Form" onClose={() => setEditPatient(null)} maxWidth="max-w-2xl" scrollable>
           <PatientForm
@@ -412,14 +412,14 @@ export default function ScheduleManagement() {
                 start_date:  new Date(values.startDate).toISOString(),
                 end_date:    new Date(values.endDate).toISOString(),
               };
-              // axios.put(`/api/schedules/${editPatient.id}`, payload) here later
+              
             }}
             onClose={() => setEditPatient(null)}
           />
         </Modal>
       )}
 
-      {/* Confirm Dialog */}
+    
       {confirmAction && meta && (
         <ConfirmDialog
           title={meta.title}
