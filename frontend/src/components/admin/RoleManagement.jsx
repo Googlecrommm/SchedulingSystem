@@ -100,11 +100,11 @@ export default function RoleManagement() {
   const [departments,   setDepartments]   = useState([]);
   const [loading,       setLoading]       = useState(false);
 
-  // Pagination state
+  
   const [page,       setPage]       = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Reset to page 1 whenever tab or search changes
+ 
   useEffect(() => {
     setPage(1);
   }, [activeTab, searchQuery]);
@@ -125,12 +125,12 @@ export default function RoleManagement() {
         headers: getAuthHeader(),
         params: {
           status,
-          page: page - 1,   // Spring Boot Pageable is 0-indexed
+          page: page - 1,   
           size: PAGE_SIZE,
         },
       });
 
-      // Spring Page response: { content: [...], totalPages: N, ... }
+     
       const pageData   = res.data;
       const content    = Array.isArray(pageData) ? pageData : pageData?.content ?? [];
       const serverTotalPages = pageData?.totalPages ?? 1;
@@ -156,7 +156,7 @@ export default function RoleManagement() {
     }
   }
 
-  // Client-side search filter (only filters the current page)
+  
   const filtered = roles.filter((r) =>
     r.name.toLowerCase().includes(searchQuery.toLowerCase())
   );

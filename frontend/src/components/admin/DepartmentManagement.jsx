@@ -87,7 +87,7 @@ export default function DepartmentManagement() {
       const res = await axios.get("/api/getDepartments", {
         headers: getAuthHeader(),
       });
-      const data = Array.isArray(res.data) ? res.data : [];
+      const data = Array.isArray(res.data) ? res.data : res.data?.content ?? [];
       setDepartments(data.map(mapDept));
     } catch (err) {
       
