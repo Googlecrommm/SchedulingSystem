@@ -3,6 +3,7 @@ package com.spring.Service;
 import com.spring.Enums.SoftDelete;
 import com.spring.Exceptions.EmptyDepartment;
 import com.spring.Exceptions.NoChangesDetected;
+import com.spring.Exceptions.NotAllowed;
 import com.spring.Exceptions.NotFound;
 import com.spring.Models.Departments;
 import com.spring.Repositories.DepartmentsRepository;
@@ -73,9 +74,15 @@ public class DepartmentsService {
     //ARCHIVE
     public void archiveDepartment(int departmentId){
         Departments deptToArchive = departmentsRepository.findById(departmentId).orElseThrow(() -> new NotFound("Department not found"));
+
         if (deptToArchive.getDepartmentStatus().equals(SoftDelete.Archived)){
             throw new NoChangesDetected("Department is already Archived");
         }
+
+        if (deptToArchive.getDepartmentName().equals("Information Communication Technology")){
+            throw new NotAllowed("ICT can't be archived");
+        }
+
         deptToArchive.setDepartmentStatus(SoftDelete.Archived);
         deptToArchive.getRoles().forEach(roles -> roles.setRoleStatus(SoftDelete.Archived));
 
