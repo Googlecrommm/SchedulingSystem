@@ -3,6 +3,10 @@
 GET http://localhost:8080/api/getUsers?accountStatus=Disabled
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
 
+###
+GET http://localhost:8080/api/getUsers
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
+
 
 ###
 GET http://localhost:8080/api/searchUser/H
@@ -14,9 +18,9 @@ POST http://localhost:8080/auth/register
 Content-Type: application/json
 
 {
-  "email": "dexter.dgmc@gmail.com",
-  "name": "Dexter",
-  "password": "Radiologist@123",
+  "email": "johnny.dgmc@gmail.com",
+  "name": "Johnny",
+  "password": "PhysicalTherapist@123",
   "role": {
     "roleId": 3
   }

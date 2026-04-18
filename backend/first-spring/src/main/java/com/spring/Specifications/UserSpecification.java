@@ -1,6 +1,7 @@
 package com.spring.Specifications;
 
 import com.spring.Models.Users;
+import org.apache.catalina.User;
 import org.springframework.data.jpa.domain.Specification;
 
 public class UserSpecification {
@@ -22,6 +23,12 @@ public class UserSpecification {
         return (root, query, criteriaBuilder) -> {
             if(roleName == null) return null;
             return criteriaBuilder.equal(root.get("role").get("roleName"), roleName);
+        };
+    }
+
+    public static Specification<Users> excludeRole(){
+        return (root, query, criteriaBuilder) -> {
+            return criteriaBuilder.notEqual(root.get("role").get("roleName"), "Admin");
         };
     }
 }

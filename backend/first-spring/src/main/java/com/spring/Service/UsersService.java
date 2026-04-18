@@ -33,9 +33,11 @@ public class UsersService {
     public Page<UserResponseDTO> getUsers(String accountStatus, String departmentName, String roleName, Pageable pageable){
 
         Specification<Users> filters = Specification
-                .where(UserSpecification.hasAccountStatus(accountStatus))
+                .where(UserSpecification.excludeRole())
                 .and(UserSpecification.hasDepartment(departmentName))
-                .and(UserSpecification.hasRole(roleName));
+                .and(UserSpecification.hasRole(roleName))
+                .and(UserSpecification.hasAccountStatus(accountStatus));
+
 
         return usersRepository
                 .findAll(filters, pageable)
