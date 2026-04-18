@@ -55,16 +55,14 @@ public class RolesService {
     }
 
     //SEARCH ROLE BY NAME
-    public List<RoleResponseDTO> searchRole(String searchName){
+    public Page<RoleResponseDTO> searchRole(String searchName, Pageable pageable){
         return rolesRepository
-                .searchRoleByName(searchName)
-                .stream()
+                .searchRoleByName(searchName, pageable)
                 .map(roles -> {
                     RoleResponseDTO roleDto = modelMapper.map(roles, RoleResponseDTO.class);
                     roleDto.setDepartmentName(roles.getDepartment().getDepartmentName());
                     return roleDto;
-                })
-                .toList();
+                });
     }
 
     //COUNT ROLES

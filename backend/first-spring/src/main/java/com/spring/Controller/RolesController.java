@@ -47,9 +47,9 @@ public class RolesController {
     // SEARCH BY ROLE NAME
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/searchRole/{searchName}")
-    public ResponseEntity<List<RoleResponseDTO>> searchRole(@PathVariable String searchName){
+    public ResponseEntity<Page<RoleResponseDTO>> searchRole(@PathVariable String searchName, Pageable pageable){
         return ResponseEntity
-                .ok(rolesService.searchRole(searchName));
+                .ok(rolesService.searchRole(searchName, pageable));
     }
 
     //COUNT ALL

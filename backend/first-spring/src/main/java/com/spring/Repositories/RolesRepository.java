@@ -17,7 +17,8 @@ public interface RolesRepository extends JpaRepository<Roles, Integer>, JpaSpeci
     boolean existsByRoleName(String roleName);
 
     @Query("select role from Roles role where role.roleName like %:searchName%")
-    List<Roles> searchRoleByName(@Param("searchName") String searchName);
+    Page<Roles> searchRoleByName(@Param("searchName") String searchName, Pageable pageable);
+
 
     Page<Roles> findAll(Pageable pageable);
 }
