@@ -40,6 +40,11 @@ GET http://localhost:8080/api/getRoles?deparmentName=ICT
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjMyNTIyOSwiZXhwIjoxNzc2NDExNjI5fQ.08ftM6WzXGfHpVRHQRfxSQd0nA7ier2FoY1nHsHt_p5AItyDU0Pot-qqXdGGvvq7
 
 ###
+GET http://localhost:8080/api/roleDropdown
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjUwMzQwNywiZXhwIjoxNzc2NTg5ODA3fQ.rXPU8bVJTBHCOtS2TQjkbjm6i2u5D_JiDs_y2tt6MOCFnEa87zA31J2_FGK0Ts-l
+
+
+###
 POST http://localhost:8080/api/createRole
 Content-Type: application/json
 

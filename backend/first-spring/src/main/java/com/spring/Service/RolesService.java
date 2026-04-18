@@ -54,6 +54,18 @@ public class RolesService {
                 });
     }
 
+    //READ ALL (DROPDOWN)
+    public List<RoleResponseDTO> roleDropdown(){
+        return rolesRepository.findAll()
+                .stream()
+                .map(roles -> {
+                    RoleResponseDTO roleDTO = modelMapper.map(roles, RoleResponseDTO.class);
+                    roleDTO.setDepartmentName(roles.getDepartment().getDepartmentName());
+                    return roleDTO;
+                })
+                .toList();
+    }
+
     //SEARCH ROLE BY NAME
     public Page<RoleResponseDTO> searchRole(String searchName, Pageable pageable){
         return rolesRepository

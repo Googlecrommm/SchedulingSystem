@@ -44,6 +44,14 @@ public class RolesController {
                 .ok(rolesService.getRoles(status, deparmentName, pageable));
     }
 
+    // READ ALL (DROPDOWN)
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/roleDropdown")
+    public ResponseEntity<List<RoleResponseDTO>> roleDropdown(){
+        return ResponseEntity
+                .ok(rolesService.roleDropdown());
+    }
+
     // SEARCH BY ROLE NAME
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/searchRole/{searchName}")
