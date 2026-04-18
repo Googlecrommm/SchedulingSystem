@@ -34,6 +34,16 @@ public class UserController {
         return ResponseEntity.ok(usersService.getUsers(accountStatus, departmentName, roleName, pageable));
     }
 
+    //SEARCH BY NAME
+    @GetMapping("searchUser/{searchName}")
+    public ResponseEntity<Page<UserResponseDTO>> searchUser(
+            @PathVariable String searchName,
+            Pageable pageable
+    ){
+        return ResponseEntity
+                .ok(usersService.searchUser(searchName, pageable));
+    }
+
     //READ BY ID
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("getById/{userId}")

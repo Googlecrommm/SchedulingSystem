@@ -47,6 +47,18 @@ public class UsersService {
                 });
     }
 
+    //SEARCH ROLE BY NAME
+    public Page<UserResponseDTO> searchUser(String searchName, Pageable pageable){
+        return usersRepository
+                .searchAllByNameContaining(searchName, pageable)
+                .map(users -> {
+                    UserResponseDTO userDTO = modelMapper.map(users, UserResponseDTO.class);
+                    userDTO.setRoleName(users.getRole().getRoleName());
+                    userDTO.setDepartmentName(users.getRole().getDepartment().getDepartmentName());
+                    return userDTO;
+                });
+    }
+
     //READ (ID)
     public UserResponseDTO getUserById(int userId) throws NotFound {
         Users user = usersRepository.findById(userId).orElseThrow(() -> new NotFound("User not found"));

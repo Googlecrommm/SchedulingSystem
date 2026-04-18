@@ -5,6 +5,11 @@ Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsL
 
 
 ###
+GET http://localhost:8080/api/searchUser/H
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjUwMTU5MywiZXhwIjoxNzc2NTg3OTkzfQ.WOAarz_I5KS4EpAW761JuNuWvsHMrzHBcCzDLnaQK-fj4Ny5rJY6r85pgP9M2ETU
+
+
+###
 POST http://localhost:8080/auth/register
 Content-Type: application/json
 
