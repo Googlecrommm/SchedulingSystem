@@ -42,4 +42,10 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(404).body(error);
     }
 
+    @ExceptionHandler(NotAllowed.class)
+    public ResponseEntity<ErrorResponse> handleNotAllowed(NotAllowed notAllowed){
+        ErrorResponse error = new ErrorResponse(400, notAllowed.getMessage());
+        return ResponseEntity.status(400).body(error);
+    }
+
 }

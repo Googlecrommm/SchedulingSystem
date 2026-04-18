@@ -1,9 +1,7 @@
 package com.spring.Service;
 
 import com.spring.Enums.SoftDelete;
-import com.spring.Exceptions.AlreadyExists;
-import com.spring.Exceptions.NotFound;
-import com.spring.Exceptions.RoleNotFound;
+import com.spring.Exceptions.*;
 import com.spring.Models.Roles;
 import com.spring.Repositories.RolesRepository;
 import com.spring.Specifications.RoleSpecification;
@@ -102,16 +100,30 @@ public class RolesService {
     //ARCHIVE
     public void archiveRole(int roleId){
         Roles roleToArchive = rolesRepository.findById(roleId).orElseThrow(() -> new RoleNotFound("Role doesn't exist"));
+
         if (roleToArchive.getRoleId() != 1 && !roleToArchive.getRoleName().equalsIgnoreCase("Admin")){
             roleToArchive.setRoleStatus(SoftDelete.Archived);
             rolesRepository.save(roleToArchive);
         }
-        new SuccessResponse(400, "Admin can't be archived");
+        else {
+            throw new NotAllowed("Admin can't be archived");
+        }
+
+        if (roleToArchive.getRoleStatus().equals(SoftDelete.Archived)){
+            throw new NoChangesDetected("This role is already archived");
+        }
+
+
     }
 
     //RESTORE
     public void restoreRole(int roleId){
         Roles roleToRestore = rolesRepository.findById(roleId).orElseThrow(() -> new RoleNotFound("Role doesn't exist"));
+
+        if(roleToRestore.getRoleStatus().equals(SoftDelete.Active)){
+            throw new NoChangesDetected("This role is already active");
+        }
+
         roleToRestore.setRoleStatus(SoftDelete.Active);
         rolesRepository.save(roleToRestore);
     }
