@@ -56,7 +56,7 @@ public class RolesService {
 
     //READ ALL (DROPDOWN)
     public List<RoleResponseDTO> roleDropdown(){
-        return rolesRepository.findAllByRoleStatusNot(SoftDelete.Archived)
+        return rolesRepository.findAllByRoleStatusNotAndRoleNameNot(SoftDelete.Archived, "Admin")
                 .stream()
                 .map(roles -> {
                     RoleResponseDTO roleDTO = modelMapper.map(roles, RoleResponseDTO.class);

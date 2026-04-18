@@ -38,10 +38,10 @@ public class RolesController {
     @GetMapping("/getRoles")
     public ResponseEntity<Page<RoleResponseDTO>> getRoles(
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String deparmentName,
+            @RequestParam(required = false) String departmentName,
             Pageable pageable){
         return ResponseEntity
-                .ok(rolesService.getRoles(status, deparmentName, pageable));
+                .ok(rolesService.getRoles(status, departmentName, pageable));
     }
 
     // READ ALL (DROPDOWN)
