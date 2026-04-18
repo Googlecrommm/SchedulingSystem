@@ -8,7 +8,7 @@ public class RoleSpecification {
     public static Specification<Roles> hasStatus(String status){
         return (root, query, criteriaBuilder) -> {
             if(status == null) return null;
-            return criteriaBuilder.equal(root.get("softDelete"), status);
+            return criteriaBuilder.equal(root.get("roleStatus"), status);
         };
     }
 
