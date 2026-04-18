@@ -3,11 +3,20 @@ package com.spring.dto;
 import com.spring.Enums.AccountStatus;
 
 public class UserResponseDTO {
+    private int userId;
     private String name;
     private String email;
     private String roleName;
     private String departmentName;
     private AccountStatus accountStatus;
+
+    public int getUserId() {
+        return userId;
+    }
+
+    public void setUserId(int userId) {
+        this.userId = userId;
+    }
 
     public String getName() {
         return name;

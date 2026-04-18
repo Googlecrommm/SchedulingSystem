@@ -27,7 +27,16 @@ Content-Type: application/json
 }
 
 ###
-PUT http://localhost:8080/api/disableUser/3
+PUT localhost:8080/api/updateUser/3
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
+Content-Type: application/json
+
+{
+  "name": "Eron vidal"
+}
+
+###
+PUT http://localhost:8080/api/activateUser/3
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
 
 ###
