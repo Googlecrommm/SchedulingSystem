@@ -333,7 +333,9 @@ export default function ScheduleManagement() {
               {s.start_date ? new Date(s.start_date).toLocaleDateString() : "—"}
             </td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">
-              {s.start_date ? new Date(s.start_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
+              {s.start_date && s.end_date
+                ? `${new Date(s.start_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - ${new Date(s.end_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                : "—"}
             </td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.therapist}</td>
             <td className={`px-6 py-4 text-center text-sm font-semibold ${scheduleStatusColor(s.status)}`}>
