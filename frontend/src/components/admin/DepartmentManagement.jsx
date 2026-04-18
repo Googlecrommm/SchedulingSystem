@@ -28,6 +28,8 @@ const deptSchema = Yup.object({
   name: Yup.string().required("Department name is required"),
 });
 
+const PAGE_SIZE = 10;
+
 function getAuthHeader() {
   const token = localStorage.getItem("token");
   return { Authorization: `Bearer ${token}` };
@@ -59,7 +61,6 @@ function DeptForm({ initialName = "", submitLabel = "Submit", onSubmit, onClose 
   );
 }
 
-
 function mapDept(d) {
   return {
     id:       d.departmentId,
@@ -77,33 +78,59 @@ export default function DepartmentManagement() {
   const [departments,   setDepartments]   = useState([]);
   const [loading,       setLoading]       = useState(false);
 
+  
+  const [page,       setPage]       = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  
+  useEffect(() => {
+    setPage(0);
+  }, [activeTab, searchQuery]);
+
   useEffect(() => {
     fetchDepartments();
-  }, []);
+  }, [activeTab, searchQuery, page]);
 
   async function fetchDepartments() {
     setLoading(true);
     try {
-      const res = await axios.get("/api/getDepartments", {
+      const statusParam = activeTab === "Archive" ? "Archived" : "Active";
+
+    
+      const url = searchQuery.trim()
+        ? `/api/searchDepartment/${encodeURIComponent(searchQuery.trim())}`
+        : `/api/getDepartments`;
+
+      const params = {
+        page,
+        size: PAGE_SIZE,
+        sort: "departmentName,asc",
+        ...(searchQuery.trim() ? {} : { departmentStatus: statusParam }),
+      };
+
+      const res = await axios.get(url, {
         headers: getAuthHeader(),
+        params,
       });
-      const data = Array.isArray(res.data) ? res.data : res.data?.content ?? [];
-      setDepartments(data.map(mapDept));
+
+      const pageData = res.data;
+      const content  = Array.isArray(pageData) ? pageData : pageData?.content ?? [];
+
+      setDepartments(content.map(mapDept));
+      setTotalPages(pageData?.totalPages ?? 1);
     } catch (err) {
-      
-      if (err.response?.status === 200 || err.response?.data?.message) {
-        setDepartments([]);
-      } else {
-        console.error("Failed to fetch departments:", err);
-      }
+      console.error("Failed to fetch departments:", err);
+      setDepartments([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
   }
 
-  const filtered = departments
-    .filter((d) => (activeTab === "Archive" ? d.archived : !d.archived))
-    .filter((d) => d.name.toLowerCase().includes(searchQuery.toLowerCase()));
+ 
+  const filtered = searchQuery.trim()
+    ? departments.filter((d) => (activeTab === "Archive" ? d.archived : !d.archived))
+    : departments;
 
   function handleAction(action, dept) {
     if (action === "Edit")      return setEditDept(dept);
@@ -119,7 +146,6 @@ export default function DepartmentManagement() {
           ? `/api/archiveDepartment/${dept.id}`
           : `/api/restoreDepartment/${dept.id}`;
 
-      
       await axios.put(endpoint, null, {
         headers: { ...getAuthHeader(), "Content-Type": "application/json" },
       });
@@ -153,6 +179,11 @@ export default function DepartmentManagement() {
         loading={loading}
         emptyIcon={Building2}
         emptyText={activeTab === "Archive" ? "No archived departments" : "No departments found"}
+        
+        page={page + 1}
+        totalPages={totalPages}
+        onPrev={() => setPage((p) => Math.max(0, p - 1))}
+        onNext={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
         renderRow={(dept) => (
           <tr key={dept.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
             <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">{dept.name}</td>
@@ -166,7 +197,6 @@ export default function DepartmentManagement() {
         )}
       />
 
-      
       {showCreate && (
         <Modal title="Add Department" onClose={() => setShowCreate(false)}>
           <DeptForm
@@ -188,7 +218,6 @@ export default function DepartmentManagement() {
         </Modal>
       )}
 
-      
       {editDept && (
         <Modal title="Edit Department" onClose={() => setEditDept(null)}>
           <DeptForm
@@ -216,7 +245,6 @@ export default function DepartmentManagement() {
         </Modal>
       )}
 
-   
       {confirmAction && (
         <ConfirmDialog
           title={confirmAction.type === "archive" ? "Archive Department?" : "Unarchive Department?"}

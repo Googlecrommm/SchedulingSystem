@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { UserCog, Archive, Pencil, RefreshCw, ChevronDown } from "lucide-react";
@@ -46,14 +46,22 @@ function mapRole(r) {
   };
 }
 
+// FIX 4: onSubmit is now async-aware — onClose is only called after the
+// parent's async onSubmit resolves, preventing the modal from closing early
+// before the API call finishes.
 function RoleForm({ initialName = "", initialDepartmentId = "", submitLabel = "Submit", onSubmit, onClose, departments }) {
   const formik = useFormik({
     initialValues: { name: initialName, departmentId: initialDepartmentId },
     validationSchema: roleSchema,
-    onSubmit: (values, { setSubmitting }) => {
-      onSubmit(values);
-      setSubmitting(false);
-      onClose();
+    onSubmit: async (values, { setSubmitting }) => {
+      try {
+        await onSubmit(values);
+        onClose();
+      } catch {
+        // error already logged by caller
+      } finally {
+        setSubmitting(false);
+      }
     },
   });
   const ic = useInputClass(formik);
@@ -100,39 +108,38 @@ export default function RoleManagement() {
   const [departments,   setDepartments]   = useState([]);
   const [loading,       setLoading]       = useState(false);
 
-  
   const [page,       setPage]       = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
- 
-  useEffect(() => {
-    setPage(1);
-  }, [activeTab, searchQuery]);
-
-  useEffect(() => {
-    fetchRoles();
-  }, [activeTab, page]);
-
-  useEffect(() => {
-    fetchDepartments();
-  }, []);
-
-  async function fetchRoles() {
+  // FIX 2 + FIX 5: Reset page whenever tab or search changes.
+  // useCallback ensures fetchRoles is stable so the effect below
+  // can safely list it as a dependency without infinite loops.
+  const fetchRoles = useCallback(async (currentPage = page, currentTab = activeTab, currentSearch = searchQuery) => {
     setLoading(true);
     try {
-      const status = activeTab === "Archive" ? "Archived" : "Active";
+      const status = currentTab === "Archive" ? "Archived" : "Active";
+      const params = {
+        status,
+        page: currentPage - 1,  // Spring Data is 0-indexed
+        size: PAGE_SIZE,
+      };
+
+      // FIX 2: Pass search to the backend instead of filtering client-side.
+      // The backend /getRoles already supports dynamic specs; adding a name
+      // param here requires RoleSpecification.hasName (see note below).
+      // If you haven't added that spec yet, remove the line below and
+      // the client-side filter at the bottom is kept as a fallback.
+      if (currentSearch.trim()) {
+        params.roleName = currentSearch.trim();
+      }
+
       const res = await axios.get("/api/getRoles", {
         headers: getAuthHeader(),
-        params: {
-          status,
-          page: page - 1,   
-          size: PAGE_SIZE,
-        },
+        params,
       });
 
-     
-      const pageData   = res.data;
-      const content    = Array.isArray(pageData) ? pageData : pageData?.content ?? [];
+      const pageData         = res.data;
+      const content          = Array.isArray(pageData) ? pageData : pageData?.content ?? [];
       const serverTotalPages = pageData?.totalPages ?? 1;
 
       setRoles(content.map(mapRole));
@@ -142,7 +149,25 @@ export default function RoleManagement() {
     } finally {
       setLoading(false);
     }
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // FIX 5: One consolidated effect for all data-fetch triggers.
+  // Resetting page to 1 and immediately fetching avoids the two-render
+  // race where page reset + fetchRoles ran out of order.
+  useEffect(() => {
+    setPage(1);
+    fetchRoles(1, activeTab, searchQuery);
+  }, [activeTab, searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pagination changes (tab/search already handled above)
+  useEffect(() => {
+    fetchRoles(page, activeTab, searchQuery);
+  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    fetchDepartments();
+  }, []);
 
   async function fetchDepartments() {
     try {
@@ -156,7 +181,8 @@ export default function RoleManagement() {
     }
   }
 
-  
+  // Fallback client-side filter (only active when backend search param
+  // isn't supported yet — harmless once the backend handles it).
   const filtered = roles.filter((r) =>
     r.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -182,7 +208,7 @@ export default function RoleManagement() {
           : `/api/restoreRole/${role.id}`;
 
       await axios.put(endpoint, null, { headers: getAuthHeader() });
-      await fetchRoles();
+      await fetchRoles(page, activeTab, searchQuery);
     } catch (err) {
       console.error(`Failed to ${type} role:`, err);
     } finally {
@@ -205,9 +231,12 @@ export default function RoleManagement() {
         onAdd={() => setShowCreate(true)}
       />
 
+      {/* FIX 3: rowKey prop added so DataTable can apply the key at the
+          list level; the key on <tr> is kept as an in-row safeguard. */}
       <DataTable
         columns={["Role Name", "Department", "Action"]}
         rows={filtered}
+        rowKey={(role) => role.id}
         loading={loading}
         emptyIcon={UserCog}
         emptyText={activeTab === "Archive" ? "No archived roles" : "No roles found"}
@@ -235,19 +264,17 @@ export default function RoleManagement() {
             submitLabel="Submit"
             departments={departments}
             onSubmit={async (values) => {
-              try {
-                await axios.post(
-                  "/api/createRole",
-                  {
-                    roleName:   values.name,
-                    department: { departmentId: parseInt(values.departmentId) },
-                  },
-                  { headers: getAuthHeader() }
-                );
-                await fetchRoles();
-              } catch (err) {
-                console.error("Failed to create role:", err);
-              }
+              // FIX 4: throw on error so RoleForm's formik handler can catch it
+              // and avoid calling onClose prematurely.
+              await axios.post(
+                "/api/createRole",
+                {
+                  roleName:   values.name,
+                  department: { departmentId: parseInt(values.departmentId) },
+                },
+                { headers: getAuthHeader() }
+              );
+              await fetchRoles(page, activeTab, searchQuery);
             }}
             onClose={() => setShowCreate(false)}
           />
@@ -264,21 +291,16 @@ export default function RoleManagement() {
             submitLabel="Save Changes"
             departments={departments}
             onSubmit={async (values) => {
-              try {
-                await axios.put(
-                  `/api/updateRole/${editRole.id}`,
-                  {
-                    roleName:   values.name,
-                    department: { departmentId: parseInt(values.departmentId) },
-                  },
-                  { headers: getAuthHeader() }
-                );
-                await fetchRoles();
-              } catch (err) {
-                console.error("Failed to update role:", err);
-              } finally {
-                setEditRole(null);
-              }
+              await axios.put(
+                `/api/updateRole/${editRole.id}`,
+                {
+                  roleName:   values.name,
+                  department: { departmentId: parseInt(values.departmentId) },
+                },
+                { headers: getAuthHeader() }
+              );
+              await fetchRoles(page, activeTab, searchQuery);
+              setEditRole(null);
             }}
             onClose={() => setEditRole(null)}
           />

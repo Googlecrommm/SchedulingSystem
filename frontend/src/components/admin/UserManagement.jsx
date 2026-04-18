@@ -17,6 +17,8 @@ import {
   ConfirmDialog,
 } from "../ui";
 
+const BASE_URL = "http://localhost:8080"; // adjust if needed
+
 const TABS = [
   { label: "All",      icon: Users },
   { label: "Disabled", icon: MinusCircle },
@@ -39,29 +41,59 @@ function getActions(activeTab, userStatus) {
 }
 
 const createSchema = Yup.object({
-  name:       Yup.string().required("Name is required"),
-  email:      Yup.string().email("Invalid email").required("Email is required"),
-  password:   Yup.string().min(6, "At least 6 characters").required("Password is required"),
-  department: Yup.string().required("Department is required"),
-  role:       Yup.string().required("Role is required"),
+  name:     Yup.string().required("Name is required"),
+  email:    Yup.string().email("Invalid email").required("Email is required"),
+  password: Yup.string().min(6, "At least 6 characters").required("Password is required"),
+  role:     Yup.string().required("Role is required"),
 });
 
 const editSchema = Yup.object({
-  name:       Yup.string().required("Name is required"),
-  email:      Yup.string().email("Invalid email").required("Email is required"),
-  password:   Yup.string().min(6, "At least 6 characters"),
-  department: Yup.string().required("Department is required"),
-  role:       Yup.string().required("Role is required"),
+  name:     Yup.string().required("Name is required"),
+  email:    Yup.string().email("Invalid email").required("Email is required"),
+  password: Yup.string().min(6, "At least 6 characters"),
+  // department is display-only in edit — role carries it on the backend
+  role:     Yup.string().required("Role is required"),
 });
 
-function UserForm({ initialValues, validationSchema, submitLabel, onSubmit, onClose, departments, roles }) {
+/**
+ * Map a UserResponseDTO from Spring to the flat shape used by the UI.
+ *
+ * UserResponseDTO fields:
+ *   userId, name, email, roleName, departmentName, accountStatus
+ *
+ * NOTE: Make sure your UserResponseDTO exposes `userId` (see fix note below).
+ */
+function mapUser(u) {
+  return {
+    id:         u.userId,                     // FIX: UserResponseDTO must include userId
+    name:       u.name        ?? "",
+    email:      u.email       ?? "",
+    role:       u.roleName    ?? "",          // FIX: DTO field is `roleName`, not `role.roleName`
+    roleId:     u.roleId      ?? "",          // FIX: DTO must include roleId for edit payload
+    department: u.departmentName ?? "",       // FIX: DTO field is `departmentName`
+    status:     u.accountStatus  ?? "",       // FIX: DTO field is `accountStatus`, not `status`
+  };
+}
+
+/** Return the Authorization header value from wherever you store the JWT */
+function authHeader() {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function UserForm({ initialValues, validationSchema, submitLabel, onSubmit, onClose, roles }) {
   const formik = useFormik({
     initialValues,
     validationSchema,
     onSubmit: async (values, { setSubmitting }) => {
-      await onSubmit(values);
-      setSubmitting(false);
-      onClose();
+      try {
+        await onSubmit(values);
+        onClose();
+      } catch (err) {
+        console.error("Form submit error:", err);
+      } finally {
+        setSubmitting(false);
+      }
     },
   });
   const ic = useInputClass(formik);
@@ -80,21 +112,12 @@ function UserForm({ initialValues, validationSchema, submitLabel, onSubmit, onCl
         <input type="password" placeholder="Password" className={ic("password")} {...formik.getFieldProps("password")} />
       </FormField>
 
-      <FormField label="Department" error={formik.touched.department && formik.errors.department}>
-        <div className="relative">
-          <select className={`${ic("department")} appearance-none cursor-pointer`} {...formik.getFieldProps("department")}>
-            <option value="" disabled>Select department</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
-          <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-        </div>
-      </FormField>
-
       <FormField label="Role" error={formik.touched.role && formik.errors.role}>
         <div className="relative">
-          <select className={`${ic("role")} appearance-none cursor-pointer`} {...formik.getFieldProps("role")}>
+          <select
+            className={`${ic("role")} appearance-none cursor-pointer`}
+            {...formik.getFieldProps("role")}
+          >
             <option value="" disabled>Select role</option>
             {roles.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
@@ -111,7 +134,7 @@ function UserForm({ initialValues, validationSchema, submitLabel, onSubmit, onCl
 
 function ViewUserModal({ user, onClose }) {
   const statusColor =
-    user.status === "Enabled"  ? "text-green-600" :
+    user.status === "Active"   ? "text-green-600" :
     user.status === "Disabled" ? "text-accent"    : "text-gray-400";
 
   return (
@@ -140,7 +163,6 @@ function ViewUserModal({ user, onClose }) {
 
 export default function UserManagement() {
   const [users,         setUsers]         = useState([]);
-  const [departments,   setDepartments]   = useState([]);
   const [roles,         setRoles]         = useState([]);
   const [loading,       setLoading]       = useState(false);
   const [activeTab,     setActiveTab]     = useState("All");
@@ -157,10 +179,19 @@ export default function UserManagement() {
     fetchDropdownData();
   }, []);
 
+  // ─── Fetch all users ───────────────────────────────────────────────────────
   async function fetchUsers() {
     setLoading(true);
     try {
-      
+      // FIX: added leading slash → /api/getUsers
+      const res = await fetch(`${BASE_URL}/api/getUsers?size=100`, {
+        headers: { ...authHeader() },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      // Spring Page<UserResponseDTO> → data.content
+      const content = data.content ?? data;
+      setUsers(content.map(mapUser));
     } catch (err) {
       console.error("Failed to fetch users:", err);
     } finally {
@@ -168,26 +199,43 @@ export default function UserManagement() {
     }
   }
 
+  // ─── Fetch roles for dropdown (/api/roleDropdown — requires ADMIN token) ──
   async function fetchDropdownData() {
     try {
-      
+      // FIX: added leading slash → /api/roleDropdown
+      const res = await fetch(`${BASE_URL}/api/roleDropdown`, {
+        headers: { ...authHeader() },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      // RoleResponseDTO: { roleId, roleName, departmentName, roleStatus }
+      // Only show Active roles
+      const activeRoles = data.filter((r) => r.roleStatus !== "Archived");
+      setRoles(activeRoles.map((r) => ({ id: r.roleId, name: r.roleName })));
     } catch (err) {
       console.error("Failed to fetch dropdown data:", err);
     }
   }
 
+  // ─── Client-side filtering ─────────────────────────────────────────────────
   const filtered = users
     .filter((u) => {
       if (activeTab === "Disabled") return u.status === "Disabled";
       return true;
     })
-    .filter((u) =>
-      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.role.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    .filter((u) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        u.name.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        u.department.toLowerCase().includes(q) ||
+        u.role.toLowerCase().includes(q)
+      );
+    });
 
+  // ─── Action dispatcher ─────────────────────────────────────────────────────
   function handleAction(action, user) {
     switch (action) {
       case "View":    return setViewUser(user);
@@ -197,15 +245,79 @@ export default function UserManagement() {
     }
   }
 
+  // ─── Confirm: disable / enable ────────────────────────────────────────────
   async function applyConfirm() {
     const { type, user } = confirmAction;
     try {
-      
+      // FIX: correct endpoint paths with leading slash
+      const endpoint =
+        type === "disable"
+          ? `${BASE_URL}/api/disableUser/${user.id}`
+          : `${BASE_URL}/api/activateUser/${user.id}`;
+
+      const res = await fetch(endpoint, {
+        method:  "PUT",
+        headers: { ...authHeader() },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      // Optimistic update — no full refetch needed
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === user.id
+            ? { ...u, status: type === "disable" ? "Disabled" : "Active" }
+            : u
+        )
+      );
     } catch (err) {
       console.error(`Failed to ${type} user:`, err);
     } finally {
       setConfirmAction(null);
     }
+  }
+
+  // ─── Create user (POST /auth/register) ────────────────────────────────────
+  async function handleCreate(values) {
+    // Users.java expects: name, email, password, role { roleId }
+    const payload = {
+      name:     values.name,
+      email:    values.email,
+      password: values.password,
+      role:     { roleId: Number(values.role) },  // FIX: matches @JoinColumn roleId in Users entity
+    };
+
+    const res = await fetch(`${BASE_URL}/auth/register`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json", ...authHeader() },
+      body:    JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`HTTP ${res.status}: ${errText}`);
+    }
+    await fetchUsers();
+  }
+
+  // ─── Update user (PUT /api/updateUser/:id) ────────────────────────────────
+  async function handleEdit(values) {
+    // UsersService.updateUser accepts: name, email, password (optional), role { roleId }
+    const payload = {
+      name:  values.name,
+      email: values.email,
+      role:  { roleId: Number(values.role) },       // FIX: backend reads role.roleId
+      ...(values.password ? { password: values.password } : {}),
+    };
+
+    const res = await fetch(`${BASE_URL}/api/updateUser/${editUser.id}`, {
+      method:  "PUT",
+      headers: { "Content-Type": "application/json", ...authHeader() },
+      body:    JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`HTTP ${res.status}: ${errText}`);
+    }
+    await fetchUsers();
   }
 
   const confirmMeta = confirmAction && {
@@ -254,16 +366,14 @@ export default function UserManagement() {
 
       {/* Create Modal */}
       {showCreate && (
-        <Modal title="Create User" onClose={() => setShowCreate(false)} scrollable>
+        <Modal title="Create Account" onClose={() => setShowCreate(false)} scrollable>
           <UserForm
-            initialValues={{ name: "", email: "", password: "", department: "", role: "" }}
+            initialValues={{ name: "", email: "", password: "", role: "" }}
             validationSchema={createSchema}
             submitLabel="Submit"
-            departments={departments}
             roles={roles}
-            onSubmit={async (values) => {
-              
-            }}
+            showDepartment={false}
+            onSubmit={handleCreate}
             onClose={() => setShowCreate(false)}
           />
         </Modal>
@@ -276,14 +386,16 @@ export default function UserManagement() {
       {editUser && (
         <Modal title="Edit User" onClose={() => setEditUser(null)} scrollable>
           <UserForm
-            initialValues={{ name: editUser.name, email: editUser.email, password: "", department: editUser.department, role: editUser.role }}
+            initialValues={{
+              name:     editUser.name,
+              email:    editUser.email,
+              password: "",
+              role:     String(editUser.roleId ?? ""),
+            }}
             validationSchema={editSchema}
             submitLabel="Save"
-            departments={departments}
             roles={roles}
-            onSubmit={async (values) => {
-              
-            }}
+            onSubmit={handleEdit}
             onClose={() => setEditUser(null)}
           />
         </Modal>
