@@ -59,8 +59,8 @@ Content-Type: application/json
 }
 
 ###
-GET http://localhost:8080/api/getDepartments
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzMjUyMSwiZXhwIjoxNzc2NTE4OTIxfQ.qNXeeHRNhE-vvjQ_1UOo957XnPBaIPbjP9quYoBBX9sDkmbFh9J1uPSZSSsM9-lf
+GET http://localhost:8080/api/getDepartments?departmentStatus=Active
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQ5OTAyMywiZXhwIjoxNzc2NTg1NDIzfQ.RuDLumnXUlDeoHSfNntl0fumgGNzV5BOJZdcB5eyDOaLUyVVF9pQp7LCkedck1am
 
 
 ###
@@ -79,8 +79,8 @@ Content-Type: application/json
 }
 
 ###
-PUT http://localhost:8080/api/archiveDepartment/1
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjMyNTIyOSwiZXhwIjoxNzc2NDExNjI5fQ.08ftM6WzXGfHpVRHQRfxSQd0nA7ier2FoY1nHsHt_p5AItyDU0Pot-qqXdGGvvq7
+PUT http://localhost:8080/api/archiveDepartment/2
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQ5OTAyMywiZXhwIjoxNzc2NTg1NDIzfQ.RuDLumnXUlDeoHSfNntl0fumgGNzV5BOJZdcB5eyDOaLUyVVF9pQp7LCkedck1am
 
 
 ###

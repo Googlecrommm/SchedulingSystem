@@ -6,10 +6,12 @@ import com.spring.Exceptions.NoChangesDetected;
 import com.spring.Exceptions.NotFound;
 import com.spring.Models.Departments;
 import com.spring.Repositories.DepartmentsRepository;
+import com.spring.Specifications.DepartmentSpecification;
 import com.spring.dto.DepartmentResponseDTO;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import java.util.List;
 
@@ -35,9 +37,12 @@ public class DepartmentsService {
     }
 
     //READ
-    public Page<DepartmentResponseDTO> getDepartments(Pageable pageable){
+    public Page<DepartmentResponseDTO> getDepartments(String departmentStatus, Pageable pageable){
+        Specification<Departments> filters = Specification
+                .where(DepartmentSpecification.hasStatus(departmentStatus));
+
         return departmentsRepository
-                .findAll(pageable)
+                .findAll(filters, pageable)
                 .map(departments -> {
                     return modelMapper.map(departments, DepartmentResponseDTO.class);
                 });
