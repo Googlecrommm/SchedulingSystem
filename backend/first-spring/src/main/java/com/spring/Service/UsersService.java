@@ -1,6 +1,7 @@
 package com.spring.Service;
 
 import com.spring.Enums.AccountStatus;
+import com.spring.Exceptions.NoChangesDetected;
 import com.spring.Exceptions.NotFound;
 import com.spring.Models.Users;
 import com.spring.Repositories.UsersRepository;
@@ -101,6 +102,11 @@ public class UsersService {
     //DISABLE ACCOUNT
     public void disableAccount(int userId){
         Users userToDisable = usersRepository.findById(userId).orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        if (userToDisable.getAccountStatus().equals(AccountStatus.Disabled)){
+            throw new NoChangesDetected("This account is already disabled");
+        }
+
         userToDisable.setAccountStatus(AccountStatus.Disabled);
         usersRepository.save(userToDisable);
     }
@@ -108,6 +114,11 @@ public class UsersService {
     //ACTIVE ACCOUNT
     public void activateAccount(int userId){
         Users userToActivate = usersRepository.findById(userId).orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        if(userToActivate.getAccountStatus().equals(AccountStatus.Active)){
+            throw new NoChangesDetected("This account is already active");
+        }
+
         userToActivate.setAccountStatus(AccountStatus.Active);
         usersRepository.save(userToActivate);
     }
