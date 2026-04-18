@@ -1,19 +1,4 @@
-
-###
-GET http://localhost:8080/api/getUsers?accountStatus=Disabled
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
-
-###
-GET http://localhost:8080/api/getUsers
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
-
-
-###
-GET http://localhost:8080/api/searchUser/H
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjUwMTU5MywiZXhwIjoxNzc2NTg3OTkzfQ.WOAarz_I5KS4EpAW761JuNuWvsHMrzHBcCzDLnaQK-fj4Ny5rJY6r85pgP9M2ETU
-
-
-###
+### CREATE USER
 POST http://localhost:8080/auth/register
 Content-Type: application/json
 
@@ -26,7 +11,17 @@ Content-Type: application/json
   }
 }
 
-###
+
+### READ AND FILTER USERS
+GET http://localhost:8080/api/getUsers?accountStatus=Disabled
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
+
+### SEARCH USER
+GET http://localhost:8080/api/searchUser/H
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjUwMTU5MywiZXhwIjoxNzc2NTg3OTkzfQ.WOAarz_I5KS4EpAW761JuNuWvsHMrzHBcCzDLnaQK-fj4Ny5rJY6r85pgP9M2ETU
+
+
+### UPDATE USER
 PUT localhost:8080/api/updateUser/3
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
 Content-Type: application/json
@@ -35,11 +30,16 @@ Content-Type: application/json
   "name": "Eron vidal"
 }
 
-###
+### DISABLE USER ACCOUNT
+PUT http://localhost:8080/api/disableUser/3
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
+
+
+### ACTIVATE USER ACCOUNT
 PUT http://localhost:8080/api/activateUser/3
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
 
-###
+### LOGIN ENDPOINT
 POST http://localhost:8080/auth/login
 Content-Type: application/json
 
@@ -48,16 +48,7 @@ Content-Type: application/json
   "password": "Admin@123"
 }
 
-###
-GET http://localhost:8080/api/getRoles?deparmentName=ICT
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjMyNTIyOSwiZXhwIjoxNzc2NDExNjI5fQ.08ftM6WzXGfHpVRHQRfxSQd0nA7ier2FoY1nHsHt_p5AItyDU0Pot-qqXdGGvvq7
-
-###
-GET http://localhost:8080/api/roleDropdown
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjUwMzQwNywiZXhwIjoxNzc2NTg5ODA3fQ.rXPU8bVJTBHCOtS2TQjkbjm6i2u5D_JiDs_y2tt6MOCFnEa87zA31J2_FGK0Ts-l
-
-
-###
+### CREATE ROLE
 POST http://localhost:8080/api/createRole
 Content-Type: application/json
 
@@ -68,12 +59,28 @@ Content-Type: application/json
   }
 }
 
-###
+### READ AND FILTER ROLES
+GET http://localhost:8080/api/getRoles?deparmentName=ICT
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjMyNTIyOSwiZXhwIjoxNzc2NDExNjI5fQ.08ftM6WzXGfHpVRHQRfxSQd0nA7ier2FoY1nHsHt_p5AItyDU0Pot-qqXdGGvvq7
+
+### SEARCH ROLE
+GET http://localhost:8080/api/searchRole/
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjMyNTIyOSwiZXhwIjoxNzc2NDExNjI5fQ.08ftM6WzXGfHpVRHQRfxSQd0nA7ier2FoY1nHsHt_p5AItyDU0Pot-qqXdGGvvq7
+
+### READ FOR ROLE DROPDOWN
+GET http://localhost:8080/api/roleDropdown
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjUwMzQwNywiZXhwIjoxNzc2NTg5ODA3fQ.rXPU8bVJTBHCOtS2TQjkbjm6i2u5D_JiDs_y2tt6MOCFnEa87zA31J2_FGK0Ts-l
+
+### ARCHIVE ROLE
 PUT http://localhost:8080/api/archiveRole/6
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQwMjY2MywiZXhwIjoxNzc2NDg5MDYzfQ.Nd5fRE2-5Hdd0gfEMtBQ55Q6Nw0UrjFy6EeXf0FVGP-uJPgLlETjrf1hVf1t6z-t
 
+### RESTORE ROLE
+PUT http://localhost:8080/api/restoreRole/6
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQwMjY2MywiZXhwIjoxNzc2NDg5MDYzfQ.Nd5fRE2-5Hdd0gfEMtBQ55Q6Nw0UrjFy6EeXf0FVGP-uJPgLlETjrf1hVf1t6z-t
 
-###
+
+### CREATE DEPARTMENT
 POST http://localhost:8080/api/createDepartment
 Content-Type: application/json
 
@@ -81,17 +88,17 @@ Content-Type: application/json
   "departmentName": "Rehabilitation"
 }
 
-###
+### READ AND FILTER DEPARTMENTS
 GET http://localhost:8080/api/getDepartments?departmentStatus=Active
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQ5OTAyMywiZXhwIjoxNzc2NTg1NDIzfQ.RuDLumnXUlDeoHSfNntl0fumgGNzV5BOJZdcB5eyDOaLUyVVF9pQp7LCkedck1am
 
 
-###
+### SEARCH DEPARTMENT
 GET http://localhost:8080/api/searchDepartment/Radio
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjMyNTIyOSwiZXhwIjoxNzc2NDExNjI5fQ.08ftM6WzXGfHpVRHQRfxSQd0nA7ier2FoY1nHsHt_p5AItyDU0Pot-qqXdGGvvq7
 
 
-###
+### UPDATE DEPARTMENT
 PUT http://localhost:8080/api/updateDepartment/2
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjMyNTIyOSwiZXhwIjoxNzc2NDExNjI5fQ.08ftM6WzXGfHpVRHQRfxSQd0nA7ier2FoY1nHsHt_p5AItyDU0Pot-qqXdGGvvq7
 Content-Type: application/json
@@ -101,21 +108,25 @@ Content-Type: application/json
   "departmentName": "Radiology"
 }
 
-###
+### ARCHIVE DEPARTMENT
 PUT http://localhost:8080/api/archiveDepartment/2
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQ5OTAyMywiZXhwIjoxNzc2NTg1NDIzfQ.RuDLumnXUlDeoHSfNntl0fumgGNzV5BOJZdcB5eyDOaLUyVVF9pQp7LCkedck1am
 
 
-###
+### RESTORE DEPARTMENT
 PUT http://localhost:8080/api/restoreDepartment/1
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjMyNTIyOSwiZXhwIjoxNzc2NDExNjI5fQ.08ftM6WzXGfHpVRHQRfxSQd0nA7ier2FoY1nHsHt_p5AItyDU0Pot-qqXdGGvvq7
 
 
-###
+### CREATE MACHINE
 POST http://localhost:8080/api/createMachine
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjMyNTIyOSwiZXhwIjoxNzc2NDExNjI5fQ.08ftM6WzXGfHpVRHQRfxSQd0nA7ier2FoY1nHsHt_p5AItyDU0Pot-qqXdGGvvq7
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
 Content-Type: application/json
 
 {
   "machineName": "Ultrasound"
 }
+
+### READ ALL MACHINES
+GET http://localhost:8080/api/getMachines?machineStatus=Available
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
