@@ -30,7 +30,7 @@ public class Roles {
 
     @Column(name = "roleStatus", nullable = false)
     @Enumerated(EnumType.STRING)
-    private SoftDelete softDelete = SoftDelete.Active;
+    private SoftDelete roleStatus = SoftDelete.Active;
 
     public Roles(){}
 
@@ -72,20 +72,12 @@ public class Roles {
         this.department = department;
     }
 
-    public SoftDelete getRoleStatus(){
-        return softDelete;
+    public SoftDelete getRoleStatus() {
+        return roleStatus;
     }
 
-    public void setRoleStatus(SoftDelete softDelete){
-        this.softDelete = softDelete;
-    }
-
-    public SoftDelete getSoftDelete() {
-        return softDelete;
-    }
-
-    public void setSoftDelete(SoftDelete softDelete) {
-        this.softDelete = softDelete;
+    public void setRoleStatus(SoftDelete roleStatus) {
+        this.roleStatus = roleStatus;
     }
 
     public List<Doctors> getDoctors() {

@@ -1,5 +1,6 @@
 package com.spring.Repositories;
 
+import com.spring.Enums.SoftDelete;
 import com.spring.Models.Roles;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +20,7 @@ public interface RolesRepository extends JpaRepository<Roles, Integer>, JpaSpeci
     @Query("select role from Roles role where role.roleName like %:searchName%")
     Page<Roles> searchRoleByName(@Param("searchName") String searchName, Pageable pageable);
 
-
     Page<Roles> findAll(Pageable pageable);
+
+    List<Roles> findAllByRoleStatusNot(SoftDelete roleStatus);
 }
