@@ -1,3 +1,4 @@
+/** Change The Date and time and set as a Start datetime and End datetime also change on the view modal **/
 import { useState, useEffect, useRef } from "react";
 import {
   Calendar, CalendarCheck, CalendarX, Clock, Archive,
@@ -26,7 +27,7 @@ const TABS = [
   { label: "Done",      icon: CheckCircle   },
 ];
 
-const COLUMNS = ["Name", "Date", "Time", "Department", "Status", "Action"];
+const COLUMNS = ["Name", "Start Date Time", "End Date Time", "Department", "Status", "Action"];
 
 
 function getActions(status) {
@@ -116,8 +117,8 @@ function ViewScheduleModal({ schedule, onClose }) {
   ];
 
   const dateTimeFields = [
-    { label: "Date",      value: schedule.date },
-    { label: "Time",      value: schedule.time },
+    { label: "Start Date & Time", value: schedule.start_datetime ? new Date(schedule.start_datetime).toLocaleString("en-US", { month: "2-digit", day: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }) : "—" },
+    { label: "End Date & Time",   value: schedule.end_datetime   ? new Date(schedule.end_datetime).toLocaleString("en-US", { month: "2-digit", day: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }) : "—" },
   ];
 
   return (
@@ -135,7 +136,7 @@ function ViewScheduleModal({ schedule, onClose }) {
           {dateTimeFields.map(({ label, value }) => (
             <div key={label}>
               <label className="block text-sm font-semibold text-primary mb-1.5">{label}</label>
-              <input readOnly value={value ?? "—"} className={ro} />
+              <input readOnly value={value} className={ro} />
             </div>
           ))}
         </div>
@@ -149,14 +150,10 @@ function ViewScheduleModal({ schedule, onClose }) {
 
 function formatDate(iso) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
-}
-
-function formatTime(startIso, endIso) {
-  if (!startIso || !endIso) return "—";
-  const fmt = (iso) =>
-    new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-  return `${fmt(startIso)} - ${fmt(endIso)}`;
+  return new Date(iso).toLocaleString("en-US", {
+    month: "2-digit", day: "2-digit", year: "numeric",
+    hour: "numeric", minute: "2-digit", hour12: true,
+  });
 }
 
 
@@ -170,7 +167,7 @@ export default function AdminScheduleManagement() {
   const [viewSchedule,     setViewSchedule]      = useState(null);
   const [confirmAction,    setConfirmAction]     = useState(null);
 
- 
+
   useEffect(() => { setSearchQuery(""); }, [activeTab]);
 
   useEffect(() => {
@@ -184,7 +181,7 @@ export default function AdminScheduleManagement() {
   async function fetchSchedules() {
     setLoading(true);
     try {
-      
+
     } catch (err) {
       console.error("Failed to fetch schedules:", err);
     } finally {
@@ -194,7 +191,7 @@ export default function AdminScheduleManagement() {
 
   async function fetchDepartments() {
     try {
-      
+
     } catch (err) {
       console.error("Failed to fetch departments:", err);
     }
@@ -217,7 +214,7 @@ export default function AdminScheduleManagement() {
     return matchesTab && matchesSearch && matchesDept;
   });
 
-  
+
   function handleAction(action, schedule) {
     switch (action) {
       case "View":      return setViewSchedule(schedule);
@@ -229,7 +226,7 @@ export default function AdminScheduleManagement() {
   async function applyConfirm() {
     const { type, schedule } = confirmAction;
     try {
-  
+
     } catch (err) {
       console.error(`Failed to ${type} schedule:`, err);
     } finally {
@@ -239,7 +236,7 @@ export default function AdminScheduleManagement() {
 
   const meta = confirmAction && confirmMeta[confirmAction.type];
 
- 
+
   const deptLabel =
     deptFilter === "all"
       ? "All Departments"
@@ -262,7 +259,7 @@ export default function AdminScheduleManagement() {
       onSearchChange={setSearchQuery}
       searchPlaceholder="Search Patient"
     >
-    
+
       <div className="flex items-center gap-1 border-b border-gray-200 mb-4 overflow-x-auto overflow-y-hidden">
         {TABS.map(({ label, icon: Icon }) => (
           <button
@@ -289,8 +286,8 @@ export default function AdminScheduleManagement() {
         renderRow={(s) => (
           <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.name}</td>
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{formatDate(s.start_date)}</td>
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{formatTime(s.start_date, s.end_date)}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">{formatDate(s.start_datetime)}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">{formatDate(s.end_datetime)}</td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.department}</td>
             <td className={`px-6 py-4 text-center text-sm font-semibold ${scheduleStatusColor(s.status)}`}>
               {s.status ? s.status.charAt(0).toUpperCase() + s.status.slice(1) : "—"}
@@ -305,7 +302,7 @@ export default function AdminScheduleManagement() {
         )}
       />
 
-    
+
       {viewSchedule && (
         <ViewScheduleModal
           schedule={viewSchedule}
@@ -313,7 +310,6 @@ export default function AdminScheduleManagement() {
         />
       )}
 
-     
       {confirmAction && meta && (
         <ConfirmDialog
           title={meta.title}

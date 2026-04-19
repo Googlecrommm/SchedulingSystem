@@ -1,3 +1,4 @@
+// Remove the department change it into role since role has a department already.
 import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -26,20 +27,20 @@ const activeActions  = [{ label: "Edit", icon: Pencil }, { label: "Archive", ico
 const archiveActions = [{ label: "Unarchive", icon: RefreshCw }];
 
 const professionalSchema = Yup.object({
-  fullName:     Yup.string().required("Full name is required"),
-  departmentId: Yup.string().required("Department is required"),
+  fullName: Yup.string().required("Full name is required"),
+  roleId:   Yup.string().required("Role is required"),
 });
 
 function ProfessionalForm({
   initialFullName = "",
-  initialDepartmentId = "",
+  initialRoleId = "",
   submitLabel = "Submit",
   onSubmit,
   onClose,
-  departments,
+  roles,
 }) {
   const formik = useFormik({
-    initialValues: { fullName: initialFullName, departmentId: initialDepartmentId },
+    initialValues: { fullName: initialFullName, roleId: initialRoleId },
     validationSchema: professionalSchema,
     onSubmit: (values, { setSubmitting }) => {
       onSubmit(values);
@@ -60,16 +61,16 @@ function ProfessionalForm({
         />
       </FormField>
 
-      <FormField label="Department" error={formik.touched.departmentId && formik.errors.departmentId}>
+      <FormField label="Role" error={formik.touched.roleId && formik.errors.roleId}>
         <div className="relative">
           <select
-            className={`${ic("departmentId")} appearance-none cursor-pointer`}
-            {...formik.getFieldProps("departmentId")}
+            className={`${ic("roleId")} appearance-none cursor-pointer`}
+            {...formik.getFieldProps("roleId")}
           >
-            <option value="" disabled>Select Department</option>
-            {departments.map((d) => (
-              <option key={d.departmentId} value={d.departmentId}>
-                {d.departmentName}
+            <option value="" disabled>Select Role</option>
+            {roles.map((r) => (
+              <option key={r.roleId} value={r.roleId}>
+                {r.roleName}
               </option>
             ))}
           </select>
@@ -83,14 +84,14 @@ function ProfessionalForm({
 }
 
 export default function ProfessionalManagement() {
-  const [activeTab,      setActiveTab]      = useState("All");
-  const [searchQuery,    setSearchQuery]    = useState("");
-  const [showCreate,     setShowCreate]     = useState(false);
+  const [activeTab,         setActiveTab]         = useState("All");
+  const [searchQuery,       setSearchQuery]       = useState("");
+  const [showCreate,        setShowCreate]        = useState(false);
   const [editProfessional,  setEditProfessional]  = useState(null);
-  const [confirmAction,  setConfirmAction]  = useState(null);
-  const [professionals,  setProfessionals]  = useState([]);
-  const [departments,    setDepartments]    = useState([]);
-  const [loading,        setLoading]        = useState(false);
+  const [confirmAction,     setConfirmAction]     = useState(null);
+  const [professionals,     setProfessionals]     = useState([]);
+  const [roles,             setRoles]             = useState([]);
+  const [loading,           setLoading]           = useState(false);
 
  
   const [page,       setPage]       = useState(1);
@@ -106,7 +107,7 @@ export default function ProfessionalManagement() {
   }, [activeTab, page]);
 
   useEffect(() => {
-    fetchDepartments();
+    fetchRoles();
   }, []);
 
   async function fetchProfessionals() {
@@ -120,18 +121,18 @@ export default function ProfessionalManagement() {
     }
   }
 
-  async function fetchDepartments() {
+  async function fetchRoles() {
     try {
     
     } catch (err) {
-      console.error("Failed to fetch departments:", err);
+      console.error("Failed to fetch roles:", err);
     }
   }
 
 
   const filtered = professionals.filter((p) =>
     p.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (p.departmentName ?? "").toLowerCase().includes(searchQuery.toLowerCase())
+    (p.roleName ?? "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   function handleAction(action, professional) {
@@ -167,7 +168,7 @@ export default function ProfessionalManagement() {
       />
 
       <DataTable
-        columns={["Full Name", "Department", "Action"]}
+        columns={["Full Name", "Role", "Action"]}
         rows={filtered}
         loading={loading}
         emptyIcon={Cross}
@@ -179,7 +180,7 @@ export default function ProfessionalManagement() {
         renderRow={(professional) => (
           <tr key={professional.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
             <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">{professional.fullName}</td>
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{professional.departmentName ?? "—"}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">{professional.roleName ?? "—"}</td>
             <td className="px-6 py-4 text-center">
               <ActionDropdown
                 items={activeTab === "Archived" ? archiveActions : activeActions}
@@ -195,7 +196,7 @@ export default function ProfessionalManagement() {
         <Modal title="Add Professionals" onClose={() => setShowCreate(false)}>
           <ProfessionalForm
             submitLabel="Submit"
-            departments={departments}
+            roles={roles}
             onSubmit={async (values) => {
               try {
                 
@@ -213,11 +214,11 @@ export default function ProfessionalManagement() {
         <Modal title="Edit Professionals" onClose={() => setEditProfessional(null)}>
           <ProfessionalForm
             initialFullName={editProfessional.fullName}
-            initialDepartmentId={
-              departments.find((d) => d.departmentName === editProfessional.departmentName)?.departmentId?.toString() ?? ""
+            initialRoleId={
+              roles.find((r) => r.roleName === editProfessional.roleName)?.roleId?.toString() ?? ""
             }
             submitLabel="Edit"
-            departments={departments}
+            roles={roles}
             onSubmit={async (values) => {
               try {
                 
