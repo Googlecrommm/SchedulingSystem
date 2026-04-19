@@ -108,7 +108,7 @@ export default function AdminDashboard() {
   async function fetchDashboardData() {
     setLoading(true);
     try {
-     
+      // axios calls here later
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
     } finally {
@@ -118,10 +118,21 @@ export default function AdminDashboard() {
 
   async function fetchDepartments() {
     try {
-   
+      // axios calls here later
     } catch (err) {
       console.error("Failed to fetch departments:", err);
     }
+  }
+
+  // Helper: format MySQL DATETIME for display in the table
+  // MySQL returns "2025-04-19 09:30:00" → .replace(" ", "T") needed to parse correctly in all browsers
+  // Output: "04/19/2025, 9:30 AM"
+  function formatDateTime(iso) {
+    if (!iso) return "—";
+    return new Date(iso.replace(" ", "T")).toLocaleString("en-US", {
+      month: "2-digit", day: "2-digit", year: "numeric",
+      hour: "numeric", minute: "2-digit", hour12: true,
+    });
   }
 
   const statsCards = [
@@ -148,7 +159,7 @@ export default function AdminDashboard() {
         <LoadingSkeleton />
       ) : (
         <>
-         
+          {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
             {statsCards.map(({ icon: Icon, label, value, color }) => (
               <div
@@ -164,13 +175,12 @@ export default function AdminDashboard() {
             ))}
           </div>
 
-          
+          {/* Chart */}
           <div className="bg-white rounded-2xl shadow-card p-6 mb-6">
             <h2 className="text-lg font-bold text-primary mb-4 font-montserrat">
               Status Chart
             </h2>
 
-            
             <div className="flex items-center gap-1 border-b border-gray-200 mb-6 overflow-x-auto overflow-y-hidden">
               {TIME_FRAMES.map((label) => (
                 <button
@@ -186,7 +196,6 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-           
             <div className="flex items-center justify-end gap-4 sm:gap-6 mb-4 flex-wrap">
               {[
                 { color: "bg-green-500",  label: "Confirmed" },
@@ -200,12 +209,10 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-            
             {chartDate && (
               <p className="text-center text-sm font-semibold text-primary mb-4">{chartDate}</p>
             )}
 
-           
             <div className="w-full h-[300px] sm:h-[350px]">
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
@@ -235,7 +242,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-       
+          {/* Recent Schedules */}
           <div className="bg-white rounded-2xl shadow-card overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-bold text-primary font-montserrat">Recent Schedules</h3>
@@ -250,7 +257,7 @@ export default function AdminDashboard() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-primary">
-                    {["Name", "Date", "Time", "Status"].map((col) => (
+                    {["Name", "Start Date Time", "End Date Time", "Status"].map((col) => (
                       <th key={col} className="px-4 sm:px-6 py-4 text-sm font-bold text-white text-center tracking-wide">
                         {col}
                       </th>
@@ -262,8 +269,10 @@ export default function AdminDashboard() {
                     recentSchedules.map((s, i) => (
                       <tr key={s.id ?? i} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                         <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">{s.name}</td>
-                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">{s.date}</td>
-                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">{s.time}</td>
+                        {/* Display full start datetime — e.g. "04/19/2025, 9:30 AM" */}
+                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">{formatDateTime(s.start_date)}</td>
+                        {/* Display full end datetime — e.g. "04/19/2025, 10:30 AM" */}
+                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">{formatDateTime(s.end_date)}</td>
                         <td className="px-4 sm:px-6 py-4 text-center">
                           <span className={`text-sm font-semibold ${scheduleStatusColor(s.status)}`}>
                             {s.status}
