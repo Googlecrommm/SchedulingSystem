@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Cpu, Archive, Pencil, RefreshCw, CheckCircle, Wrench } from "lucide-react";
+import axios from "../../config/axiosInstance";
 
 import {
   AdminLayout,
@@ -16,6 +17,11 @@ import {
   ConfirmDialog,
 } from "../ui";
 
+function getAuthHeader() {
+  const token = localStorage.getItem("token");
+  return { Authorization: `Bearer ${token}` };
+}
+
 const TABS = [
   { label: "All",      icon: Cpu     },
   { label: "Archived", icon: Archive },
@@ -28,7 +34,7 @@ function getMachineActions(machine, activeTab) {
       { label: "Unarchive", icon: RefreshCw },
     ];
   }
-  const statusAction = machine.status === "Available"
+  const statusAction = machine.machineStatus === "Available"
     ? { label: "Under Maintenance", icon: Wrench      }
     : { label: "Available",         icon: CheckCircle };
 
@@ -60,7 +66,6 @@ function MachineForm({ initialName = "", submitLabel = "Submit", onSubmit, onClo
       <FormField label="Machine Name" error={formik.touched.name && formik.errors.name}>
         <input
           type="text"
-      
           className={ic("name")}
           {...formik.getFieldProps("name")}
         />
@@ -83,10 +88,17 @@ export default function MachineManagement() {
     fetchMachines();
   }, []);
 
+ 
   async function fetchMachines() {
     setLoading(true);
     try {
+     
+      const res = await axios.get("/api/getMachines", {
+        headers: getAuthHeader(),
+        params: { page: 0, size: 1000 },
+      });
       
+      setMachines(res.data.content ?? []);
     } catch (err) {
       console.error("Failed to fetch machines:", err);
     } finally {
@@ -94,10 +106,18 @@ export default function MachineManagement() {
     }
   }
 
+  
   const filtered = machines
-    .filter((m) => (activeTab === "Archived" ? m.archived : !m.archived))
-    .filter((m) => m.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    .filter((m) =>
+      activeTab === "Archived"
+        ? m.machineStatus === "Archived"
+        : m.machineStatus !== "Archived"
+    )
+    .filter((m) =>
+      m.machineName.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
+ 
   function handleAction(action, machine) {
     if (action === "Edit")              return setEditMachine(machine);
     if (action === "Archive")           return setConfirmAction({ type: "archive",     machine });
@@ -106,14 +126,20 @@ export default function MachineManagement() {
     if (action === "Available")         return setConfirmAction({ type: "available",   machine });
   }
 
+  
   async function applyConfirm() {
     const { type, machine } = confirmAction;
     try {
-      if (type === "archive" || type === "unarchive") {
-        
-      } else {
-        
+      if (type === "archive") {
+        await axios.put(`/api/archiveMachine/${machine.machineId}`, {}, { headers: getAuthHeader() });
+      } else if (type === "unarchive") {
+        await axios.put(`/api/activateMachine/${machine.machineId}`, {}, { headers: getAuthHeader() });
+      } else if (type === "maintenance") {
+        await axios.put(`/api/markAsMaintenance/${machine.machineId}`, {}, { headers: getAuthHeader() });
+      } else if (type === "available") {
+        await axios.put(`/api/activateMachine/${machine.machineId}`, {}, { headers: getAuthHeader() });
       }
+      await fetchMachines(); 
     } catch (err) {
       console.error(`Failed to apply action (${type}):`, err);
     } finally {
@@ -122,16 +148,15 @@ export default function MachineManagement() {
   }
 
   const confirmMeta = confirmAction && {
-    archive:     { title: "Archive Machine?",       msg: `"${confirmAction.machine.name}" will be archived.`,                    label: "Archive",   danger: true  },
-    unarchive:   { title: "Unarchive Machine?",     msg: `"${confirmAction.machine.name}" will be restored to active.`,          label: "Unarchive", danger: false },
-    maintenance: { title: "Set Under Maintenance?", msg: `"${confirmAction.machine.name}" will be marked as under maintenance.`, label: "Confirm",   danger: false },
-    available:   { title: "Mark as Available?",     msg: `"${confirmAction.machine.name}" will be marked as available.`,         label: "Confirm",   danger: false },
+    archive:     { title: "Archive Machine?",       msg: `"${confirmAction.machine.machineName}" will be archived.`,                    label: "Archive",   danger: true  },
+    unarchive:   { title: "Unarchive Machine?",     msg: `"${confirmAction.machine.machineName}" will be restored to active.`,          label: "Unarchive", danger: false },
+    maintenance: { title: "Set Under Maintenance?", msg: `"${confirmAction.machine.machineName}" will be marked as under maintenance.`, label: "Confirm",   danger: false },
+    available:   { title: "Mark as Available?",     msg: `"${confirmAction.machine.machineName}" will be marked as available.`,         label: "Confirm",   danger: false },
   }[confirmAction.type];
 
   return (
     <AdminLayout
       pageTitle="Machine Management"
-     
       searchValue={searchQuery}
       onSearchChange={setSearchQuery}
       searchPlaceholder="Search Machines"
@@ -151,10 +176,10 @@ export default function MachineManagement() {
         emptyIcon={Cpu}
         emptyText={activeTab === "Archived" ? "No archived machines" : "No machines found"}
         renderRow={(machine) => (
-          <tr key={machine.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-            <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">{machine.name}</td>
+          <tr key={machine.machineId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+            <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">{machine.machineName}</td>
             <td className="px-6 py-4 text-center">
-              <StatusBadge status={machine.status} />
+              <StatusBadge status={machine.machineStatus} />
             </td>
             <td className="px-6 py-4 text-center">
               <ActionDropdown
@@ -166,34 +191,52 @@ export default function MachineManagement() {
         )}
       />
 
-      {}
+    
       {showCreate && (
         <Modal title="Add Machine" onClose={() => setShowCreate(false)}>
           <MachineForm
             submitLabel="Submit"
             onSubmit={async (values) => {
-              
+              try {
+           
+                await axios.post("/api/createMachine", {
+                  machineName: values.name,
+                 
+                }, { headers: getAuthHeader() });
+                await fetchMachines();
+              } catch (err) {
+                console.error("Failed to create machine:", err);
+              }
             }}
             onClose={() => setShowCreate(false)}
           />
         </Modal>
       )}
 
-      {}
+     
       {editMachine && (
         <Modal title="Edit Machine" onClose={() => setEditMachine(null)}>
           <MachineForm
-            initialName={editMachine.name}
+            initialName={editMachine.machineName}
             submitLabel="Save Changes"
             onSubmit={async (values) => {
-              
+              try {
+                await axios.put(`/api/updateMachine/${editMachine.machineId}`, {
+                  machineName: values.name,
+                }, { headers: getAuthHeader() });
+                await fetchMachines();
+              } catch (err) {
+                console.error("Failed to update machine:", err);
+              } finally {
+                setEditMachine(null);
+              }
             }}
             onClose={() => setEditMachine(null)}
           />
         </Modal>
       )}
 
-      {}
+      
       {confirmAction && (
         <ConfirmDialog
           title={confirmMeta.title}
