@@ -1,6 +1,8 @@
 package com.spring.Service;
 
+import com.spring.Enums.AccountStatus;
 import com.spring.Exceptions.AlreadyExists;
+import com.spring.Exceptions.NotAllowed;
 import com.spring.Exceptions.NotFound;
 import com.spring.Models.Users;
 import com.spring.Repositories.UsersRepository;
@@ -40,7 +42,9 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword())
         );
         Users getUser = usersRepository.findByEmail(user.getEmail()).orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
+        if (getUser.getAccountStatus().equals(AccountStatus.Disabled)){
+            throw new NotAllowed("This account is disabled");
+        }
         return jwtService.generateToken(getUser);
     }
 

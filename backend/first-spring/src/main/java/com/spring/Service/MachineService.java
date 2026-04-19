@@ -1,10 +1,7 @@
 package com.spring.Service;
 
 import com.spring.Exceptions.AlreadyExists;
-import com.spring.Exceptions.NotFound;
-import com.spring.Models.Departments;
 import com.spring.Models.Machines;
-import com.spring.Repositories.DepartmentsRepository;
 import com.spring.Repositories.MachinesRepository;
 import com.spring.Specifications.MachineSpecification;
 import com.spring.dto.MachineResponseDTO;
@@ -17,15 +14,10 @@ import org.springframework.stereotype.Service;
 @Service
 public class MachineService {
     private final MachinesRepository machinesRepository;
-    private final DepartmentsRepository departmentsRepository;
     private final ModelMapper modelMapper;
 
-    public MachineService(
-            MachinesRepository machinesRepository,
-            DepartmentsRepository departmentsRepository,
-            ModelMapper modelMapper){
+    public MachineService(MachinesRepository machinesRepository, ModelMapper modelMapper){
         this.machinesRepository = machinesRepository;
-        this.departmentsRepository = departmentsRepository;
         this.modelMapper = modelMapper;
     }
 
@@ -35,11 +27,6 @@ public class MachineService {
             throw new AlreadyExists("This machine already exists");
         }
 
-        Departments department = departmentsRepository
-                .findByDepartmentName("Radiology")
-                .orElseThrow(()-> new NotFound("Deparment Doesn't Exists"));
-
-        machine.setDepartments(department);
         machinesRepository.save(machine);
     }
 
@@ -52,7 +39,7 @@ public class MachineService {
         return machinesRepository.findAll(filters, pageable)
                 .map(machines -> {
                     MachineResponseDTO machineDTO = modelMapper.map(machines, MachineResponseDTO.class);
-                    machineDTO.setDepartmentName(machines.getDepartments().getDepartmentName());
+                    machineDTO.setModality(machines.getModality().getModality());
                     return machineDTO;
                 });
     }

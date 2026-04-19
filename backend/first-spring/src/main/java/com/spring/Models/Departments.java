@@ -28,8 +28,8 @@ public class Departments {
 
     public Departments(){}
 
-    @OneToMany(mappedBy = "departments")
-    private List<Machines> machines;
+    @OneToMany(mappedBy = "department")
+    private List<Modalities> modalities;
 
     @JsonIgnore
     @OneToMany(mappedBy = "department")
@@ -52,12 +52,12 @@ public class Departments {
         this.departmentName = departmentName;
     }
 
-    public List<Machines> getMachines() {
-        return machines;
+    public List<Modalities> getModalities() {
+        return modalities;
     }
 
-    public void setMachines(List<Machines> machines) {
-        this.machines = machines;
+    public void setModalities(List<Modalities> modalities) {
+        this.modalities = modalities;
     }
 
     public List<Roles> getRoles() {

@@ -5,8 +5,8 @@ import com.spring.Enums.MachineStatus;
 public class MachineResponseDTO {
     private int machineId;
     private String machineName;
-    private MachineStatus machineStatus;
-    private String departmentName;
+    private MachineStatus machineStatus;;
+    private String modality;
 
     public int getMachineId() {
         return machineId;
@@ -32,11 +32,11 @@ public class MachineResponseDTO {
         this.machineStatus = machineStatus;
     }
 
-    public String getDepartmentName() {
-        return departmentName;
+    public String getModality() {
+        return modality;
     }
 
-    public void setDepartmentName(String departmentName) {
-        this.departmentName = departmentName;
+    public void setModality(String modality) {
+        this.modality = modality;
     }
 }

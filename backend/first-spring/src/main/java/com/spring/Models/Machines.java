@@ -19,8 +19,7 @@ public class Machines {
     private List<Schedules> schedules;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "departmentId", nullable = false)
-    private Departments departments;
+    private Modalities modality;
 
     @NotBlank
     @Size(max = 100)
@@ -49,14 +48,6 @@ public class Machines {
         this.schedules = schedules;
     }
 
-    public Departments getDepartments() {
-        return departments;
-    }
-
-    public void setDepartments(Departments departments) {
-        this.departments = departments;
-    }
-
     public String getMachineName() {
         return machineName;
     }
@@ -73,5 +64,11 @@ public class Machines {
         this.machineStatus = machineStatus;
     }
 
+    public Modalities getModality() {
+        return modality;
+    }
 
+    public void setModality(Modalities modality) {
+        this.modality = modality;
+    }
 }

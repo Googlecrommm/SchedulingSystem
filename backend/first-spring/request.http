@@ -3,12 +3,21 @@ POST http://localhost:8080/auth/register
 Content-Type: application/json
 
 {
-  "email": "johnny.dgmc@gmail.com",
-  "name": "Johnny",
-  "password": "PhysicalTherapist@123",
+  "email": "navalcromwell@gmail.com",
+  "name": "Cromwell Naval",
+  "password": "Admin@123",
   "role": {
-    "roleId": 3
+    "roleId":1
   }
+}
+
+### LOGIN ENDPOINT
+POST http://localhost:8080/auth/login
+Content-Type: application/json
+
+{
+  "email": "navalcromwell@gmail.com",
+  "password": "Admin@123"
 }
 
 
@@ -39,23 +48,15 @@ Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsL
 PUT http://localhost:8080/api/activateUser/5
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
 
-### LOGIN ENDPOINT
-POST http://localhost:8080/auth/login
-Content-Type: application/json
-
-{
-  "email": "navalcromwell@gmail.com",
-  "password": "Admin@123"
-}
 
 ### CREATE ROLE
 POST http://localhost:8080/api/createRole
 Content-Type: application/json
 
 {
-  "roleName": "Radio FrontDesk",
+  "roleName": "Physical Therapist",
   "department": {
-    "departmentId": 2
+    "departmentId": 3
   }
 }
 
@@ -89,8 +90,8 @@ Content-Type: application/json
 }
 
 ### READ AND FILTER DEPARTMENTS
-GET http://localhost:8080/api/getDepartments?departmentStatus=Active
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQ5OTAyMywiZXhwIjoxNzc2NTg1NDIzfQ.RuDLumnXUlDeoHSfNntl0fumgGNzV5BOJZdcB5eyDOaLUyVVF9pQp7LCkedck1am
+GET http://localhost:8080/api/getDepartments
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjUyNDEyMCwiZXhwIjoxNzc2NjEwNTIwfQ.5gZmERRQpRQIJabIAh_eF_ug9m2Ud1SlOczupN9G8euezu8HGbKVphmblhMzJO4E
 
 
 ### SEARCH DEPARTMENT
@@ -120,13 +121,31 @@ Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsL
 
 ### CREATE MACHINE
 POST http://localhost:8080/api/createMachine
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjUyNDgzMywiZXhwIjoxNzc2NjExMjMzfQ.5H9oGkCP9IoJtVX4L_6-qFly7oz8ZiApdABtNRz_NHhQo0mZY-AWmN_QZW9zFn2b
 Content-Type: application/json
 
 {
-  "machineName": "Ultrasound"
+  "machineName": "MRI Machine",
+  "modality": {
+    "modalityId": 1
+  }
 }
 
 ### READ ALL MACHINES
 GET http://localhost:8080/api/getMachines?machineStatus=Available
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjQzNDg1MywiZXhwIjoxNzc2NTIxMjUzfQ.0I-6dyVcvqv9jbOiQqKh_Z7FrcrMYFNLAQwm4KrsT1MQReaZANxaGISgkKT36kpm
+
+
+### CREATE MODALITY
+POST http://localhost:8080/api/createModality
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjUyNDgzMywiZXhwIjoxNzc2NjExMjMzfQ.5H9oGkCP9IoJtVX4L_6-qFly7oz8ZiApdABtNRz_NHhQo0mZY-AWmN_QZW9zFn2b
+Content-Type: application/json
+
+{
+  "modality": "Magnetic Resonance Imaging",
+  "modalityStatus": "Active",
+  "department": {
+    "departmentId": 2
+  }
+}
+
