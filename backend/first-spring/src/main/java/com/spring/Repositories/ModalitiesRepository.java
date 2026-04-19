@@ -7,5 +7,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ModalitiesRepository extends JpaRepository<Modalities, Integer>, JpaSpecificationExecutor<Modalities> {
-    boolean existsByModality(String modality);
+    boolean existsByModalityName(String modalityName);
 }

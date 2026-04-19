@@ -20,8 +20,8 @@ public class Modalities {
 
     @NotBlank
     @Size(max = 100)
-    @Column(name = "modality", nullable = false, length = 100)
-    private String modality;
+    @Column(name = "modalityName", nullable = false, length = 100)
+    private String modalityName;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "modalityStatus", nullable = false)
@@ -46,12 +46,12 @@ public class Modalities {
         this.department = department;
     }
 
-    public String getModality() {
-        return modality;
+    public String getModalityName() {
+        return modalityName;
     }
 
-    public void setModality(String modality) {
-        this.modality = modality;
+    public void setModalityName(String modalityName) {
+        this.modalityName = modalityName;
     }
 
     public SoftDelete getModalityStatus() {

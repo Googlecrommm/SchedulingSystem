@@ -11,4 +11,11 @@ public class MachineSpecification {
             return criteriaBuilder.equal(root.get("machineStatus"), machineStatus);
         };
     }
+
+    public static Specification<Machines> hasModality(String modalityName){
+        return (root, query, criteriaBuilder) -> {
+            if(modalityName == null) return null;
+            return criteriaBuilder.equal(root.get("modality").get("modalityName"), modalityName);
+        };
+    }
 }

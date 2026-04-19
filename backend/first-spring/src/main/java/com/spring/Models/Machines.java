@@ -19,6 +19,7 @@ public class Machines {
     private List<Schedules> schedules;
 
     @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "modalityId", nullable = false)
     private Modalities modality;
 
     @NotBlank

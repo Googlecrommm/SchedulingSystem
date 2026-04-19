@@ -2,5 +2,6 @@ package com.spring.Enums;
 
 public enum MachineStatus {
     Available,
-    Under_Maintenance
+    Under_Maintenance,
+    Archived
 }

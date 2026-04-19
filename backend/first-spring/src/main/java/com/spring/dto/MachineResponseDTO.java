@@ -6,7 +6,7 @@ public class MachineResponseDTO {
     private int machineId;
     private String machineName;
     private MachineStatus machineStatus;;
-    private String modality;
+    private String modalityName;
 
     public int getMachineId() {
         return machineId;
@@ -32,11 +32,11 @@ public class MachineResponseDTO {
         this.machineStatus = machineStatus;
     }
 
-    public String getModality() {
-        return modality;
+    public String getModalityName() {
+        return modalityName;
     }
 
-    public void setModality(String modality) {
-        this.modality = modality;
+    public void setModalityName(String modalityName) {
+        this.modalityName = modalityName;
     }
 }

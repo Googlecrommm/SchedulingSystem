@@ -15,7 +15,7 @@ public class ModalitiesService {
 
     //CREATE
     public Modalities createModality(Modalities modality){
-        if (modalitiesRepository.existsByModality(modality.getModality())){
+        if (modalitiesRepository.existsByModalityName(modality.getModalityName())){
             throw new AlreadyExists("This modality already exists");
         }
 
