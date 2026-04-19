@@ -25,7 +25,7 @@ public class Modalities {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "modalityStatus", nullable = false)
-    private SoftDelete modalityStatus;
+    private SoftDelete modalityStatus = SoftDelete.Active;
 
     @OneToMany(mappedBy = "modality")
     private List<Machines> machines;
