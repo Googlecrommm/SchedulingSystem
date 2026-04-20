@@ -54,7 +54,7 @@ public class RolesService {
 
     //READ ALL (DROPDOWN)
     public List<RoleResponseDTO> roleDropdown(){
-        return rolesRepository.findAllByRoleStatusNotAndRoleNameNot(SoftDelete.Archived, "Admin")
+        return rolesRepository.findAllByRoleStatusNotAndRoleNameNotAndDepartment_DepartmentNameNot(SoftDelete.Archived, "Admin", "ICTD")
                 .stream()
                 .map(roles -> {
                     RoleResponseDTO roleDTO = modelMapper.map(roles, RoleResponseDTO.class);
@@ -83,6 +83,10 @@ public class RolesService {
     //UPDATE
     public void updateRole(int roleId, Roles role){
         Roles roleToUpdate = rolesRepository.findById(roleId).orElseThrow(() -> new RoleNotFound("Role doesn't exists"));
+
+        if (roleToUpdate.getRoleName().equalsIgnoreCase("Admin")){
+            throw new NotAllowed("Edit not allowed");
+        }
 
         if (role.getRoleName() != null && !role.getRoleName().isEmpty() && !roleToUpdate.getRoleName().equalsIgnoreCase("Admin")){
             roleToUpdate.setRoleName(role.getRoleName());

@@ -70,7 +70,18 @@ Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsL
 
 ### READ FOR ROLE DROPDOWN
 GET http://localhost:8080/api/roleDropdown
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjUwMzQwNywiZXhwIjoxNzc2NTg5ODA3fQ.rXPU8bVJTBHCOtS2TQjkbjm6i2u5D_JiDs_y2tt6MOCFnEa87zA31J2_FGK0Ts-l
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjY1OTY3OSwiZXhwIjoxNzc2NzQ2MDc5fQ.ujrkZBPkaoAk_z66z5Npfbg0KNnSYfjnH-dwT20wLBMgWUUo37BZo5ctB256EZcK
+
+### UPDATE ROLE
+PUT http://localhost:8080/api/updateRole/1
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjY1OTY3OSwiZXhwIjoxNzc2NzQ2MDc5fQ.ujrkZBPkaoAk_z66z5Npfbg0KNnSYfjnH-dwT20wLBMgWUUo37BZo5ctB256EZcK
+Content-Type: application/json
+
+{
+  "department": {
+    "departmentId": 2
+  }
+}
 
 ### ARCHIVE ROLE
 PUT http://localhost:8080/api/archiveRole/1
@@ -91,7 +102,7 @@ Content-Type: application/json
 
 ### READ AND FILTER DEPARTMENTS
 GET http://localhost:8080/api/getDepartments
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjUyNDEyMCwiZXhwIjoxNzc2NjEwNTIwfQ.5gZmERRQpRQIJabIAh_eF_ug9m2Ud1SlOczupN9G8euezu8HGbKVphmblhMzJO4E
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjY3MTcwMSwiZXhwIjoxNzc2NzU4MTAxfQ.75igqvQa9no5AGQjDfd-O3mwD-RRcD0qEsK-LcwKcVDO6iQVsw24pjEet4_TAK1W
 
 
 ### SEARCH DEPARTMENT
@@ -100,13 +111,12 @@ Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsL
 
 
 ### UPDATE DEPARTMENT
-PUT http://localhost:8080/api/updateDepartment/2
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjMyNTIyOSwiZXhwIjoxNzc2NDExNjI5fQ.08ftM6WzXGfHpVRHQRfxSQd0nA7ier2FoY1nHsHt_p5AItyDU0Pot-qqXdGGvvq7
+PUT http://localhost:8080/api/updateDepartment/1
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjY3MTcwMSwiZXhwIjoxNzc2NzU4MTAxfQ.75igqvQa9no5AGQjDfd-O3mwD-RRcD0qEsK-LcwKcVDO6iQVsw24pjEet4_TAK1W
 Content-Type: application/json
 
 {
-  "departmentId": 2,
-  "departmentName": "Radiology"
+  "departmentName": "Rehabilitation"
 }
 
 ### ARCHIVE DEPARTMENT

@@ -22,5 +22,5 @@ public interface RolesRepository extends JpaRepository<Roles, Integer>, JpaSpeci
 
     Page<Roles> findAll(Pageable pageable);
 
-    List<Roles> findAllByRoleStatusNotAndRoleNameNot(SoftDelete roleStatus, String roleName);
+    List<Roles> findAllByRoleStatusNotAndRoleNameNotAndDepartment_DepartmentNameNot(SoftDelete roleStatus, String roleName, String departmentName);
 }

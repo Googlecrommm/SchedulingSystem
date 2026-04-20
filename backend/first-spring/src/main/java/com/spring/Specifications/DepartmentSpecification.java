@@ -11,4 +11,10 @@ public class DepartmentSpecification {
             return criteriaBuilder.equal(root.get("departmentStatus"), departmentStatus);
         };
     }
+
+    public static Specification<Departments> excludeDept(){
+        return (root, query, criteriaBuilder) -> {
+            return criteriaBuilder.notEqual(root.get("departmentName"), "ICTD");
+        };
+    }
 }

@@ -40,7 +40,8 @@ public class DepartmentsService {
     //READ
     public Page<DepartmentResponseDTO> getDepartments(String departmentStatus, Pageable pageable){
         Specification<Departments> filters = Specification
-                .where(DepartmentSpecification.hasStatus(departmentStatus));
+                .where(DepartmentSpecification.hasStatus(departmentStatus))
+                .and(DepartmentSpecification.excludeDept());
 
         return departmentsRepository
                 .findAll(filters, pageable)
@@ -62,6 +63,10 @@ public class DepartmentsService {
     //UPDATE
     public Departments updateById(int departmentId, Departments department){
         Departments initialValue = departmentsRepository.findById(departmentId).orElseThrow(() -> new NotFound("Department not found"));
+
+        if (initialValue.getDepartmentName().equalsIgnoreCase("ICTD")){
+            throw new NotAllowed("Edit not allowed");
+        }
 
         if (department.getDepartmentName().equals(initialValue.getDepartmentName())){
             throw new NoChangesDetected("No changes detected");
