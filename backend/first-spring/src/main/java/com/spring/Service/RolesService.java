@@ -41,7 +41,8 @@ public class RolesService {
     public Page<RoleResponseDTO> getRoles(String status, String departmentName, Pageable pageable){
         Specification<Roles> filters = Specification
                 .where(RoleSpecification.hasStatus(status))
-                .and(RoleSpecification.hasDepartment(departmentName));
+                .and(RoleSpecification.hasDepartment(departmentName))
+                .and(RoleSpecification.excludeRole());
 
         return rolesRepository
                 .findAll(filters, pageable)

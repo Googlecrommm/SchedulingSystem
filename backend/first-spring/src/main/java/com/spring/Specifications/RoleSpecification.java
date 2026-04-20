@@ -18,4 +18,10 @@ public class RoleSpecification {
             return criteriaBuilder.equal(root.get("department").get("departmentName"), departmentName);
         };
     }
+
+    public static Specification<Roles> excludeRole(){
+        return (root, query, criteriaBuilder) -> {
+            return criteriaBuilder.notEqual(root.get("roleName"), "Admin");
+        };
+    }
 }

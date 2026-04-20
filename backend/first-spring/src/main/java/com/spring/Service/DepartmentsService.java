@@ -43,6 +43,7 @@ public class DepartmentsService {
                 .where(DepartmentSpecification.hasStatus(departmentStatus))
                 .and(DepartmentSpecification.excludeDept());
 
+
         return departmentsRepository
                 .findAll(filters, pageable)
                 .map(departments -> {
