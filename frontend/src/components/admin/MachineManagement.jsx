@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Cpu, Archive, Pencil, RefreshCw, CheckCircle, Wrench } from "lucide-react";
@@ -17,9 +17,18 @@ import {
   ConfirmDialog,
 } from "../ui";
 
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
 function getAuthHeader() {
   const token = localStorage.getItem("token");
   return { Authorization: `Bearer ${token}` };
+}
+
+// Normalizes the raw MachineStatus enum for display.
+// The backend stores "Under_Maintenance"; we surface it as "Under Maintenance".
+function formatStatus(status) {
+  if (status === "Under_Maintenance") return "Under Maintenance";
+  return status;
 }
 
 const TABS = [
@@ -27,36 +36,140 @@ const TABS = [
   { label: "Archived", icon: Archive },
 ];
 
-function getMachineActions(machine, activeTab) {
-  if (activeTab === "Archived") {
+function getMachineActions(machine) {
+  if (machine.machineStatus === "Archived") {
     return [
-      { label: "Edit",      icon: Pencil    },
       { label: "Unarchive", icon: RefreshCw },
     ];
   }
-  const statusAction = machine.machineStatus === "Available"
-    ? { label: "Under Maintenance", icon: Wrench      }
-    : { label: "Available",         icon: CheckCircle };
+
+  // The enum value from the backend is "Under_Maintenance";
+  // we compare against that but always display "Under Maintenance" as the label.
+  const statusAction =
+    machine.machineStatus === "Available"
+      ? { label: "Under Maintenance", icon: Wrench      }
+      : { label: "Available",         icon: CheckCircle };
 
   return [
-    { label: "Edit",    icon: Pencil  },
+    { label: "Edit",    icon: Pencil                },
     statusAction,
     { label: "Archive", icon: Archive, danger: true },
   ];
 }
 
-const machineSchema = Yup.object({
+// ─── VALIDATION SCHEMAS ──────────────────────────────────────────────────────
+
+const createMachineSchema = Yup.object({
+  name:       Yup.string().required("Machine name is required"),
+  modalityId: Yup.number()
+    .typeError("Modality is required")
+    .required("Modality is required")
+    .min(1, "Modality is required"),
+});
+
+const editMachineSchema = Yup.object({
   name: Yup.string().required("Machine name is required"),
 });
 
-function MachineForm({ initialName = "", submitLabel = "Submit", onSubmit, onClose }) {
+// ─── CREATE FORM ─────────────────────────────────────────────────────────────
+// Fetches modalities from GET /api/modalityDropdown on mount.
+// Each modality is expected to have { modalityId, modalityName }.
+// Update the endpoint path if yours differs (e.g. /api/getModalityDropdown).
+
+function CreateMachineForm({ submitLabel = "Submit", onSubmit, onClose }) {
+  const [modalities,      setModalities]      = useState([]);
+  const [modalityLoading, setModalityLoading] = useState(true);
+  const [modalityError,   setModalityError]   = useState(false);
+
+  useEffect(() => {
+    async function loadModalities() {
+      try {
+        const res = await axios.get("/api/modalityDropdown", {
+          headers: getAuthHeader(),
+        });
+        setModalities(res.data ?? []);
+      } catch (err) {
+        console.error("Failed to fetch modalities:", err);
+        setModalityError(true);
+      } finally {
+        setModalityLoading(false);
+      }
+    }
+    loadModalities();
+  }, []);
+
+  const formik = useFormik({
+    initialValues: { name: "", modalityId: "" },
+    validationSchema: createMachineSchema,
+    onSubmit: async (values, { setSubmitting }) => {
+      try {
+        await onSubmit(values);
+      } finally {
+        setSubmitting(false);
+      }
+    },
+  });
+  const ic = useInputClass(formik);
+
+  return (
+    <form onSubmit={formik.handleSubmit} noValidate className="space-y-4">
+
+      {/* Machine Name */}
+      <FormField label="Machine Name" error={formik.touched.name && formik.errors.name}>
+        <input
+          type="text"
+          className={ic("name")}
+          {...formik.getFieldProps("name")}
+        />
+      </FormField>
+
+      {/* Modality Dropdown */}
+      <FormField
+        label="Modality"
+        error={formik.touched.modalityId && formik.errors.modalityId}
+      >
+        <select
+          className={ic("modalityId")}
+          {...formik.getFieldProps("modalityId")}
+          disabled={modalityLoading || modalityError}
+        >
+          <option value="">
+            {modalityLoading
+              ? "Loading modalities\u2026"
+              : modalityError
+              ? "Failed to load \u2014 try again"
+              : "Select a modality"}
+          </option>
+          {modalities.map((m) => (
+            <option key={m.modalityId} value={m.modalityId}>
+              {m.modalityName}
+            </option>
+          ))}
+        </select>
+      </FormField>
+
+      <ModalFooter
+        onClear={() => formik.resetForm()}
+        submitLabel={submitLabel}
+        submitting={formik.isSubmitting}
+      />
+    </form>
+  );
+}
+
+// ─── EDIT FORM ───────────────────────────────────────────────────────────────
+// Rename only — modality is not changed after a machine is created.
+
+function EditMachineForm({ initialName = "", submitLabel = "Save Changes", onSubmit, onClose }) {
   const formik = useFormik({
     initialValues: { name: initialName },
-    validationSchema: machineSchema,
-    onSubmit: (values, { setSubmitting }) => {
-      onSubmit(values);
-      setSubmitting(false);
-      onClose();
+    validationSchema: editMachineSchema,
+    onSubmit: async (values, { setSubmitting }) => {
+      try {
+        await onSubmit(values);
+      } finally {
+        setSubmitting(false);
+      }
     },
   });
   const ic = useInputClass(formik);
@@ -70,10 +183,16 @@ function MachineForm({ initialName = "", submitLabel = "Submit", onSubmit, onClo
           {...formik.getFieldProps("name")}
         />
       </FormField>
-      <ModalFooter onClear={() => formik.resetForm()} submitLabel={submitLabel} submitting={formik.isSubmitting} />
+      <ModalFooter
+        onClear={() => formik.resetForm()}
+        submitLabel={submitLabel}
+        submitting={formik.isSubmitting}
+      />
     </form>
   );
 }
+
+// ─── MAIN PAGE ───────────────────────────────────────────────────────────────
 
 export default function MachineManagement() {
   const [activeTab,     setActiveTab]     = useState("All");
@@ -83,41 +202,61 @@ export default function MachineManagement() {
   const [confirmAction, setConfirmAction] = useState(null);
   const [machines,      setMachines]      = useState([]);
   const [loading,       setLoading]       = useState(false);
+  const [serverResults, setServerResults] = useState(null);
 
-  useEffect(() => {
-    fetchMachines();
-  }, []);
-
- 
-  async function fetchMachines() {
+  // ─── FETCH MACHINES ────────────────────────────────────────────────────────
+  const fetchMachines = useCallback(async () => {
     setLoading(true);
     try {
-     
+      const params = {
+        page: 0,
+        size: 1000,
+        ...(activeTab === "Archived" && { machineStatus: "Archived" }),
+      };
       const res = await axios.get("/api/getMachines", {
         headers: getAuthHeader(),
-        params: { page: 0, size: 1000 },
+        params,
       });
-      
       setMachines(res.data.content ?? []);
     } catch (err) {
       console.error("Failed to fetch machines:", err);
     } finally {
       setLoading(false);
     }
-  }
+  }, [activeTab]);
 
-  
-  const filtered = machines
-    .filter((m) =>
-      activeTab === "Archived"
-        ? m.machineStatus === "Archived"
-        : m.machineStatus !== "Archived"
-    )
-    .filter((m) =>
-      m.machineName.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+  useEffect(() => {
+    fetchMachines();
+  }, [fetchMachines]);
 
- 
+  // ─── DEBOUNCED SERVER SEARCH ───────────────────────────────────────────────
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setServerResults(null);
+      return;
+    }
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await axios.get(
+          "/api/searchMachine/" + encodeURIComponent(searchQuery.trim()),
+          { headers: getAuthHeader(), params: { page: 0, size: 1000 } }
+        );
+        setServerResults(res.data.content ?? []);
+      } catch (err) {
+        console.error("Search failed, using local filter:", err);
+        setServerResults(null);
+      }
+    }, 400);
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
+
+  const filtered = (serverResults ?? machines).filter((m) =>
+    activeTab === "Archived"
+      ? m.machineStatus === "Archived"
+      : m.machineStatus !== "Archived"
+  );
+
+  // ─── ACTION HANDLER ────────────────────────────────────────────────────────
   function handleAction(action, machine) {
     if (action === "Edit")              return setEditMachine(machine);
     if (action === "Archive")           return setConfirmAction({ type: "archive",     machine });
@@ -126,34 +265,56 @@ export default function MachineManagement() {
     if (action === "Available")         return setConfirmAction({ type: "available",   machine });
   }
 
-  
+  // ─── CONFIRM ACTIONS ───────────────────────────────────────────────────────
   async function applyConfirm() {
     const { type, machine } = confirmAction;
     try {
       if (type === "archive") {
-        await axios.put(`/api/archiveMachine/${machine.machineId}`, {}, { headers: getAuthHeader() });
+        await axios.put("/api/archiveMachine/" + machine.machineId, {}, { headers: getAuthHeader() });
       } else if (type === "unarchive") {
-        await axios.put(`/api/activateMachine/${machine.machineId}`, {}, { headers: getAuthHeader() });
+        await axios.put("/api/activateMachine/" + machine.machineId, {}, { headers: getAuthHeader() });
       } else if (type === "maintenance") {
-        await axios.put(`/api/markAsMaintenance/${machine.machineId}`, {}, { headers: getAuthHeader() });
+        await axios.put("/api/markAsMaintenance/" + machine.machineId, {}, { headers: getAuthHeader() });
       } else if (type === "available") {
-        await axios.put(`/api/activateMachine/${machine.machineId}`, {}, { headers: getAuthHeader() });
+        await axios.put("/api/activateMachine/" + machine.machineId, {}, { headers: getAuthHeader() });
       }
-      await fetchMachines(); 
+      await fetchMachines();
     } catch (err) {
-      console.error(`Failed to apply action (${type}):`, err);
+      console.error("Failed to apply action (" + type + "):", err);
     } finally {
       setConfirmAction(null);
     }
   }
 
-  const confirmMeta = confirmAction && {
-    archive:     { title: "Archive Machine?",       msg: `"${confirmAction.machine.machineName}" will be archived.`,                    label: "Archive",   danger: true  },
-    unarchive:   { title: "Unarchive Machine?",     msg: `"${confirmAction.machine.machineName}" will be restored to active.`,          label: "Unarchive", danger: false },
-    maintenance: { title: "Set Under Maintenance?", msg: `"${confirmAction.machine.machineName}" will be marked as under maintenance.`, label: "Confirm",   danger: false },
-    available:   { title: "Mark as Available?",     msg: `"${confirmAction.machine.machineName}" will be marked as available.`,         label: "Confirm",   danger: false },
+  const machineName  = confirmAction ? confirmAction.machine.machineName : "";
+  const confirmMeta  = confirmAction && {
+    archive: {
+      title: "Archive Machine?",
+      msg:   '"' + machineName + '" will be archived.',
+      label: "Archive",
+      danger: true,
+    },
+    unarchive: {
+      title: "Unarchive Machine?",
+      msg:   '"' + machineName + '" will be restored to active.',
+      label: "Unarchive",
+      danger: false,
+    },
+    maintenance: {
+      title: "Set Under Maintenance?",
+      msg:   '"' + machineName + '" will be marked as under maintenance.',
+      label: "Confirm",
+      danger: false,
+    },
+    available: {
+      title: "Mark as Available?",
+      msg:   '"' + machineName + '" will be marked as available.',
+      label: "Confirm",
+      danger: false,
+    },
   }[confirmAction.type];
 
+  // ─── RENDER ────────────────────────────────────────────────────────────────
   return (
     <AdminLayout
       pageTitle="Machine Management"
@@ -164,26 +325,38 @@ export default function MachineManagement() {
       <TabBar
         tabs={TABS}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          setSearchQuery("");
+          setServerResults(null);
+        }}
         addLabel="Add Machine"
         onAdd={() => setShowCreate(true)}
       />
 
       <DataTable
-        columns={["Machine Name", "Status", "Action"]}
+        columns={["Machine Name", "Modality", "Status", "Action"]}
         rows={filtered}
         loading={loading}
         emptyIcon={Cpu}
         emptyText={activeTab === "Archived" ? "No archived machines" : "No machines found"}
         renderRow={(machine) => (
-          <tr key={machine.machineId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-            <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">{machine.machineName}</td>
+          <tr
+            key={machine.machineId}
+            className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+          >
+            <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">
+              {machine.machineName}
+            </td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">
+              {machine.modalityName ?? "—"}
+            </td>
             <td className="px-6 py-4 text-center">
-              <StatusBadge status={machine.machineStatus} />
+              <StatusBadge status={formatStatus(machine.machineStatus)} />
             </td>
             <td className="px-6 py-4 text-center">
               <ActionDropdown
-                items={getMachineActions(machine, activeTab)}
+                items={getMachineActions(machine)}
                 onAction={(action) => handleAction(action, machine)}
               />
             </td>
@@ -191,52 +364,49 @@ export default function MachineManagement() {
         )}
       />
 
-    
+      {/* CREATE MODAL — includes modality dropdown */}
       {showCreate && (
         <Modal title="Add Machine" onClose={() => setShowCreate(false)}>
-          <MachineForm
+          <CreateMachineForm
             submitLabel="Submit"
             onSubmit={async (values) => {
-              try {
-           
-                await axios.post("/api/createMachine", {
+              await axios.post(
+                "/api/createMachine",
+                {
                   machineName: values.name,
-                 
-                }, { headers: getAuthHeader() });
-                await fetchMachines();
-              } catch (err) {
-                console.error("Failed to create machine:", err);
-              }
+                  modality: { modalityId: Number(values.modalityId) },
+                },
+                { headers: getAuthHeader() }
+              );
+              await fetchMachines();
+              setShowCreate(false);
             }}
             onClose={() => setShowCreate(false)}
           />
         </Modal>
       )}
 
-     
+      {/* EDIT MODAL — rename only, modality unchanged */}
       {editMachine && (
         <Modal title="Edit Machine" onClose={() => setEditMachine(null)}>
-          <MachineForm
+          <EditMachineForm
             initialName={editMachine.machineName}
             submitLabel="Save Changes"
             onSubmit={async (values) => {
-              try {
-                await axios.put(`/api/updateMachine/${editMachine.machineId}`, {
-                  machineName: values.name,
-                }, { headers: getAuthHeader() });
-                await fetchMachines();
-              } catch (err) {
-                console.error("Failed to update machine:", err);
-              } finally {
-                setEditMachine(null);
-              }
+              await axios.put(
+                "/api/updateMachine/" + editMachine.machineId,
+                { machineName: values.name },
+                { headers: getAuthHeader() }
+              );
+              await fetchMachines();
+              setEditMachine(null);
             }}
             onClose={() => setEditMachine(null)}
           />
         </Modal>
       )}
 
-      
+      {/* CONFIRM DIALOG */}
       {confirmAction && (
         <ConfirmDialog
           title={confirmMeta.title}
