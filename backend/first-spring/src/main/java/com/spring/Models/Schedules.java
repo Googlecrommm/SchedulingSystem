@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "schedules")
@@ -49,10 +50,10 @@ public class Schedules {
     private String explainBy;
 
     @Column(name = "startDate", nullable = false)
-    private LocalDate startDate;
+    private LocalDateTime startDateTime;
 
     @Column(name = "endDate", nullable = false)
-    private LocalDate endDate;
+    private LocalDateTime endDateTime;
 
     public Schedules(){}
 
@@ -88,21 +89,21 @@ public class Schedules {
         this.scheduleStatus = scheduleStatus;
     };
 
-    public LocalDate getStartDate() {
-        return startDate;
-    };
+    public LocalDateTime getStartDateTime() {
+        return startDateTime;
+    }
 
-    public void setStartDate(LocalDate startDate) {
-        this.startDate = startDate;
-    };
+    public void setStartDateTime(LocalDateTime startDateTime) {
+        this.startDateTime = startDateTime;
+    }
 
-    public LocalDate getEndDate() {
-        return endDate;
-    };
+    public LocalDateTime getEndDateTime() {
+        return endDateTime;
+    }
 
-    public void setEndDate(LocalDate endDate) {
-        this.endDate = endDate;
-    };
+    public void setEndDateTime(LocalDateTime endDateTime) {
+        this.endDateTime = endDateTime;
+    }
 
     public Machines getMachine() {
         return machine;

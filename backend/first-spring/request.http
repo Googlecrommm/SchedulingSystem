@@ -56,7 +56,7 @@ Content-Type: application/json
 {
   "roleName": "Physical Therapist",
   "department": {
-    "departmentId": 3
+    "departmentId": 1
   }
 }
 
@@ -86,7 +86,7 @@ POST http://localhost:8080/api/createDepartment
 Content-Type: application/json
 
 {
-  "departmentName": "Rehabilitation"
+  "departmentName": "Active"
 }
 
 ### READ AND FILTER DEPARTMENTS
@@ -148,4 +148,41 @@ Content-Type: application/json
     "departmentId": 2
   }
 }
+
+###
+POST http://localhost:8080/api/createDoctor
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjY1OTY3OSwiZXhwIjoxNzc2NzQ2MDc5fQ.ujrkZBPkaoAk_z66z5Npfbg0KNnSYfjnH-dwT20wLBMgWUUo37BZo5ctB256EZcK
+Content-Type: application/json
+
+{
+  "name": "Dr. Alvin MD",
+  "role": {
+    "roleId": 2
+  }
+}
+
+###
+GET http://localhost:8080/api/getDoctors
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjY1OTY3OSwiZXhwIjoxNzc2NzQ2MDc5fQ.ujrkZBPkaoAk_z66z5Npfbg0KNnSYfjnH-dwT20wLBMgWUUo37BZo5ctB256EZcK
+
+###
+GET http://localhost:8080/api/doctorDropdown
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjY1OTY3OSwiZXhwIjoxNzc2NzQ2MDc5fQ.ujrkZBPkaoAk_z66z5Npfbg0KNnSYfjnH-dwT20wLBMgWUUo37BZo5ctB256EZcK
+
+###
+PUT http://localhost:8080/api/updateDoctor/1
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjY1OTY3OSwiZXhwIjoxNzc2NzQ2MDc5fQ.ujrkZBPkaoAk_z66z5Npfbg0KNnSYfjnH-dwT20wLBMgWUUo37BZo5ctB256EZcK
+Content-Type: application/json
+
+{
+  "name": "Doc. Ron Samaniego PT TT",
+  "role": {
+    "roleId": 2
+  }
+}
+
+###
+PUT http://localhost:8080/api/availableDoctor/1
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjY1OTY3OSwiZXhwIjoxNzc2NzQ2MDc5fQ.ujrkZBPkaoAk_z66z5Npfbg0KNnSYfjnH-dwT20wLBMgWUUo37BZo5ctB256EZcK
+
 
