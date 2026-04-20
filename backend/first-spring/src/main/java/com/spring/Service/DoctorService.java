@@ -26,11 +26,11 @@ public class DoctorService {
         this.modelMapper = modelMapper;
     }
 
+    //CREATE
     public void addDoctor(Doctors doctors){
         if (doctorsRepository.existsByName(doctors.getName())){
             throw new AlreadyExists("This doctor already exist");
         }
-
         doctorsRepository.save(doctors);
     }
 

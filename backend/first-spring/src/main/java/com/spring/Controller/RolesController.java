@@ -27,10 +27,9 @@ public class RolesController {
     //CREATE ROLE
 //    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/createRole")
-    public ResponseEntity<Void> addRole(@Valid @RequestBody Roles role) throws AlreadyExists {
+    public ResponseEntity<SuccessResponse> addRole(@Valid @RequestBody Roles role) throws AlreadyExists {
         rolesService.addRole(role);
-        return ResponseEntity
-                .noContent().build();
+        return ResponseEntity.ok().body(new SuccessResponse(200, "Role added"));
     }
 
     //READ ALL

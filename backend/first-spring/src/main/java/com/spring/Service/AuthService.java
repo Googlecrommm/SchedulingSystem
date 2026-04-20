@@ -7,6 +7,7 @@ import com.spring.Exceptions.NotFound;
 import com.spring.Models.Users;
 import com.spring.Repositories.UsersRepository;
 import com.spring.Security.JwtService;
+import com.spring.dto.AuthResponseDTO;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -37,7 +38,7 @@ public class AuthService {
         return usersRepository.save(user);
     }
 
-    public String login(Users user) throws UsernameNotFoundException {
+    public AuthResponseDTO login(Users user) throws UsernameNotFoundException {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword())
         );
@@ -45,7 +46,7 @@ public class AuthService {
         if (getUser.getAccountStatus().equals(AccountStatus.Disabled)){
             throw new NotAllowed("This account is disabled");
         }
-        return jwtService.generateToken(getUser);
+        return new AuthResponseDTO(jwtService.generateToken(getUser), getUser.getName(), getUser.getRole().getRoleName());
     }
 
 }

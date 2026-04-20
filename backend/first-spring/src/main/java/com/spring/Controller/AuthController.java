@@ -2,6 +2,7 @@ package com.spring.Controller;
 
 import com.spring.Models.Users;
 import com.spring.Service.AuthService;
+import com.spring.dto.AuthResponseDTO;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,7 +23,7 @@ public class AuthController {
 
     //Login
     @PostMapping("login")
-    public ResponseEntity<String> login(@RequestBody Users user){
+    public ResponseEntity<AuthResponseDTO> login(@RequestBody Users user){
         return ResponseEntity.ok(authService.login(user));
     }
 }
