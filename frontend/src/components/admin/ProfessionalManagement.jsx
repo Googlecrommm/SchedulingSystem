@@ -356,8 +356,24 @@ export default function ProfessionalManagement() {
             <td className="px-6 py-4 text-center text-sm text-gray-600">
               {professional.roleName ?? "—"}
             </td>
+            
             <td className="px-6 py-4 text-center">
-              <StatusBadge status={formatStatus(professional.availabilityStatus)} />
+              {(() => {
+                const s = professional.availabilityStatus;
+                const label = formatStatus(s);
+
+                const colorClass =
+                  s === "Unavailable"
+                    ? "text-red-500 font-bold"
+                    : s === "On_Leave"
+                    ? "text-yellow-400 font-bold"
+                    : "text-green-500 font-bold";
+                return (
+                  <span className={`text-sm ${colorClass}`}>
+                    {label}
+                  </span>
+                );
+              })()}
             </td>
             <td className="px-6 py-4 text-center">
               <ActionDropdown

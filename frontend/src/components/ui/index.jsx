@@ -33,14 +33,16 @@ export const frontdeskNavItems = [
 export function AdminLayout({
   children,
   pageTitle,
-  pageSubtitle,          // optional red machine mangement
+  pageSubtitle,
   searchValue,
   onSearchChange,
   searchPlaceholder = "Search…",
   navItems = adminNavItems,
-  userName = "Administrator",
-  userRole = "Admin",
+  userName,
+  userRole,
 }) {
+  userName = userName ?? localStorage.getItem("userName") ?? "Administrator";
+  userRole = userRole ?? localStorage.getItem("userRole") ?? "Admin";
   const [sidebarOpen,       setSidebarOpen]       = useState(false);
   const [collapsed,         setCollapsed]         = useState(() => localStorage.getItem("sidebarCollapsed") === "true");
   const [showUserDropdown,  setShowUserDropdown]  = useState(false);
@@ -195,9 +197,6 @@ export function AdminLayout({
 
               {showUserDropdown && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-card border border-gray-100 z-50 py-1">
-                  <button className="w-full text-left px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary transition-colors cursor-pointer">
-                    Profile
-                  </button>
                   <button className="w-full text-left px-4 py-2.5 text-sm text-accent hover:bg-red-50 transition-colors cursor-pointer">
                     Sign Out
                   </button>

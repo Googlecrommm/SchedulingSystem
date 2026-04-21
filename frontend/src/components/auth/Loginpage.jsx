@@ -44,7 +44,9 @@ export default function LoginPage() {
         );
 
         console.log("Login success:", response.data);
-        localStorage.setItem("token", response.data);
+        localStorage.setItem("token",    response.data.token);
+        localStorage.setItem("userName", response.data.name);
+        localStorage.setItem("userRole", response.data.role);
         navigate("/admin/user-management");
       } catch (error) {
         setServerError(
