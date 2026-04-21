@@ -195,4 +195,32 @@ Content-Type: application/json
 PUT http://localhost:8080/api/availableDoctor/1
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sImlhdCI6MTc3NjY1OTY3OSwiZXhwIjoxNzc2NzQ2MDc5fQ.ujrkZBPkaoAk_z66z5Npfbg0KNnSYfjnH-dwT20wLBMgWUUo37BZo5ctB256EZcK
 
+###
+POST http://localhost:8080/api/createScheduleAndPatient
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sIm5hbWUiOiJDcm9td2VsbCBOYXZhbCIsImlhdCI6MTc3NjczOTAwOCwiZXhwIjoxNzc2ODI1NDA4fQ.geEoCZoNIBsX0r41EsDh3_ljWQpWJaabUZycVnbPmjxq_pT5O9kLyaPNTaac_4XT
+Content-Type: application/json
 
+{
+  "patient": {
+    "name": "Hev Avi",
+    "address": "Pasong Kawayan 9, South Circle Village Phase 99",
+    "birthDate": "2000-03-03",
+    "contactNumber": "09123456789",
+    "occupation": "Rapper",
+    "sex": "Male"
+  },
+  "schedules": {
+    "doctor": {
+      "doctorId": 2
+    },
+    "procedureName": "Tuli",
+    "remarks": "Balagbag",
+    "explainBy": "Flow-G",
+    "startDateTime": "2026-04-21T01:00",
+    "endDateTime": "2026-04-21T02:00"
+  }
+}
+
+###
+GET http://localhost:8080/api/getSchedules?name=Doc. Ron Samaniego PT TT
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuYXZhbGNyb213ZWxsQGdtYWlsLmNvbSIsInJvbGUiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifV0sIm5hbWUiOiJDcm9td2VsbCBOYXZhbCIsImlhdCI6MTc3NjczOTAwOCwiZXhwIjoxNzc2ODI1NDA4fQ.geEoCZoNIBsX0r41EsDh3_ljWQpWJaabUZycVnbPmjxq_pT5O9kLyaPNTaac_4XT

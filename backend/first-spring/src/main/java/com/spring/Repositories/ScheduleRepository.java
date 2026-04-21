@@ -1,8 +1,14 @@
 package com.spring.Repositories;
 
 import com.spring.Models.Schedules;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.stereotype.Repository;
 
-public interface ScheduleRepository extends JpaRepository<Schedules, Integer> {
+@Repository
+public interface ScheduleRepository extends JpaRepository<Schedules, Integer>, JpaSpecificationExecutor<Schedules> {
 
+    Page<Schedules> findAll(Pageable pageable);
 }
