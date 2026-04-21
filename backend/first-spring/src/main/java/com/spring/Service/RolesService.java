@@ -106,16 +106,15 @@ public class RolesService {
     public void archiveRole(int roleId){
         Roles roleToArchive = rolesRepository.findById(roleId).orElseThrow(() -> new RoleNotFound("Role doesn't exist"));
 
+        if (roleToArchive.getRoleStatus().equals(SoftDelete.Archived)){
+            throw new NoChangesDetected("This role is already archived");
+        }
         if (roleToArchive.getRoleId() != 1 && !roleToArchive.getRoleName().equalsIgnoreCase("Admin")){
             roleToArchive.setRoleStatus(SoftDelete.Archived);
             rolesRepository.save(roleToArchive);
         }
         else {
             throw new NotAllowed("Admin can't be archived");
-        }
-
-        if (roleToArchive.getRoleStatus().equals(SoftDelete.Archived)){
-            throw new NoChangesDetected("This role is already archived");
         }
 
 
