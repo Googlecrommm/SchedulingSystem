@@ -31,6 +31,14 @@ public class Schedules {
     @JoinColumn(name = "doctorId", nullable = false)
     private Doctors doctor;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "planId", nullable = false)
+    private HospitalizationPlan hospitalizationPlan;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "typeId", nullable = false)
+    private HospitalizationType hospitalizationType;
+
     @NotBlank
     @Size(max = 100)
     @Column(nullable = false, name = "procedureName", length = 100)
@@ -131,5 +139,21 @@ public class Schedules {
 
     public void setExplainBy(String explainBy) {
         this.explainBy = explainBy;
+    }
+
+    public HospitalizationPlan getHospitalizationPlan() {
+        return hospitalizationPlan;
+    }
+
+    public void setHospitalizationPlan(HospitalizationPlan hospitalizationPlan) {
+        this.hospitalizationPlan = hospitalizationPlan;
+    }
+
+    public HospitalizationType getHospitalizationType() {
+        return hospitalizationType;
+    }
+
+    public void setHospitalizationType(HospitalizationType hospitalizationType) {
+        this.hospitalizationType = hospitalizationType;
     }
 }
