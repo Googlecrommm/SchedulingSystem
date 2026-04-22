@@ -20,6 +20,7 @@ public class HospitalizationType {
     private String typeName;
 
     @Column(name = "typeStatus", nullable = false)
+    @Enumerated(EnumType.STRING)
     private SoftDelete typeStatus = SoftDelete.Active;
 
     @OneToMany(mappedBy = "hospitalizationType")
