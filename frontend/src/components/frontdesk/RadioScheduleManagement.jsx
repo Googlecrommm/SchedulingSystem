@@ -39,7 +39,7 @@ const TABS = [
 ];
 
 
-const COLUMNS = ["Full Name", "Start Date Time", "End Date Time", "Radiologist", "Modality", "Status", "Action"];
+const COLUMNS = ["Full Name", "Date", "Time", "Radiologist", "Modality", "Status", "Action"];
 
 
 const RADIOLOGIST_OPTIONS = [];
@@ -515,9 +515,14 @@ export default function RadioScheduleManagement() {
           <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.name}</td>
          
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{formatDateTime(s.start_date)}</td>
-            
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{formatDateTime(s.end_date)}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">
+              {s.start_date ? new Date(s.start_date.replace(" ", "T")).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }) : "—"}
+            </td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">
+              {s.start_date && s.end_date
+                ? `${new Date(s.start_date.replace(" ", "T")).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} - ${new Date(s.end_date.replace(" ", "T")).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}`
+                : "—"}
+            </td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.radiologist}</td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.modality}</td>
             <td className={`px-6 py-4 text-center text-sm font-semibold ${scheduleStatusColor(s.status)}`}>

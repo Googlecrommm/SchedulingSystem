@@ -27,7 +27,7 @@ const TABS = [
   { label: "Done",      icon: CheckCircle   },
 ];
 
-const COLUMNS = ["Name", "Start Date Time", "End Date Time", "Department", "Status", "Action"];
+const COLUMNS = ["Name", "Date", "Time", "Department", "Status", "Action"];
 
 
 function getActions(status) {
@@ -117,8 +117,10 @@ function ViewScheduleModal({ schedule, onClose }) {
   ];
 
   const dateTimeFields = [
-    { label: "Start Date & Time", value: schedule.start_datetime ? new Date(schedule.start_datetime).toLocaleString("en-US", { month: "2-digit", day: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }) : "—" },
-    { label: "End Date & Time",   value: schedule.end_datetime   ? new Date(schedule.end_datetime).toLocaleString("en-US", { month: "2-digit", day: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }) : "—" },
+    { label: "Date",       value: schedule.start_datetime ? new Date(schedule.start_datetime.replace(" ", "T")).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }) : "—" },
+    { label: "Time",       value: schedule.start_datetime && schedule.end_datetime
+        ? `${new Date(schedule.start_datetime.replace(" ", "T")).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} - ${new Date(schedule.end_datetime.replace(" ", "T")).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}`
+        : "—" },
   ];
 
   return (
@@ -286,8 +288,14 @@ export default function AdminScheduleManagement() {
         renderRow={(s) => (
           <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.name}</td>
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{formatDate(s.start_datetime)}</td>
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{formatDate(s.end_datetime)}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">
+              {s.start_datetime ? new Date(s.start_datetime.replace(" ", "T")).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }) : "—"}
+            </td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">
+              {s.start_datetime && s.end_datetime
+                ? `${new Date(s.start_datetime.replace(" ", "T")).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} - ${new Date(s.end_datetime.replace(" ", "T")).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}`
+                : "—"}
+            </td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.department}</td>
             <td className={`px-6 py-4 text-center text-sm font-semibold ${scheduleStatusColor(s.status)}`}>
               {s.status ? s.status.charAt(0).toUpperCase() + s.status.slice(1) : "—"}
