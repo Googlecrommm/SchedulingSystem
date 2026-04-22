@@ -46,9 +46,7 @@ function mapRole(r) {
   };
 }
 
-// FIX 4: onSubmit is now async-aware — onClose is only called after the
-// parent's async onSubmit resolves, preventing the modal from closing early
-// before the API call finishes.
+
 function RoleForm({ initialName = "", initialDepartmentId = "", submitLabel = "Submit", onSubmit, onClose, departments }) {
   const formik = useFormik({
     initialValues: { name: initialName, departmentId: initialDepartmentId },
@@ -58,7 +56,7 @@ function RoleForm({ initialName = "", initialDepartmentId = "", submitLabel = "S
         await onSubmit(values);
         onClose();
       } catch {
-        // error already logged by caller
+        
       } finally {
         setSubmitting(false);
       }
@@ -111,24 +109,18 @@ export default function RoleManagement() {
   const [page,       setPage]       = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // FIX 2 + FIX 5: Reset page whenever tab or search changes.
-  // useCallback ensures fetchRoles is stable so the effect below
-  // can safely list it as a dependency without infinite loops.
+  
   const fetchRoles = useCallback(async (currentPage = page, currentTab = activeTab, currentSearch = searchQuery) => {
     setLoading(true);
     try {
       const status = currentTab === "Archive" ? "Archived" : "Active";
       const params = {
         status,
-        page: currentPage - 1,  // Spring Data is 0-indexed
+        page: currentPage - 1,  
         size: PAGE_SIZE,
       };
 
-      // FIX 2: Pass search to the backend instead of filtering client-side.
-      // The backend /getRoles already supports dynamic specs; adding a name
-      // param here requires RoleSpecification.hasName (see note below).
-      // If you haven't added that spec yet, remove the line below and
-      // the client-side filter at the bottom is kept as a fallback.
+    
       if (currentSearch.trim()) {
         params.roleName = currentSearch.trim();
       }
@@ -149,21 +141,19 @@ export default function RoleManagement() {
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  
   }, []);
 
-  // FIX 5: One consolidated effect for all data-fetch triggers.
-  // Resetting page to 1 and immediately fetching avoids the two-render
-  // race where page reset + fetchRoles ran out of order.
+ 
   useEffect(() => {
     setPage(1);
     fetchRoles(1, activeTab, searchQuery);
-  }, [activeTab, searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeTab, searchQuery]); 
 
-  // Pagination changes (tab/search already handled above)
+  
   useEffect(() => {
     fetchRoles(page, activeTab, searchQuery);
-  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page]); 
 
   useEffect(() => {
     fetchDepartments();
@@ -181,8 +171,7 @@ export default function RoleManagement() {
     }
   }
 
-  // Fallback client-side filter (only active when backend search param
-  // isn't supported yet — harmless once the backend handles it).
+  
   const filtered = roles.filter((r) =>
     r.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -231,8 +220,7 @@ export default function RoleManagement() {
         onAdd={() => setShowCreate(true)}
       />
 
-      {/* FIX 3: rowKey prop added so DataTable can apply the key at the
-          list level; the key on <tr> is kept as an in-row safeguard. */}
+   
       <DataTable
         columns={["Role Name", "Department", "Action"]}
         rows={filtered}
@@ -264,8 +252,7 @@ export default function RoleManagement() {
             submitLabel="Submit"
             departments={departments}
             onSubmit={async (values) => {
-              // FIX 4: throw on error so RoleForm's formik handler can catch it
-              // and avoid calling onClose prematurely.
+              
               await axios.post(
                 "/api/createRole",
                 {
