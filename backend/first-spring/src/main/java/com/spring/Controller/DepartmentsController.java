@@ -37,6 +37,7 @@ public class DepartmentsController {
         return ResponseEntity.ok(departmentsService.getDepartments(departmentStatus, pageable));
     }
 
+    //SEARCH
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/searchDepartment/{searchDept}")
     public ResponseEntity<Page<DepartmentResponseDTO>> searchDepartment(@PathVariable String searchDept,Pageable pageable){

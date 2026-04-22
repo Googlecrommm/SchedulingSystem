@@ -15,6 +15,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class ScheduleService {
     private final ScheduleRepository scheduleRepository;
@@ -30,6 +32,7 @@ public class ScheduleService {
     //CREATE
     @Transactional
     public void createScheduleAndPatient(CreatePatientWithScheduleResponseDTO request){
+
         Patients patient = request.getPatient();
         Patients savedPatient = patientsRepository.save(patient);
 

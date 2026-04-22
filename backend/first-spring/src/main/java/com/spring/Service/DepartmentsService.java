@@ -85,8 +85,8 @@ public class DepartmentsService {
             throw new NoChangesDetected("Department is already Archived");
         }
 
-        if (deptToArchive.getDepartmentName().equals("Information Communication Technology")){
-            throw new NotAllowed("ICT can't be archived");
+        if (deptToArchive.getDepartmentName().equalsIgnoreCase("Information Communication Technology") || deptToArchive.getDepartmentName().equalsIgnoreCase("ICTD")){
+            throw new NotAllowed("ICTD can't be archived");
         }
 
         deptToArchive.setDepartmentStatus(SoftDelete.Archived);
