@@ -13,6 +13,8 @@ import RehabilitationDashboard  from "./components/frontdesk/RehabDashboard";
 import RadioScheduleManagement  from "./components/frontdesk/RadioScheduleManagement";
 import RadiologyDashboard       from "./components/frontdesk/RadioDashboard";
 import RadioMachineManagement   from "./components/frontdesk/RadioMachineManagement";
+import RadioProfessionalManagement  from "./components/frontdesk/RadioProfessionalManagement";
+import RehabProfessionalManagement  from "./components/frontdesk/RehabProfessionalManagement";
 
 
 
@@ -42,11 +44,13 @@ export default function App() {
         {/* ── Rehabilitation Frontdesk ── */}
         <Route path="/frontdesk/rehab-dashboard" element={<RehabilitationDashboard />} />
         <Route path="/frontdesk/rehab-schedules" element={<RehabScheduleManagement />} />
+        <Route path="/frontdesk/rehab-professionals" element={<RehabProfessionalManagement />} />
 
         {/* ── Radiology Frontdesk ── */}
         <Route path="/radiology/dashboard" element={<RadiologyDashboard />} />
         <Route path="/radiology/schedules" element={<RadioScheduleManagement />} />
         <Route path="/radiology/machine"   element={<RadioMachineManagement />} />
+        <Route path="/radiology/professionals" element={<RadioProfessionalManagement />} />
 
       </Routes>
     </BrowserRouter>

@@ -3,7 +3,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import {
   Calendar, CalendarCheck, CalendarX, Clock, Archive, CheckCircle,
-  Eye, UserCheck, UserX, Pencil, Trash2, RefreshCw, ChevronDown,
+  Eye, UserCheck, UserX, Pencil, Trash2, RefreshCw, ChevronDown, Cross,
 } from "lucide-react";
 
 import {
@@ -26,6 +26,7 @@ const radiologyNavItems = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/radiology/dashboard" },
   { label: "Schedules", icon: Calendar,        path: "/radiology/schedules" },
   { label: "Machine",   icon: Cpu,             path: "/radiology/machine"   },
+  { label: "Medical Professionals", icon: Cross,         path: "/radiology/professionals" },
 ];
 
 const TABS = [
@@ -37,10 +38,10 @@ const TABS = [
   { label: "Done",      icon: CheckCircle   },
 ];
 
-// Two separate datetime columns — Start Date Time and End Date Time
+
 const COLUMNS = ["Full Name", "Start Date Time", "End Date Time", "Radiologist", "Modality", "Status", "Action"];
 
-// TODO: replace with API data
+
 const RADIOLOGIST_OPTIONS = [];
 const MODALITY_OPTIONS    = [];
 const MACHINE_OPTIONS     = [];
@@ -54,7 +55,7 @@ function getActions(status) {
     default:          return [
       { label: "View",    icon: Eye                  },
       { label: "Confirm", icon: UserCheck            },
-      { label: "Reject",  icon: UserX                },
+      { label: "Cancel",  icon: UserX                },
       { label: "Edit",    icon: Pencil               },
       { label: "Archive", icon: Trash2, danger: true },
     ];
@@ -69,8 +70,7 @@ const confirmMeta = {
   done:      { title: "Mark as Done?",       msg: (n) => `"${n}" will be marked as done.`,       label: "Done",      danger: false },
 };
 
-// Validation schema for the patient form
-// startDate and endDate map directly to the MySQL DATETIME columns (start_date, end_date)
+
 const patientSchema = Yup.object({
   patientName:            Yup.string().required("Patient name is required"),
   dob:                    Yup.string().required("Date of birth is required"),
@@ -83,14 +83,13 @@ const patientSchema = Yup.object({
   modality:               Yup.string().required("Modality is required"),
   machine:                Yup.string().required("Machine is required"),
   procedure:              Yup.string().required("Procedure is required"),
-  // startDate and endDate use datetime-local input format: "YYYY-MM-DDTHH:mm"
-  // These will be converted to MySQL DATETIME format before sending to the backend
+
   startDate:              Yup.string().required("Start date & time is required"),
   endDate:                Yup.string().required("End date & time is required"),
   remarks:                Yup.string(),
 });
 
-// Blank initial values used when opening the Add Patient form
+
 const BLANK_PATIENT = {
   patientName:            "",
   dob:                    "",
@@ -101,17 +100,17 @@ const BLANK_PATIENT = {
   modality:               "",
   machine:                "",
   procedure:              "",
-  startDate:              "", // maps to start_date DATETIME column in MySQL
-  endDate:                "", // maps to end_date DATETIME column in MySQL
+  startDate:              "", 
+  endDate:                "", 
   remarks:                "",
 };
 
-// Dropdown filter component for modality selection in the page header
+
 function ModalityDropdown({ value, onChange, options }) {
   const [open, setOpen] = useState(false);
   const ref             = useRef(null);
 
-  // Close dropdown when clicking outside
+ 
   useEffect(() => {
     const handler = (e) => {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
@@ -157,7 +156,7 @@ function ModalityDropdown({ value, onChange, options }) {
   );
 }
 
-// Reusable form component used for both Add and Edit modals
+
 function PatientForm({ initialValues, submitLabel, onSubmit, onClose }) {
   const formik = useFormik({
     initialValues,
@@ -174,7 +173,7 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose }) {
   return (
     <form onSubmit={formik.handleSubmit} noValidate className="space-y-4">
 
-      {/* Patient Name */}
+   
       <FormField label="Patient Name" error={formik.touched.patientName && formik.errors.patientName}>
         <input
           type="text"
@@ -184,7 +183,7 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose }) {
         />
       </FormField>
 
-      {/* Date of Birth and Contact No. */}
+     
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Date of Birth" error={formik.touched.dob && formik.errors.dob}>
           <input type="date" className={ic("dob")} {...formik.getFieldProps("dob")} />
@@ -194,12 +193,12 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose }) {
         </FormField>
       </div>
 
-      {/* Address */}
+    
       <FormField label="Address" error={formik.touched.address && formik.errors.address}>
         <input type="text" placeholder="City, Province" className={ic("address")} {...formik.getFieldProps("address")} />
       </FormField>
 
-      {/* Radiologist and Preparation Explained By */}
+     
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Radiologist" error={formik.touched.radiologist && formik.errors.radiologist}>
           <div className="relative">
@@ -226,7 +225,7 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose }) {
         </FormField>
       </div>
 
-      {/* Modality and Machine */}
+     
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Modality" error={formik.touched.modality && formik.errors.modality}>
           <div className="relative">
@@ -253,16 +252,12 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose }) {
         </FormField>
       </div>
 
-      {/* Procedure */}
+  
       <FormField label="Procedure" error={formik.touched.procedure && formik.errors.procedure}>
         <input type="text" placeholder="e.g. Brain MRI" className={ic("procedure")} {...formik.getFieldProps("procedure")} />
       </FormField>
 
-      {/* Start Date & Time and End Date & Time
-          - Using type="datetime-local" so the user picks both date and time in one input
-          - The input returns format "YYYY-MM-DDTHH:mm" (e.g. "2025-04-19T09:30")
-          - We append ":00" before sending to the backend to match MySQL DATETIME format
-          - Final value sent to MySQL: "2025-04-19T09:30:00"*/}
+      
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Start Date & Time" error={formik.touched.startDate && formik.errors.startDate}>
           <input type="datetime-local" className={ic("startDate")} {...formik.getFieldProps("startDate")} />
@@ -272,7 +267,7 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose }) {
         </FormField>
       </div>
 
-      {/* Remarks */}
+    
       <FormField label="Remarks" error={formik.touched.remarks && formik.errors.remarks}>
         <textarea
           rows={3}
@@ -287,14 +282,11 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose }) {
   );
 }
 
-// Read-only modal for viewing a schedule's full details
+
 function ViewPatientModal({ patient, onClose }) {
   const ro = readonlyInputClass;
 
-  // Helper: format MySQL DATETIME "2025-04-19 09:30:00" into a readable string
-  // .replace(" ", "T") is needed because MySQL uses a space instead of "T"
-  // without this, new Date() may misparse the value in some browsers
-  // Output: "04/19/2025, 9:30 AM"
+ 
   function formatDateTime(value) {
     if (!value) return "—";
     return new Date(value.replace(" ", "T")).toLocaleString("en-US", {
@@ -307,13 +299,13 @@ function ViewPatientModal({ patient, onClose }) {
     <Modal title="View Patient Form" onClose={onClose} maxWidth="max-w-2xl" scrollable>
       <div className="space-y-4">
 
-        {/* Patient Name */}
+       
         <div>
           <label className="block text-sm font-semibold text-primary mb-1.5">Patient Name</label>
           <input readOnly value={patient.name ?? "—"} className={ro} />
         </div>
 
-        {/* Date of Birth and Contact No. */}
+        
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             { label: "Date of Birth", value: patient.dob       },
@@ -326,13 +318,13 @@ function ViewPatientModal({ patient, onClose }) {
           ))}
         </div>
 
-        {/* Address */}
+      
         <div>
           <label className="block text-sm font-semibold text-primary mb-1.5">Address</label>
           <input readOnly value={patient.address ?? "—"} className={ro} />
         </div>
 
-        {/* Radiologist and Preparation Explained By */}
+      
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             { label: "Radiologist",              value: patient.radiologist            },
@@ -345,7 +337,7 @@ function ViewPatientModal({ patient, onClose }) {
           ))}
         </div>
 
-        {/* Modality and Machine */}
+   
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             { label: "Modality", value: patient.modality },
@@ -358,7 +350,7 @@ function ViewPatientModal({ patient, onClose }) {
           ))}
         </div>
 
-        {/* Status and Procedure */}
+       
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             { label: "Status",    value: patient.status    },
@@ -371,9 +363,7 @@ function ViewPatientModal({ patient, onClose }) {
           ))}
         </div>
 
-        {/* Start Date & Time and End Date & Time
-            - MySQL returns "2025-04-19 09:30:00" (space between date and time)
-            - formatDateTime() converts it to a readable string like "04/19/2025, 9:30 AM" */}
+       
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             { label: "Start Date & Time", value: formatDateTime(patient.start_date) },
@@ -386,7 +376,7 @@ function ViewPatientModal({ patient, onClose }) {
           ))}
         </div>
 
-        {/* Remarks */}
+       
         <div>
           <label className="block text-sm font-semibold text-primary mb-1.5">Remarks</label>
           <textarea readOnly value={patient.remarks ?? "—"} rows={3} className={`${ro} resize-none`} />
@@ -417,7 +407,7 @@ export default function RadioScheduleManagement() {
   async function fetchSchedules() {
     setLoading(true);
     try {
-      // axios call here later
+    
     } catch (err) {
       console.error("Failed to fetch schedules:", err);
     } finally {
@@ -425,7 +415,7 @@ export default function RadioScheduleManagement() {
     }
   }
 
-  // Filter schedules based on active tab, search query, and modality filter
+ 
   const filtered = schedules.filter((s) => {
     const matchesTab =
       activeTab === "All"
@@ -444,7 +434,7 @@ export default function RadioScheduleManagement() {
 
   async function updateStatus(id, status) {
     try {
-      // axios call here later
+     
       await fetchSchedules();
     } catch (err) {
       console.error("Failed to update schedule status:", err);
@@ -469,16 +459,14 @@ export default function RadioScheduleManagement() {
       case "View":      return setViewPatient(s);
       case "Edit":      return setEditPatient(s);
       case "Confirm":   return setConfirmAction({ type: "accept",    schedule: s });
-      case "Reject":    return setConfirmAction({ type: "reject",    schedule: s });
+      case "Cancel":    return setConfirmAction({ type: "reject",    schedule: s });
       case "Archive":   return setConfirmAction({ type: "archive",   schedule: s });
       case "Unarchive": return setConfirmAction({ type: "unarchive", schedule: s });
       case "Done":      return setConfirmAction({ type: "done",      schedule: s });
     }
   }
 
-  // Helper: format MySQL DATETIME for display in the table and view modal
-  // MySQL returns "2025-04-19 09:30:00" → .replace(" ", "T") needed to parse correctly in all browsers
-  // Output: "04/19/2025, 9:30 AM"
+ 
   function formatDateTime(iso) {
     if (!iso) return "—";
     return new Date(iso.replace(" ", "T")).toLocaleString("en-US", {
@@ -526,9 +514,9 @@ export default function RadioScheduleManagement() {
         renderRow={(s) => (
           <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.name}</td>
-            {/* Display full start datetime from start_date column — e.g. "04/19/2025, 9:30 AM" */}
+         
             <td className="px-6 py-4 text-center text-sm text-gray-600">{formatDateTime(s.start_date)}</td>
-            {/* Display full end datetime from end_date column — e.g. "04/19/2025, 10:30 AM" */}
+            
             <td className="px-6 py-4 text-center text-sm text-gray-600">{formatDateTime(s.end_date)}</td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.radiologist}</td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.modality}</td>
@@ -545,17 +533,14 @@ export default function RadioScheduleManagement() {
         )}
       />
 
-      {/* Add Modal */}
+  
       {showAdd && (
         <Modal title="Add Patient Form" onClose={() => setShowAdd(false)} maxWidth="max-w-2xl" scrollable>
           <PatientForm
             initialValues={BLANK_PATIENT}
             submitLabel="Submit"
             onSubmit={async (values) => {
-              // axios call here later
-
-              // values.startDate = "2025-04-19T09:30"  (format from datetime-local input)
-              // Appending ":00" converts it to "2025-04-19T09:30:00" which MySQL DATETIME accepts
+             
               const payload = {
                 patientName:            values.patientName,
                 dob:                    values.dob,
@@ -567,8 +552,8 @@ export default function RadioScheduleManagement() {
                 machine:                values.machine,
                 procedure:              values.procedure,
                 remarks:                values.remarks,
-                start_date:             values.startDate + ":00", // "2025-04-19T09:30" → "2025-04-19T09:30:00"
-                end_date:               values.endDate   + ":00", // "2025-04-19T10:30" → "2025-04-19T10:30:00"
+                start_date:             values.startDate + ":00", 
+                end_date:               values.endDate   + ":00", 
               };
 
               console.log("Create payload:", payload);
@@ -578,12 +563,12 @@ export default function RadioScheduleManagement() {
         </Modal>
       )}
 
-      {/* View Modal */}
+     
       {viewPatient && (
         <ViewPatientModal patient={viewPatient} onClose={() => setViewPatient(null)} />
       )}
 
-      {/* Edit Modal */}
+     
       {editPatient && (
         <Modal title="Edit Patient Form" onClose={() => setEditPatient(null)} maxWidth="max-w-2xl" scrollable>
           <PatientForm
@@ -599,18 +584,15 @@ export default function RadioScheduleManagement() {
               procedure:              editPatient.procedure               ?? "",
               remarks:                editPatient.remarks                 ?? "",
 
-              // MySQL returns "2025-04-19 09:30:00" (space between date and time)
-              // Step 1: .replace(" ", "T") → "2025-04-19T09:30:00" (replace space with T)
-              // Step 2: .slice(0, 16)      → "2025-04-19T09:30"    (remove seconds, keep only 16 chars)
-              // This is the exact format required by the datetime-local input field
+            
               startDate: editPatient.start_date?.replace(" ", "T").slice(0, 16) ?? "",
               endDate:   editPatient.end_date?.replace(" ", "T").slice(0, 16)   ?? "",
             }}
             submitLabel="Edit"
             onSubmit={async (values) => {
-              // axios call here later
+              
 
-              // Same conversion as Add — append ":00" to match MySQL DATETIME format
+              
               const payload = {
                 patientName:            values.patientName,
                 dob:                    values.dob,
@@ -622,8 +604,8 @@ export default function RadioScheduleManagement() {
                 machine:                values.machine,
                 procedure:              values.procedure,
                 remarks:                values.remarks,
-                start_date:             values.startDate + ":00", // "2025-04-19T09:30" → "2025-04-19T09:30:00"
-                end_date:               values.endDate   + ":00", // "2025-04-19T10:30" → "2025-04-19T10:30:00"
+                start_date:             values.startDate + ":00", 
+                end_date:               values.endDate   + ":00", 
               };
 
               console.log("Edit payload:", payload);
@@ -633,7 +615,7 @@ export default function RadioScheduleManagement() {
         </Modal>
       )}
 
-      {/* Confirm Dialog */}
+    
       {confirmAction && meta && (
         <ConfirmDialog
           title={meta.title}

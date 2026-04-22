@@ -27,6 +27,7 @@ export const adminNavItems = [
 export const frontdeskNavItems = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/frontdesk/rehab-dashboard" },
   { label: "Schedules", icon: Calendar,        path: "/frontdesk/rehab-schedules" },
+  { label: "Medical Professionals", icon: Cross,        path: "/frontdesk/rehab-professionals" },
 ];
 
 // Admin Layout
@@ -249,7 +250,7 @@ export function AdminLayout({
 // Tab Bar
 export function TabBar({ tabs = [], activeTab, onTabChange, addLabel, onAdd }) {
   return (
-    <div className="flex items-center gap-1 border-b border-gray-200 mb-4 overflow-x-auto">
+    <div className="flex items-center gap-1 border-b border-gray-200 mb-4 overflow-x-auto overflow-y-hidden">
       {tabs.map(({ label, icon: Icon }) => (
         <button
           key={label}

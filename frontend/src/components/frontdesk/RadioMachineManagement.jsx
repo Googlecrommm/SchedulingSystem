@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Cpu, CheckCircle, Wrench } from "lucide-react";
-import { LayoutDashboard, Calendar } from "lucide-react";
+import { LayoutDashboard, Calendar, Cross, } from "lucide-react";
 
 import {
   AdminLayout,
@@ -15,6 +15,7 @@ const radiologyNavItems = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/radiology/dashboard" },
   { label: "Schedules", icon: Calendar,        path: "/radiology/schedules" },
   { label: "Machine",   icon: Cpu,             path: "/radiology/machine"   },
+  { label: "Medical Professionals", icon: Cross,         path: "/radiology/professionals" },
 ];
 
 
