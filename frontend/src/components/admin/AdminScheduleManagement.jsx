@@ -1,4 +1,4 @@
-/** Change The Date and time and set as a Start datetime and End datetime also change on the view modal **/
+
 import { useState, useEffect, useRef } from "react";
 import {
   Calendar, CalendarCheck, CalendarX, Clock, Archive,

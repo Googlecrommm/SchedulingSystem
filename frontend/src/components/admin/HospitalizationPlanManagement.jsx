@@ -26,7 +26,7 @@ const archiveActions = [{ label: "Unarchive", icon: RefreshCw }];
 
 const planSchema = Yup.object({
   code:        Yup.string().required("Code is required"),
-  description: Yup.string().required("Description is required"),
+  companyName: Yup.string().required("Company name is required"),
 });
 
 const PAGE_SIZE = 10;
@@ -36,16 +36,16 @@ function getAuthHeader() {
   return { Authorization: `Bearer ${token}` };
 }
 
-function PlanForm({ initialCode = "", initialDescription = "", submitLabel = "Submit", onSubmit, onClose }) {
+function PlanForm({ initialCode = "", initialCompanyName = "", submitLabel = "Submit", onSubmit, onClose }) {
   const formik = useFormik({
-    initialValues: { code: initialCode, description: initialDescription },
+    initialValues: { code: initialCode, companyName: initialCompanyName },
     validationSchema: planSchema,
     onSubmit: async (values, { setSubmitting }) => {
       try {
         await onSubmit(values);
         onClose();
       } catch {
-        // error already logged by caller
+     
       } finally {
         setSubmitting(false);
       }
@@ -63,12 +63,12 @@ function PlanForm({ initialCode = "", initialDescription = "", submitLabel = "Su
           {...formik.getFieldProps("code")}
         />
       </FormField>
-      <FormField label="Description" error={formik.touched.description && formik.errors.description}>
+      <FormField label="Description" error={formik.touched.companyName && formik.errors.companyName}>
         <input
           type="text"
           placeholder="Description"
-          className={ic("description")}
-          {...formik.getFieldProps("description")}
+          className={ic("companyName")}
+          {...formik.getFieldProps("companyName")}
         />
       </FormField>
       <ModalFooter
@@ -80,11 +80,12 @@ function PlanForm({ initialCode = "", initialDescription = "", submitLabel = "Su
   );
 }
 
+
 function mapPlan(p) {
   return {
     id:          p.planId,
-    code:        p.planCode,
-    description: p.planDescription,
+    code:        p.code,
+    companyName: p.companyName,
     archived:    p.planStatus === "Archived",
   };
 }
@@ -114,14 +115,15 @@ export default function HospitalizationPlanManagement() {
     try {
       const statusParam = activeTab === "Archive" ? "Archived" : "Active";
 
+  
       const url = searchQuery.trim()
-        ? `/api/searchHospitalizationPlan/${encodeURIComponent(searchQuery.trim())}`
-        : `/api/getHospitalizationPlans`;
+        ? `/api/searchPlans/${encodeURIComponent(searchQuery.trim())}`
+        : `/api/getPlans`;
 
       const params = {
         page,
         size: PAGE_SIZE,
-        sort: "planCode,asc",
+        sort: "code,asc",
         ...(searchQuery.trim() ? {} : { planStatus: statusParam }),
       };
 
@@ -157,10 +159,11 @@ export default function HospitalizationPlanManagement() {
   async function applyConfirm() {
     const { type, plan } = confirmAction;
     try {
+      
       const endpoint =
         type === "archive"
-          ? `/api/archiveHospitalizationPlan/${plan.id}`
-          : `/api/restoreHospitalizationPlan/${plan.id}`;
+          ? `/api/archivePlan/${plan.id}`
+          : `/api/restorePlan/${plan.id}`;
 
       await axios.put(endpoint, null, {
         headers: { ...getAuthHeader(), "Content-Type": "application/json" },
@@ -202,7 +205,7 @@ export default function HospitalizationPlanManagement() {
         renderRow={(plan) => (
           <tr key={plan.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
             <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">{plan.code}</td>
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{plan.description}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">{plan.companyName}</td>
             <td className="px-6 py-4 text-center">
               <ActionDropdown
                 items={activeTab === "Archive" ? archiveActions : activeActions}
@@ -218,9 +221,10 @@ export default function HospitalizationPlanManagement() {
           <PlanForm
             submitLabel="Submit"
             onSubmit={async (values) => {
+             
               await axios.post(
-                "/api/createHospitalizationPlan",
-                { planCode: values.code, planDescription: values.description },
+                "/api/createPlan",
+                { code: values.code, companyName: values.companyName },
                 { headers: getAuthHeader() }
               );
               await fetchPlans();
@@ -234,15 +238,15 @@ export default function HospitalizationPlanManagement() {
         <Modal title="Edit Hospitalization Plan" onClose={() => setEditPlan(null)}>
           <PlanForm
             initialCode={editPlan.code}
-            initialDescription={editPlan.description}
-            submitLabel="Edit"
+            initialCompanyName={editPlan.companyName}
+            submitLabel="Save Changes"
             onSubmit={async (values) => {
+              
               await axios.put(
-                `/api/updateHospitalizationPlan/${editPlan.id}`,
+                `/api/updatePlan/${editPlan.id}`,
                 {
-                  planCode:        values.code,
-                  planDescription: values.description,
-                  planStatus:      editPlan.archived ? "Archived" : "Active",
+                  code:        values.code,
+                  companyName: values.companyName,
                 },
                 { headers: getAuthHeader() }
               );

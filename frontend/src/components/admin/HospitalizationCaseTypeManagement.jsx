@@ -25,7 +25,7 @@ const activeActions  = [{ label: "Edit", icon: Pencil }, { label: "Archive", ico
 const archiveActions = [{ label: "Unarchive", icon: RefreshCw }];
 
 const caseTypeSchema = Yup.object({
-  description: Yup.string().required("Description is required"),
+  typeName: Yup.string().required("Description is required"),
 });
 
 const PAGE_SIZE = 10;
@@ -35,16 +35,16 @@ function getAuthHeader() {
   return { Authorization: `Bearer ${token}` };
 }
 
-function CaseTypeForm({ initialDescription = "", submitLabel = "Submit", onSubmit, onClose }) {
+function CaseTypeForm({ initialTypeName = "", submitLabel = "Submit", onSubmit, onClose }) {
   const formik = useFormik({
-    initialValues: { description: initialDescription },
+    initialValues: { typeName: initialTypeName },
     validationSchema: caseTypeSchema,
     onSubmit: async (values, { setSubmitting }) => {
       try {
         await onSubmit(values);
         onClose();
       } catch {
-        // error already logged by caller
+      
       } finally {
         setSubmitting(false);
       }
@@ -54,12 +54,12 @@ function CaseTypeForm({ initialDescription = "", submitLabel = "Submit", onSubmi
 
   return (
     <form onSubmit={formik.handleSubmit} noValidate className="space-y-4">
-      <FormField label="Description" error={formik.touched.description && formik.errors.description}>
+      <FormField label="Description" error={formik.touched.typeName && formik.errors.typeName}>
         <input
           type="text"
           placeholder="Description"
-          className={ic("description")}
-          {...formik.getFieldProps("description")}
+          className={ic("typeName")}
+          {...formik.getFieldProps("typeName")}
         />
       </FormField>
       <ModalFooter
@@ -71,11 +71,12 @@ function CaseTypeForm({ initialDescription = "", submitLabel = "Submit", onSubmi
   );
 }
 
+
 function mapCaseType(c) {
   return {
-    id:          c.caseTypeId,
-    description: c.caseTypeDescription,
-    archived:    c.caseTypeStatus === "Archived",
+    id:       c.typeId,
+    typeName: c.typeName,
+    archived: c.typeStatus === "Archived",
   };
 }
 
@@ -104,15 +105,16 @@ export default function HospitalizationCaseTypeManagement() {
     try {
       const statusParam = activeTab === "Archive" ? "Archived" : "Active";
 
+     
       const url = searchQuery.trim()
-        ? `/api/searchHospitalizationCaseType/${encodeURIComponent(searchQuery.trim())}`
-        : `/api/getHospitalizationCaseTypes`;
+        ? `/api/searchTypes/${encodeURIComponent(searchQuery.trim())}`
+        : `/api/getTypes`;
 
       const params = {
         page,
         size: PAGE_SIZE,
-        sort: "caseTypeDescription,asc",
-        ...(searchQuery.trim() ? {} : { caseTypeStatus: statusParam }),
+        sort: "typeName,asc",
+        ...(searchQuery.trim() ? {} : { typeStatus: statusParam }),
       };
 
       const res = await axios.get(url, {
@@ -147,10 +149,11 @@ export default function HospitalizationCaseTypeManagement() {
   async function applyConfirm() {
     const { type, caseType } = confirmAction;
     try {
+      
       const endpoint =
         type === "archive"
-          ? `/api/archiveHospitalizationCaseType/${caseType.id}`
-          : `/api/restoreHospitalizationCaseType/${caseType.id}`;
+          ? `/api/archiveType/${caseType.id}`
+          : `/api/restoreType/${caseType.id}`;
 
       await axios.put(endpoint, null, {
         headers: { ...getAuthHeader(), "Content-Type": "application/json" },
@@ -191,7 +194,7 @@ export default function HospitalizationCaseTypeManagement() {
         onNext={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
         renderRow={(caseType) => (
           <tr key={caseType.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-            <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">{caseType.description}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">{caseType.typeName}</td>
             <td className="px-6 py-4 text-center">
               <ActionDropdown
                 items={activeTab === "Archive" ? archiveActions : activeActions}
@@ -207,9 +210,10 @@ export default function HospitalizationCaseTypeManagement() {
           <CaseTypeForm
             submitLabel="Submit"
             onSubmit={async (values) => {
+            
               await axios.post(
-                "/api/createHospitalizationCaseType",
-                { caseTypeDescription: values.description },
+                "/api/createType",
+                { typeName: values.typeName },
                 { headers: getAuthHeader() }
               );
               await fetchCaseTypes();
@@ -222,15 +226,13 @@ export default function HospitalizationCaseTypeManagement() {
       {editCaseType && (
         <Modal title="Edit Hospitalization Case" onClose={() => setEditCaseType(null)}>
           <CaseTypeForm
-            initialDescription={editCaseType.description}
-            submitLabel="Edit"
+            initialTypeName={editCaseType.typeName}
+            submitLabel="Save Changes"
             onSubmit={async (values) => {
+            
               await axios.put(
-                `/api/updateHospitalizationCaseType/${editCaseType.id}`,
-                {
-                  caseTypeDescription: values.description,
-                  caseTypeStatus:      editCaseType.archived ? "Archived" : "Active",
-                },
+                `/api/updateType/${editCaseType.id}`,
+                { typeName: values.typeName },
                 { headers: getAuthHeader() }
               );
               await fetchCaseTypes();
@@ -245,8 +247,8 @@ export default function HospitalizationCaseTypeManagement() {
           title={confirmAction.type === "archive" ? "Archive Case Type?" : "Unarchive Case Type?"}
           message={
             confirmAction.type === "archive"
-              ? `"${confirmAction.caseType.description}" will be moved to the archive.`
-              : `"${confirmAction.caseType.description}" will be restored to active.`
+              ? `"${confirmAction.caseType.typeName}" will be moved to the archive.`
+              : `"${confirmAction.caseType.typeName}" will be restored to active.`
           }
           confirmLabel={confirmAction.type === "archive" ? "Archive" : "Unarchive"}
           danger={confirmAction.type === "archive"}

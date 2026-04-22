@@ -108,7 +108,7 @@ export default function AdminDashboard() {
   async function fetchDashboardData() {
     setLoading(true);
     try {
-      // axios calls here later
+     
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
     } finally {
@@ -118,15 +118,13 @@ export default function AdminDashboard() {
 
   async function fetchDepartments() {
     try {
-      // axios calls here later
+    
     } catch (err) {
       console.error("Failed to fetch departments:", err);
     }
   }
 
-  // Helper: format MySQL DATETIME for display in the table
-  // MySQL returns "2025-04-19 09:30:00" → .replace(" ", "T") needed to parse correctly in all browsers
-  // Output: "04/19/2025, 9:30 AM"
+  
   function formatDateTime(iso) {
     if (!iso) return "—";
     return new Date(iso.replace(" ", "T")).toLocaleString("en-US", {
@@ -159,7 +157,7 @@ export default function AdminDashboard() {
         <LoadingSkeleton />
       ) : (
         <>
-          {/* Stats Cards */}
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
             {statsCards.map(({ icon: Icon, label, value, color }) => (
               <div
@@ -242,7 +240,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Recent Schedules */}
+          
           <div className="bg-white rounded-2xl shadow-card overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-bold text-primary font-montserrat">Recent Schedules</h3>

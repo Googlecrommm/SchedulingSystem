@@ -24,15 +24,13 @@ import {
   ConfirmDialog,
 } from "../ui";
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 function getAuthHeader() {
   const token = localStorage.getItem("token");
   return { Authorization: `Bearer ${token}` };
 }
 
-// Maps raw backend enum values to readable display labels.
-// Backend enums: Available, On_Leave, Unavailable
+
 function formatStatus(status) {
   if (status === "On_Leave")    return "On Leave";
   if (status === "Unavailable") return "Unavailable";
@@ -40,9 +38,7 @@ function formatStatus(status) {
   return status ?? "—";
 }
 
-// ─── TABS ─────────────────────────────────────────────────────────────────────
-// Matches the UI: All | Available | Unavailable | On Leave
-// tabStatus is the value sent to ?availabilityStatus= (null = no filter)
+
 
 const TABS = [
   { label: "All",         icon: Cross,        tabStatus: null          },
@@ -51,11 +47,7 @@ const TABS = [
   { label: "On Leave",    icon: Clock,        tabStatus: "On_Leave"    },
 ];
 
-// ─── ACTION ITEMS ──────────────────────────────────────────────────────────────
-// Action dropdown options depend on current status.
-// - Available   → can go On Leave or Unavailable
-// - On_Leave    → can go Available or Unavailable
-// - Unavailable → can only go Available
+
 
 function getDoctorActions(doctor) {
   const s = doctor.availabilityStatus;
@@ -80,11 +72,9 @@ function getDoctorActions(doctor) {
       { label: "Available",   icon: CheckCircle },
     ];
   }
-  // Fallback
   return [{ label: "Edit", icon: Pencil }];
 }
 
-// ─── VALIDATION ───────────────────────────────────────────────────────────────
 
 const professionalSchema = Yup.object({
   name: Yup.string().required("Full name is required"),
@@ -94,7 +84,6 @@ const professionalSchema = Yup.object({
     .min(1, "Role is required"),
 });
 
-// ─── FORM ─────────────────────────────────────────────────────────────────────
 
 function ProfessionalForm({
   initialName = "",
@@ -121,7 +110,6 @@ function ProfessionalForm({
   return (
     <form onSubmit={formik.handleSubmit} noValidate className="space-y-4">
 
-      {/* Full Name */}
       <FormField label="Full Name" error={formik.touched.name && formik.errors.name}>
         <input
           type="text"
@@ -130,7 +118,6 @@ function ProfessionalForm({
         />
       </FormField>
 
-      {/* Role dropdown */}
       <FormField label="Role" error={formik.touched.roleId && formik.errors.roleId}>
         <div className="relative">
           <select
@@ -163,7 +150,6 @@ function ProfessionalForm({
   );
 }
 
-// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function ProfessionalManagement() {
   const [activeTab,        setActiveTab]        = useState("All");
@@ -179,21 +165,19 @@ export default function ProfessionalManagement() {
   const [totalPages,       setTotalPages]       = useState(1);
   const [serverResults,    setServerResults]    = useState(null);
 
-  // Reset to page 1 whenever tab changes
   useEffect(() => {
     setPage(1);
     setSearchQuery("");
     setServerResults(null);
   }, [activeTab]);
 
-  // ─── FETCH DOCTORS ──────────────────────────────────────────────────────────
   const activeTabStatus = TABS.find((t) => t.label === activeTab)?.tabStatus ?? null;
 
   const fetchProfessionals = useCallback(async () => {
     setLoading(true);
     try {
       const params = {
-        page: page - 1, // Spring is 0-indexed
+        page: page - 1, 
         size: 10,
         ...(activeTabStatus && { availabilityStatus: activeTabStatus }),
       };
@@ -214,9 +198,6 @@ export default function ProfessionalManagement() {
     fetchProfessionals();
   }, [fetchProfessionals]);
 
-  // ─── FETCH ROLES (for dropdown in form) ────────────────────────────────────
-  // Uses GET /api/doctorDropdown to get roles.
-  // If you have a dedicated /api/roleDropdown endpoint, switch the URL below.
   useEffect(() => {
     async function fetchRoles() {
       setRolesLoading(true);
@@ -234,7 +215,6 @@ export default function ProfessionalManagement() {
     fetchRoles();
   }, []);
 
-  // ─── DEBOUNCED SERVER SEARCH ────────────────────────────────────────────────
   useEffect(() => {
     if (!searchQuery.trim()) {
       setServerResults(null);
@@ -255,10 +235,8 @@ export default function ProfessionalManagement() {
     return () => clearTimeout(timeout);
   }, [searchQuery]);
 
-  // Server results shown as-is; otherwise use fetched page
   const displayed = serverResults ?? professionals;
 
-  // ─── ACTION HANDLER ─────────────────────────────────────────────────────────
   function handleAction(action, professional) {
     if (action === "Edit")        return setEditProfessional(professional);
     if (action === "On Leave")    return setConfirmAction({ type: "leave",       professional });
@@ -266,7 +244,6 @@ export default function ProfessionalManagement() {
     if (action === "Available")   return setConfirmAction({ type: "available",   professional });
   }
 
-  // ─── CONFIRM ACTIONS ────────────────────────────────────────────────────────
   async function applyConfirm() {
     const { type, professional } = confirmAction;
     try {
@@ -319,7 +296,6 @@ export default function ProfessionalManagement() {
     },
   }[confirmAction.type];
 
-  // ─── RENDER ─────────────────────────────────────────────────────────────────
   return (
     <AdminLayout
       pageTitle="Medical Professionals Management"
@@ -385,7 +361,6 @@ export default function ProfessionalManagement() {
         )}
       />
 
-      {/* CREATE MODAL */}
       {showCreate && (
         <Modal title="Add Professionals" onClose={() => setShowCreate(false)}>
           <ProfessionalForm
@@ -409,7 +384,6 @@ export default function ProfessionalManagement() {
         </Modal>
       )}
 
-      {/* EDIT MODAL */}
       {editProfessional && (
         <Modal title="Edit Professional" onClose={() => setEditProfessional(null)}>
           <ProfessionalForm
@@ -437,7 +411,7 @@ export default function ProfessionalManagement() {
         </Modal>
       )}
 
-      {/* CONFIRM DIALOG */}
+      
       {confirmAction && (
         <ConfirmDialog
           title={confirmMeta.title}
