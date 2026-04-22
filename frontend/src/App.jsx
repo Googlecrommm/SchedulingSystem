@@ -7,6 +7,8 @@ import RoleManagement           from "./components/admin/RoleManagement";
 import MachineManagement        from "./components/admin/MachineManagement";
 import ModalityManagement       from "./components/admin/ModalityManagement";
 import ProfessionalManagement   from "./components/admin/ProfessionalManagement";
+import HospitalizationPlanManagement from "./components/admin/HospitalizationPlanManagement";
+import HospitalizationCaseTypeManagement from "./components/admin/HospitalizationCaseTypeManagement";
 import AdminScheduleManagement  from "./components/admin/AdminScheduleManagement";
 import RehabScheduleManagement  from "./components/frontdesk/RehabScheduleManagement";
 import RehabilitationDashboard  from "./components/frontdesk/RehabDashboard";
@@ -39,6 +41,8 @@ export default function App() {
         <Route path="/admin/machine-management"    element={<MachineManagement />} />
         <Route path="/admin/modality-management"   element={<ModalityManagement />} /> 
         <Route path="/admin/medical-professionals" element={<ProfessionalManagement />} />
+        <Route path="/admin/hospitalization-plans" element={<HospitalizationPlanManagement />} />
+        <Route path="/admin/hospitalization-types" element={<HospitalizationCaseTypeManagement />} />
         
 
         {/* ── Rehabilitation Frontdesk ── */}

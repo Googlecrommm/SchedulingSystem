@@ -22,7 +22,7 @@ const TABS = [
   { label: "All",       icon: Calendar      },
   { label: "Confirmed", icon: CalendarCheck },
   { label: "Cancelled", icon: CalendarX     },
-  { label: "Pending",   icon: Clock         },
+  { label: "Scheduled",   icon: Clock         },
   { label: "Archived",  icon: Archive       },
   { label: "Done",      icon: CheckCircle   },
 ];

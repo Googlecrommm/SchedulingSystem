@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users, Building2, UserCog, Cpu, Calendar,
   ChevronDown, ChevronLeft, ChevronRight,
   Menu, X, Search, Plus, MoreHorizontal,
-  Layers, Cross, 
+  Layers, Cross, ClipboardList, Tag
 } from "lucide-react";
 import DGMCLogo    from "../../assets/dgmc-logo.png";
 import DGMCIcon    from "../../assets/DGMC-icon.svg";
@@ -22,6 +22,8 @@ export const adminNavItems = [
   { label: "Machine",         icon: Cpu,              path: "/admin/machine-management" },
   { label: "Modality",        icon: Layers,          path: "/admin/modality-management"  }, 
   { label: "Medical Professionals", icon: Cross, path: "/admin/medical-professionals"    },
+  { label: "Hospitalization Plans", icon: ClipboardList, path: "/admin/hospitalization-plans" },
+  { label: "Hospitalization Case Types", icon: Tag, path: "/admin/hospitalization-types" }
 ];
 
 export const frontdeskNavItems = [
@@ -549,7 +551,7 @@ export function scheduleStatusColor(status) {
     case "confirmed": return "text-green-500";
     case "canceled":
     case "cancelled": return "text-accent";
-    case "pending":   return "text-yellow-500";
+    case "scheduled": return "text-yellow-500";
     case "archived":  return "text-gray-400";
     case "done":      return "text-primary";
     default:          return "text-gray-500";

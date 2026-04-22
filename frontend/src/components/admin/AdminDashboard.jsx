@@ -138,7 +138,7 @@ export default function AdminDashboard() {
   const statsCards = [
     { icon: UserCheck, label: "Confirmed", value: stats.confirmed, color: "text-green-500"  },
     { icon: UserX,     label: "Cancelled", value: stats.cancelled, color: "text-accent"     },
-    { icon: Clock,     label: "Pending",   value: stats.pending,   color: "text-yellow-500" },
+    { icon: Clock,     label: "Scheduled",   value: stats.pending,   color: "text-yellow-500" },
   ];
 
   return (
@@ -200,7 +200,7 @@ export default function AdminDashboard() {
               {[
                 { color: "bg-green-500",  label: "Confirmed" },
                 { color: "bg-accent",     label: "Cancelled" },
-                { color: "bg-yellow-500", label: "Pending"   },
+                { color: "bg-yellow-500", label: "Scheduled"   },
               ].map(({ color, label }) => (
                 <div key={label} className="flex items-center gap-2">
                   <div className={`w-3 h-3 ${color} rounded-sm`} />
