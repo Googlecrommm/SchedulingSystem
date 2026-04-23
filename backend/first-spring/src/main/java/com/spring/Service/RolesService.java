@@ -89,6 +89,10 @@ public class RolesService {
             throw new NotAllowed("Edit not allowed");
         }
 
+        if (role.getRoleName().equalsIgnoreCase("Admin")){
+            throw new NotAllowed("Role can't be set to admin");
+        }
+
         if (role.getRoleName() != null && !role.getRoleName().isEmpty() && !roleToUpdate.getRoleName().equalsIgnoreCase("Admin")){
             roleToUpdate.setRoleName(role.getRoleName());
         }

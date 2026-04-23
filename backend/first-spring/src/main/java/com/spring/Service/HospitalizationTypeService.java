@@ -3,6 +3,7 @@ package com.spring.Service;
 import com.spring.Enums.SoftDelete;
 import com.spring.Exceptions.AlreadyExists;
 import com.spring.Exceptions.NoChangesDetected;
+import com.spring.Exceptions.NotAllowed;
 import com.spring.Exceptions.NotFound;
 import com.spring.Models.HospitalizationType;
 import com.spring.Repositories.HospitalizationTypeRepository;
@@ -67,6 +68,10 @@ public class HospitalizationTypeService {
     //UPDATE
     public void updateType(int typeId, HospitalizationType type){
         HospitalizationType typeToUpdate = typeRepository.findById(typeId).orElseThrow(() -> new NotFound("Type not found"));
+
+        if (typeRepository.existsByTypeName(type.getTypeName())){
+            throw new NotAllowed("Type already exists");
+        }
 
         if (type.getTypeName() != null && !type.getTypeName().isEmpty()){
             typeToUpdate.setTypeName(type.getTypeName());

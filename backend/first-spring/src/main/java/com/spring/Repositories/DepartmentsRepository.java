@@ -1,5 +1,6 @@
 package com.spring.Repositories;
 
+import com.spring.Enums.SoftDelete;
 import com.spring.Models.Departments;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +23,8 @@ public interface DepartmentsRepository extends JpaRepository<Departments, Intege
     Optional<Departments> findByDepartmentName(String departmentName);
 
     Page<Departments> findAll(Pageable pageable);
+
+    List<Departments> findAllByDepartmentStatusNot(SoftDelete departmentStatus);
 
     @Query("SELECT department from Departments department WHERE department.departmentName LIKE %:searchDept%")
     Page<Departments> searchByDepartmentName(@Param("searchDept") String searchDept, Pageable pageable);

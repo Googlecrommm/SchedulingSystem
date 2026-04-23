@@ -70,6 +70,10 @@ public class HospitalizationPlanService {
     public void updatePlan(int planId, HospitalizationPlan plan){
         HospitalizationPlan planToUpdate = planRepository.findById(planId).orElseThrow(() -> new NotFound("Plan not found"));
 
+        if (planRepository.existsByCompanyName(plan.getCompanyName())){
+            throw new AlreadyExists("Company already exists");
+        }
+
         if (plan.getCode() != null && !plan.getCode().isEmpty()){
             planToUpdate.setCode(plan.getCode());
         }

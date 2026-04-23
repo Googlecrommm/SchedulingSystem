@@ -74,6 +74,10 @@ public class DoctorService {
     public void updateDoctor(int doctorId, Doctors doctor){
         Doctors doctorToUpdate = doctorsRepository.findById(doctorId).orElseThrow(() -> new NotFound("Doctor not found"));
 
+        if (doctorsRepository.existsByName(doctor.getName())){
+            throw new AlreadyExists("Doctor already exists");
+        }
+
         if(doctor.getName() != null && !doctor.getName().isEmpty()){
             doctorToUpdate.setName(doctor.getName());
         }

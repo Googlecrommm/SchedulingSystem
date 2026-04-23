@@ -1,10 +1,7 @@
 package com.spring.Service;
 
 import com.spring.Enums.SoftDelete;
-import com.spring.Exceptions.EmptyDepartment;
-import com.spring.Exceptions.NoChangesDetected;
-import com.spring.Exceptions.NotAllowed;
-import com.spring.Exceptions.NotFound;
+import com.spring.Exceptions.*;
 import com.spring.Models.Departments;
 import com.spring.Repositories.DepartmentsRepository;
 import com.spring.Specifications.DepartmentSpecification;
@@ -37,7 +34,7 @@ public class DepartmentsService {
 
     }
 
-    //READ
+    //READ & FILTER
     public Page<DepartmentResponseDTO> getDepartments(String departmentStatus, Pageable pageable){
         Specification<Departments> filters = Specification
                 .where(DepartmentSpecification.hasStatus(departmentStatus))
@@ -61,12 +58,31 @@ public class DepartmentsService {
                 });
     }
 
+    //DROPDOWN
+    public List<DepartmentResponseDTO> departmentDropdown(){
+        return departmentsRepository
+                .findAllByDepartmentStatusNot(SoftDelete.Archived)
+                .stream()
+                .map(departments -> {
+                    return modelMapper.map(departments, DepartmentResponseDTO.class);
+                })
+                .toList();
+    }
+
     //UPDATE
     public Departments updateById(int departmentId, Departments department){
         Departments initialValue = departmentsRepository.findById(departmentId).orElseThrow(() -> new NotFound("Department not found"));
 
         if (initialValue.getDepartmentName().equalsIgnoreCase("ICTD")){
             throw new NotAllowed("Edit not allowed");
+        }
+
+        if (department.getDepartmentName().equalsIgnoreCase("ICTD")){
+            throw new NotAllowed("Department can't be set to ICTD");
+        }
+
+        if (departmentsRepository.existsByDepartmentName(department.getDepartmentName())){
+            throw new AlreadyExists("Department already exists");
         }
 
         if (department.getDepartmentName().equals(initialValue.getDepartmentName())){

@@ -42,10 +42,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(404).body(error);
     }
 
+    //NotAllowed Exception
     @ExceptionHandler(NotAllowed.class)
     public ResponseEntity<ErrorResponse> handleNotAllowed(NotAllowed notAllowed){
         ErrorResponse error = new ErrorResponse(400, notAllowed.getMessage());
         return ResponseEntity.status(400).body(error);
+    }
+
+    //ConflictingSchedule Exception
+    @ExceptionHandler(ConflictingSchedule.class)
+    public ResponseEntity<ErrorResponse> handleConflictingSchedules(ConflictingSchedule conflictingSchedule){
+        ErrorResponse error = new ErrorResponse(409, conflictingSchedule.getMessage());
+        return ResponseEntity.status(409).body(error);
     }
 
 }

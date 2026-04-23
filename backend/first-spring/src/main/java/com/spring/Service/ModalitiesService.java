@@ -75,6 +75,10 @@ public class ModalitiesService {
     public void updateModality(int modalityId, Modalities modality){
         Modalities modalityToUpdate = modalitiesRepository.findById(modalityId).orElseThrow(() -> new NotFound("Modality not found"));
 
+        if (modalitiesRepository.existsByModalityName(modality.getModalityName())){
+            throw new AlreadyExists("Modality already exists");
+        }
+
         if (modality.getModalityName() != null && !modality.getModalityName().isEmpty()){
             modalityToUpdate.setModalityName(modality.getModalityName());
         }

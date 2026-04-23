@@ -77,6 +77,10 @@ public class MachineService {
     public void updateMachine(int machineId, Machines machine){
         Machines machineToUpdate = machinesRepository.findById(machineId).orElseThrow(() -> new NotFound("Machine not found"));
 
+        if (machinesRepository.existsByMachineName(machine.getMachineName())){
+            throw new AlreadyExists("Machine already exists");
+        }
+
         if (machine.getMachineName() != null && !machine.getMachineName().isEmpty()){
             machineToUpdate.setMachineName(machine.getMachineName());
         }

@@ -37,6 +37,13 @@ public class DepartmentsController {
         return ResponseEntity.ok(departmentsService.getDepartments(departmentStatus, pageable));
     }
 
+    //DROPDOWN
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/departmentsDropdown")
+    public ResponseEntity<List<DepartmentResponseDTO>> departmentsDropdown(){
+        return ResponseEntity.ok(departmentsService.departmentDropdown());
+    }
+
     //SEARCH
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/searchDepartment/{searchDept}")

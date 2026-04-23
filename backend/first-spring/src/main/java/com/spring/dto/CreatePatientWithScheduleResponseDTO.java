@@ -4,6 +4,7 @@ import com.spring.Models.Patients;
 import com.spring.Models.Schedules;
 
 public class CreatePatientWithScheduleResponseDTO {
+    private Integer existingPatientId;
     private Patients patient;
     private Schedules schedules;
 
@@ -21,5 +22,13 @@ public class CreatePatientWithScheduleResponseDTO {
 
     public void setSchedules(Schedules schedules) {
         this.schedules = schedules;
+    }
+
+    public Integer getExistingPatientId() {
+        return existingPatientId;
+    }
+
+    public void setExistingPatientId(Integer existingPatientId) {
+        this.existingPatientId = existingPatientId;
     }
 }
