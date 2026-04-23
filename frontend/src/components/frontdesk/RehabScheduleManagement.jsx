@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import {
   Calendar, CalendarCheck, CalendarX, Clock, Archive, CheckCircle,
-  Eye, UserCheck, UserX, Pencil, Trash2, RefreshCw, ChevronDown,
+  Eye, UserCheck, UserX, Pencil, Trash2, RefreshCw, ChevronDown, Search, X,
 } from "lucide-react";
 
 import {
@@ -36,10 +36,11 @@ const COLUMNS = ["Full Name", "Date", "Time", "Therapist", "Status", "Action"];
 
 const BLANK_PATIENT = {
   therapist:    "",
-  date:         "",   
-  startTime:    "",   
-  endTime:      "",   
+  date:         "",
+  startTime:    "",
+  endTime:      "",
   patientName:  "",
+  patientId:    "",   
   dob:          "",
   contactNo:    "",
   sex:          "",
@@ -76,19 +77,9 @@ function splitDatetime(datetime) {
   const [datePart, timePart] = datetime.replace("T", " ").split(" ");
   return {
     date: datePart ?? "",
-    time: timePart?.slice(0, 5) ?? "",   
+    time: timePart?.slice(0, 5) ?? "",
   };
 }
-
-
-function formatDatetime(iso) {
-  if (!iso) return "—";
-  return new Date(iso.replace(" ", "T")).toLocaleString("en-US", {
-    month: "2-digit", day: "2-digit", year: "numeric",
-    hour: "numeric", minute: "2-digit", hour12: true,
-  });
-}
-
 
 function formatDate(iso) {
   if (!iso) return "—";
@@ -96,7 +87,6 @@ function formatDate(iso) {
     month: "2-digit", day: "2-digit", year: "numeric",
   });
 }
-
 
 function formatTime(iso) {
   if (!iso) return "—";
@@ -120,6 +110,176 @@ function getActions(status) {
     ];
   }
 }
+
+
+
+
+function PatientSearchableInput({ formik, hasError }) {
+  const [query,       setQuery]       = useState(formik.values.patientName ?? "");
+  const [results,     setResults]     = useState([]);
+  const [open,        setOpen]        = useState(false);
+  const [searching,   setSearching]   = useState(false);
+  const [isExisting,  setIsExisting]  = useState(!!formik.values.patientId);
+  const debounceRef  = useRef(null);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  useEffect(() => {
+    setQuery(formik.values.patientName ?? "");
+    setIsExisting(!!formik.values.patientId);
+  }, [formik.values.patientName, formik.values.patientId]);
+
+  function handleInputChange(e) {
+    const val = e.target.value;
+    setQuery(val);
+    setIsExisting(false);
+
+    formik.setFieldValue("patientName", val);
+    formik.setFieldValue("patientId", "");
+
+    if (!val.trim()) {
+      setResults([]);
+      setOpen(false);
+      return;
+    }
+
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await fetch(
+          `/api/searchPatient/${encodeURIComponent(val.trim())}`,
+          { headers: getAuthHeader() }
+        );
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : data?.content ?? [];
+        setResults(list);
+        setOpen(list.length > 0);
+      } catch {
+        setResults([]);
+        setOpen(false);
+      } finally {
+        setSearching(false);
+      }
+    }, 350);
+  }
+
+  function handleSelect(patient) {
+    setQuery(patient.patientName ?? patient.name ?? "");
+    setIsExisting(true);
+    setOpen(false);
+    setResults([]);
+
+    formik.setFieldValue("patientName", patient.patientName ?? patient.name ?? "");
+    formik.setFieldValue("patientId",   patient.patientId ?? "");
+    formik.setFieldValue("sex",         patient.sex        ?? "");
+    formik.setFieldValue("dob",         patient.dob        ?? "");
+    formik.setFieldValue("contactNo",   patient.contactNo  ?? "");
+    formik.setFieldValue("address",     patient.address    ?? "");
+    formik.setFieldValue("occupation",  patient.occupation ?? "");
+  }
+
+  function handleClear() {
+    setQuery("");
+    setIsExisting(false);
+    setResults([]);
+    setOpen(false);
+    formik.setFieldValue("patientName", "");
+    formik.setFieldValue("patientId",   "");
+    formik.setFieldValue("sex",         "");
+    formik.setFieldValue("dob",         "");
+    formik.setFieldValue("contactNo",   "");
+    formik.setFieldValue("address",     "");
+    formik.setFieldValue("occupation",  "");
+  }
+
+  const borderClass = hasError
+    ? "border-red-400 focus:ring-red-200"
+    : isExisting
+    ? "border-green-400 focus:ring-green-200"
+    : "border-surface-border focus:ring-primary/30";
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <div className="relative">
+        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+          <Search size={15} />
+        </span>
+
+        <input
+          type="text"
+          value={query}
+          onChange={handleInputChange}
+          onFocus={() => results.length > 0 && setOpen(true)}
+          placeholder="Search or type new patient name…"
+          className={`w-full py-2.5 pl-9 pr-9 rounded-xl border bg-surface-input
+            text-primary placeholder-gray-400 text-sm
+            focus:outline-none focus:ring-2 focus:border-primary
+            transition-all duration-200 ${borderClass}`}
+        />
+
+        <span className="absolute right-3 top-1/2 -translate-y-1/2">
+          {searching ? (
+            <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin block" />
+          ) : query ? (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X size={15} />
+            </button>
+          ) : null}
+        </span>
+      </div>
+
+      {isExisting && (
+        <p className="text-xs text-green-600 font-medium mt-1 flex items-center gap-1">
+          <CheckCircle size={12} />
+          Existing patient — info auto-filled
+        </p>
+      )}
+
+      {query && !isExisting && !searching && (
+        <p className="text-xs text-blue-500 font-medium mt-1">
+          New patient — fill in the details below
+        </p>
+      )}
+
+      {open && results.length > 0 && (
+        <div className="absolute z-50 mt-1.5 w-full bg-white rounded-xl shadow-card border border-gray-100 py-1 max-h-52 overflow-y-auto">
+          {results.map((p) => (
+            <button
+              key={p.patientId}
+              type="button"
+              onClick={() => handleSelect(p)}
+              className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-primary/5 hover:text-primary transition-colors"
+            >
+              <span className="font-medium">{p.patientName ?? p.name}</span>
+              {p.dob && (
+                <span className="ml-2 text-xs text-gray-400">DOB: {p.dob}</span>
+              )}
+              {p.contactNo && (
+                <span className="ml-2 text-xs text-gray-400">{p.contactNo}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 
 const patientSchema = Yup.object({
@@ -233,11 +393,9 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose, therapists
       </div>
 
       <FormField label="Patient Name" error={formik.touched.patientName && formik.errors.patientName}>
-        <input
-          type="text"
-          placeholder="Full Name"
-          className={ic("patientName")}
-          {...formik.getFieldProps("patientName")}
+        <PatientSearchableInput
+          formik={formik}
+          hasError={!!(formik.touched.patientName && formik.errors.patientName)}
         />
       </FormField>
 
@@ -457,7 +615,7 @@ function ViewPatientModal({ patient, onClose }) {
           className="w-full py-2.5 rounded-xl bg-primary hover:bg-primary-light active:bg-primary-dark
                      text-white text-sm font-semibold transition-colors duration-200 cursor-pointer"
         >
-          View
+          Close
         </button>
       </div>
     </Modal>
@@ -488,12 +646,10 @@ export default function RehabScheduleManagement() {
     setSearchQuery("");
   }, [activeTab]);
 
-  
-
   async function fetchSchedules() {
     setLoading(true);
     try {
-     
+
     } catch (err) {
       console.error("Failed to fetch schedules:", err);
     } finally {
@@ -503,12 +659,11 @@ export default function RehabScheduleManagement() {
 
   async function fetchDropdownData() {
     try {
-     
+
     } catch (err) {
       console.error("Failed to fetch dropdown data:", err);
     }
   }
-
 
   const filtered = schedules.filter((s) => {
     const q = searchQuery.toLowerCase();
@@ -520,10 +675,8 @@ export default function RehabScheduleManagement() {
     return s.status?.toLowerCase() === activeTab.toLowerCase() && matchesSearch;
   });
 
-
   async function updateStatus(id, status) {
     try {
-     
       await fetchSchedules();
     } catch (err) {
       console.error("Failed to update schedule status:", err);
@@ -543,7 +696,6 @@ export default function RehabScheduleManagement() {
     setConfirmAction(null);
   }
 
-
   function handleAction(action, s) {
     switch (action) {
       case "View":      return setViewPatient(s);
@@ -555,7 +707,6 @@ export default function RehabScheduleManagement() {
       case "Done":      return setConfirmAction({ type: "done",      schedule: s });
     }
   }
-
 
   async function handleCreate(values) {
     const payload = {
@@ -571,8 +722,9 @@ export default function RehabScheduleManagement() {
       doctor:                  { doctorId: Number(values.therapist) },
       hospitalizationPlan:     values.hospPlan     ? { planId:     Number(values.hospPlan)     } : null,
       hospitalizationCaseType: values.hospCaseType ? { caseTypeId: Number(values.hospCaseType) } : null,
+      ...(values.patientId ? { patient: { patientId: Number(values.patientId) } } : {}),
     };
-   
+
     console.log("Create payload:", payload);
     await fetchSchedules();
   }
@@ -591,13 +743,12 @@ export default function RehabScheduleManagement() {
       doctor:                  { doctorId: Number(values.therapist) },
       hospitalizationPlan:     values.hospPlan     ? { planId:     Number(values.hospPlan)     } : null,
       hospitalizationCaseType: values.hospCaseType ? { caseTypeId: Number(values.hospCaseType) } : null,
+      ...(values.patientId ? { patient: { patientId: Number(values.patientId) } } : {}),
     };
-    
+
     console.log("Edit payload:", payload);
     await fetchSchedules();
   }
-
- 
 
   function toEditInitial(s) {
     const { date, time: startTime } = splitDatetime(s.start_datetime);
@@ -608,6 +759,7 @@ export default function RehabScheduleManagement() {
       startTime,
       endTime,
       patientName:  s.patientName  ?? "",
+      patientId:    s.patientId    ?? "",
       dob:          s.dob          ?? "",
       contactNo:    s.contactNo    ?? "",
       sex:          s.sex          ?? "",
@@ -620,8 +772,6 @@ export default function RehabScheduleManagement() {
   }
 
   const meta = confirmAction && confirmMeta[confirmAction.type];
-
- 
 
   return (
     <AdminLayout
@@ -673,7 +823,6 @@ export default function RehabScheduleManagement() {
         )}
       />
 
-     
       {showAdd && (
         <Modal title="Add Patient Schedule" onClose={() => setShowAdd(false)} maxWidth="max-w-2xl" scrollable>
           <PatientForm
@@ -688,7 +837,6 @@ export default function RehabScheduleManagement() {
         </Modal>
       )}
 
-     
       {viewPatient && (
         <ViewPatientModal
           patient={viewPatient}
@@ -696,7 +844,6 @@ export default function RehabScheduleManagement() {
         />
       )}
 
-      
       {editPatient && (
         <Modal title="Edit Patient Schedule" onClose={() => setEditPatient(null)} maxWidth="max-w-2xl" scrollable>
           <PatientForm
@@ -711,7 +858,6 @@ export default function RehabScheduleManagement() {
         </Modal>
       )}
 
-    
       {confirmAction && meta && (
         <ConfirmDialog
           title={meta.title}

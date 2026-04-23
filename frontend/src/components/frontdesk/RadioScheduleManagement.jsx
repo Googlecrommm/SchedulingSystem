@@ -3,7 +3,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import {
   Calendar, CalendarCheck, CalendarX, Clock, Archive, CheckCircle,
-  Eye, UserCheck, UserX, Pencil, Trash2, RefreshCw, ChevronDown, Cross,
+  Eye, UserCheck, UserX, Pencil, Trash2, RefreshCw, ChevronDown, Cross, Search, X,
 } from "lucide-react";
 import { LayoutDashboard, Cpu } from "lucide-react";
 
@@ -61,14 +61,15 @@ const BLANK_PATIENT = {
   modality:               "",
   machine:                "",
   preparationExplainedBy: "",
-  date:                   "",   
-  startTime:              "",   
-  endTime:                "",   
+  date:                   "",
+  startTime:              "",
+  endTime:                "",
   patientName:            "",
+  patientId:              "",   
   sex:                    "",
   dob:                    "",
   contactNo:              "",
-  address:                "",
+
   hospPlan:               "",
   hospCaseType:           "",
   remarks:                "",
@@ -92,15 +93,6 @@ function splitDatetime(datetime) {
   if (!datetime) return { date: "", time: "" };
   const [datePart, timePart] = datetime.replace("T", " ").split(" ");
   return { date: datePart ?? "", time: timePart?.slice(0, 5) ?? "" };
-}
-
-
-function displayDatetime(datetime) {
-  if (!datetime) return "—";
-  const d    = new Date(datetime.replace(" ", "T"));
-  const date = d.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
-  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-  return `${date}    ${time}`;
 }
 
 function formatDate(iso) {
@@ -135,6 +127,173 @@ function getActions(status) {
 
 
 
+
+function PatientSearchableInput({ formik, hasError }) {
+  const [query,        setQuery]        = useState(formik.values.patientName ?? "");
+  const [results,      setResults]      = useState([]);
+  const [open,         setOpen]         = useState(false);
+  const [searching,    setSearching]    = useState(false);
+  const [isExisting,   setIsExisting]   = useState(!!formik.values.patientId);
+  const debounceRef  = useRef(null);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  useEffect(() => {
+    setQuery(formik.values.patientName ?? "");
+    setIsExisting(!!formik.values.patientId);
+  }, [formik.values.patientName, formik.values.patientId]);
+
+  function handleInputChange(e) {
+    const val = e.target.value;
+    setQuery(val);
+    setIsExisting(false);
+
+    formik.setFieldValue("patientName", val);
+    formik.setFieldValue("patientId", "");
+
+    if (!val.trim()) {
+      setResults([]);
+      setOpen(false);
+      return;
+    }
+
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await fetch(
+          `/api/searchPatient/${encodeURIComponent(val.trim())}`,
+          { headers: getAuthHeader() }
+        );
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : data?.content ?? [];
+        setResults(list);
+        setOpen(list.length > 0);
+      } catch {
+        setResults([]);
+        setOpen(false);
+      } finally {
+        setSearching(false);
+      }
+    }, 350);
+  }
+
+  function handleSelect(patient) {
+    setQuery(patient.patientName ?? patient.name ?? "");
+    setIsExisting(true);
+    setOpen(false);
+    setResults([]);
+
+    formik.setFieldValue("patientName", patient.patientName ?? patient.name ?? "");
+    formik.setFieldValue("patientId",   patient.patientId ?? "");
+    formik.setFieldValue("sex",         patient.sex        ?? "");
+    formik.setFieldValue("dob",         patient.dob        ?? "");
+    formik.setFieldValue("contactNo",   patient.contactNo  ?? "");
+
+  }
+
+  function handleClear() {
+    setQuery("");
+    setIsExisting(false);
+    setResults([]);
+    setOpen(false);
+    formik.setFieldValue("patientName", "");
+    formik.setFieldValue("patientId",   "");
+    formik.setFieldValue("sex",         "");
+    formik.setFieldValue("dob",         "");
+    formik.setFieldValue("contactNo",   "");
+
+  }
+
+  const borderClass = hasError
+    ? "border-red-400 focus:ring-red-200"
+    : isExisting
+    ? "border-green-400 focus:ring-green-200"
+    : "border-surface-border focus:ring-primary/30";
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <div className="relative">
+        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+          <Search size={15} />
+        </span>
+
+        <input
+          type="text"
+          value={query}
+          onChange={handleInputChange}
+          onFocus={() => results.length > 0 && setOpen(true)}
+          placeholder="Search or type new patient name…"
+          className={`w-full py-2.5 pl-9 pr-9 rounded-xl border bg-surface-input
+            text-primary placeholder-gray-400 text-sm
+            focus:outline-none focus:ring-2 focus:border-primary
+            transition-all duration-200 ${borderClass}`}
+        />
+
+        <span className="absolute right-3 top-1/2 -translate-y-1/2">
+          {searching ? (
+            <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin block" />
+          ) : query ? (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X size={15} />
+            </button>
+          ) : null}
+        </span>
+      </div>
+
+      {isExisting && (
+        <p className="text-xs text-green-600 font-medium mt-1 flex items-center gap-1">
+          <CheckCircle size={12} />
+          Existing patient — info auto-filled
+        </p>
+      )}
+
+      {query && !isExisting && !searching && (
+        <p className="text-xs text-blue-500 font-medium mt-1">
+          New patient — fill in the details below
+        </p>
+      )}
+
+      {open && results.length > 0 && (
+        <div className="absolute z-50 mt-1.5 w-full bg-white rounded-xl shadow-card border border-gray-100 py-1 max-h-52 overflow-y-auto">
+          {results.map((p) => (
+            <button
+              key={p.patientId}
+              type="button"
+              onClick={() => handleSelect(p)}
+              className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-primary/5 hover:text-primary transition-colors"
+            >
+              <span className="font-medium">{p.patientName ?? p.name}</span>
+              {p.dob && (
+                <span className="ml-2 text-xs text-gray-400">DOB: {p.dob}</span>
+              )}
+              {p.contactNo && (
+                <span className="ml-2 text-xs text-gray-400">{p.contactNo}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
 const patientSchema = Yup.object({
   radiologist:            Yup.string().required("Radiologist is required"),
   procedure:              Yup.string().required("Procedure is required"),
@@ -156,7 +315,7 @@ const patientSchema = Yup.object({
   contactNo:              Yup.string()
     .matches(/^\+?[0-9]{7,15}$/, "Enter a valid contact number")
     .required("Contact number is required"),
-  address:                Yup.string().required("Address is required"),
+
   hospPlan:               Yup.string(),
   hospCaseType:           Yup.string(),
   remarks:                Yup.string(),
@@ -241,7 +400,6 @@ function PatientForm({
         </FormField>
       </div>
 
-      
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Modality" error={formik.touched.modality && formik.errors.modality}>
           <SelectField
@@ -268,7 +426,6 @@ function PatientForm({
         </FormField>
       </div>
 
-     
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Preparation Explained by" error={formik.touched.preparationExplainedBy && formik.errors.preparationExplainedBy}>
           <SelectField
@@ -291,7 +448,6 @@ function PatientForm({
         </FormField>
       </div>
 
-   
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Start Time" error={formik.touched.startTime && formik.errors.startTime}>
           <input
@@ -310,17 +466,14 @@ function PatientForm({
         </FormField>
       </div>
 
-     
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <FormField label="Patient Name" error={formik.touched.patientName && formik.errors.patientName}>
-          <input
-            type="text"
-            placeholder="Full Name"
-            className={ic("patientName")}
-            {...formik.getFieldProps("patientName")}
-          />
-        </FormField>
+      <FormField label="Patient Name" error={formik.touched.patientName && formik.errors.patientName}>
+        <PatientSearchableInput
+          formik={formik}
+          hasError={!!(formik.touched.patientName && formik.errors.patientName)}
+        />
+      </FormField>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Sex" error={formik.touched.sex && formik.errors.sex}>
           <div className="relative">
             <select
@@ -337,10 +490,7 @@ function PatientForm({
             />
           </div>
         </FormField>
-      </div>
 
-      
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Date of Birth" error={formik.touched.dob && formik.errors.dob}>
           <input
             type="date"
@@ -348,28 +498,17 @@ function PatientForm({
             {...formik.getFieldProps("dob")}
           />
         </FormField>
-
-        <FormField label="Contact No." error={formik.touched.contactNo && formik.errors.contactNo}>
-          <input
-            type="tel"
-            placeholder="63+9XXXXXXXXX"
-            className={ic("contactNo")}
-            {...formik.getFieldProps("contactNo")}
-          />
-        </FormField>
       </div>
 
-   
-      <FormField label="Address" error={formik.touched.address && formik.errors.address}>
+      <FormField label="Contact No." error={formik.touched.contactNo && formik.errors.contactNo}>
         <input
-          type="text"
-          placeholder="City, Province"
-          className={ic("address")}
-          {...formik.getFieldProps("address")}
+          type="tel"
+          placeholder="63+9XXXXXXXXX"
+          className={ic("contactNo")}
+          {...formik.getFieldProps("contactNo")}
         />
       </FormField>
 
-    
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Hospitalization Plan" error={formik.touched.hospPlan && formik.errors.hospPlan}>
           <SelectField
@@ -396,7 +535,6 @@ function PatientForm({
         </FormField>
       </div>
 
-      
       <FormField label="Remarks" error={formik.touched.remarks && formik.errors.remarks}>
         <textarea
           rows={4}
@@ -441,7 +579,6 @@ function ViewPatientModal({ patient, onClose }) {
     <Modal title="View Patient Schedule" onClose={onClose} maxWidth="max-w-2xl" scrollable>
       <div className="space-y-4">
 
-       
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-semibold text-primary mb-1.5">Radiologist</label>
@@ -456,7 +593,6 @@ function ViewPatientModal({ patient, onClose }) {
           </div>
         </div>
 
-     
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-semibold text-primary mb-1.5">Modality</label>
@@ -474,7 +610,6 @@ function ViewPatientModal({ patient, onClose }) {
           </div>
         </div>
 
-        
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-semibold text-primary mb-1.5">Preparation Explained by</label>
@@ -489,7 +624,6 @@ function ViewPatientModal({ patient, onClose }) {
           </div>
         </div>
 
-        
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-semibold text-primary mb-1.5">Start Time</label>
@@ -501,7 +635,6 @@ function ViewPatientModal({ patient, onClose }) {
           </div>
         </div>
 
-       
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-semibold text-primary mb-1.5">Patient Name</label>
@@ -516,7 +649,6 @@ function ViewPatientModal({ patient, onClose }) {
           </div>
         </div>
 
-        
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="block text-sm font-semibold text-primary mb-1.5">Date of Birth</label>
@@ -536,13 +668,6 @@ function ViewPatientModal({ patient, onClose }) {
           </div>
         </div>
 
-       
-        <div>
-          <label className="block text-sm font-semibold text-primary mb-1.5">Address</label>
-          <input readOnly value={patient.address ?? "—"} className={ro} />
-        </div>
-
-       
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-semibold text-primary mb-1.5">Hospitalization Plan</label>
@@ -560,7 +685,6 @@ function ViewPatientModal({ patient, onClose }) {
           </div>
         </div>
 
-      
         <div>
           <label className="block text-sm font-semibold text-primary mb-1.5">Remarks</label>
           <textarea
@@ -572,13 +696,12 @@ function ViewPatientModal({ patient, onClose }) {
           />
         </div>
 
-    
         <button
           onClick={onClose}
           className="w-full py-2.5 rounded-xl bg-primary hover:bg-primary-light active:bg-primary-dark
                      text-white text-sm font-semibold transition-colors duration-200 cursor-pointer"
         >
-          View
+          Close
         </button>
       </div>
     </Modal>
@@ -651,7 +774,6 @@ export default function RadioScheduleManagement() {
   const [schedules,      setSchedules]      = useState([]);
   const [loading,        setLoading]        = useState(false);
 
-  
   const [radiologists,  setRadiologists]  = useState([]);
   const [modalities,    setModalities]    = useState([]);
   const [machines,      setMachines]      = useState([]);
@@ -665,12 +787,10 @@ export default function RadioScheduleManagement() {
 
   useEffect(() => { setSearchQuery(""); }, [activeTab]);
 
-  
-
   async function fetchSchedules() {
     setLoading(true);
     try {
-     
+
     } catch (err) {
       console.error("Failed to fetch schedules:", err);
     } finally {
@@ -680,13 +800,11 @@ export default function RadioScheduleManagement() {
 
   async function fetchDropdownData() {
     try {
-   
+
     } catch (err) {
       console.error("Failed to fetch dropdown data:", err);
     }
   }
-
- 
 
   const filtered = schedules.filter((s) => {
     const q = searchQuery.toLowerCase();
@@ -706,11 +824,8 @@ export default function RadioScheduleManagement() {
     return matchesTab && matchesSearch && matchesModality;
   });
 
-  
-
   async function updateStatus(id, status) {
     try {
-
       await fetchSchedules();
     } catch (err) {
       console.error("Failed to update schedule status:", err);
@@ -730,8 +845,6 @@ export default function RadioScheduleManagement() {
     setConfirmAction(null);
   }
 
-
-
   function handleAction(action, s) {
     switch (action) {
       case "View":      return setViewPatient(s);
@@ -744,29 +857,25 @@ export default function RadioScheduleManagement() {
     }
   }
 
-
-
   async function handleCreate(values) {
     const payload = {
       patientName:   values.patientName,
       sex:           values.sex,
       dob:           values.dob,
       contactNo:     values.contactNo,
-      address:       values.address,
       procedure:     values.procedure,
       remarks:       values.remarks,
-      
       start_datetime: buildDatetime(values.date, values.startTime),
       end_datetime:   buildDatetime(values.date, values.endTime),
-   
       doctor:                  { doctorId:    Number(values.radiologist)            },
       preparationExplainedBy:  { doctorId:    Number(values.preparationExplainedBy) },
       modality:                { modalityId:  Number(values.modality)               },
       machine:                 { machineId:   Number(values.machine)                },
       hospitalizationPlan:     values.hospPlan     ? { planId:     Number(values.hospPlan)     } : null,
       hospitalizationCaseType: values.hospCaseType ? { caseTypeId: Number(values.hospCaseType) } : null,
+      ...(values.patientId ? { patient: { patientId: Number(values.patientId) } } : {}),
     };
-  
+
     console.log("Create payload:", payload);
     await fetchSchedules();
   }
@@ -777,7 +886,6 @@ export default function RadioScheduleManagement() {
       sex:           values.sex,
       dob:           values.dob,
       contactNo:     values.contactNo,
-      address:       values.address,
       procedure:     values.procedure,
       remarks:       values.remarks,
       start_datetime: buildDatetime(values.date, values.startTime),
@@ -788,13 +896,12 @@ export default function RadioScheduleManagement() {
       machine:                 { machineId:   Number(values.machine)                },
       hospitalizationPlan:     values.hospPlan     ? { planId:     Number(values.hospPlan)     } : null,
       hospitalizationCaseType: values.hospCaseType ? { caseTypeId: Number(values.hospCaseType) } : null,
+      ...(values.patientId ? { patient: { patientId: Number(values.patientId) } } : {}),
     };
-  
+
     console.log("Edit payload:", payload);
     await fetchSchedules();
   }
-
- 
 
   function toEditInitial(s) {
     const { date, time: startTime } = splitDatetime(s.start_datetime);
@@ -809,10 +916,10 @@ export default function RadioScheduleManagement() {
       startTime,
       endTime,
       patientName:            s.patientName   ?? "",
+      patientId:              s.patientId     ?? "",
       sex:                    s.sex           ?? "",
       dob:                    s.dob           ?? "",
       contactNo:              s.contactNo     ?? "",
-      address:                s.address       ?? "",
       hospPlan:               String(s.hospPlanId     ?? ""),
       hospCaseType:           String(s.hospCaseTypeId ?? ""),
       remarks:                s.remarks       ?? "",
@@ -820,8 +927,6 @@ export default function RadioScheduleManagement() {
   }
 
   const meta = confirmAction && confirmMeta[confirmAction.type];
-
-  
 
   return (
     <AdminLayout
@@ -883,7 +988,6 @@ export default function RadioScheduleManagement() {
         )}
       />
 
-    
       {showAdd && (
         <Modal title="Add Patient Schedule" onClose={() => setShowAdd(false)} maxWidth="max-w-2xl" scrollable>
           <PatientForm
@@ -900,7 +1004,6 @@ export default function RadioScheduleManagement() {
         </Modal>
       )}
 
-   
       {viewPatient && (
         <ViewPatientModal
           patient={viewPatient}
@@ -908,7 +1011,6 @@ export default function RadioScheduleManagement() {
         />
       )}
 
-  
       {editPatient && (
         <Modal title="Edit Patient Schedule" onClose={() => setEditPatient(null)} maxWidth="max-w-2xl" scrollable>
           <PatientForm
@@ -925,7 +1027,6 @@ export default function RadioScheduleManagement() {
         </Modal>
       )}
 
-     
       {confirmAction && meta && (
         <ConfirmDialog
           title={meta.title}
