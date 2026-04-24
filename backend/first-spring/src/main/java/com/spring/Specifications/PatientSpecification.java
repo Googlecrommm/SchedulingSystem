@@ -9,7 +9,7 @@ public class PatientSpecification {
     public static Specification<Patients> hasStatus(PatientStatus patientStatus){
         return (root, query, criteriaBuilder) -> {
             if (patientStatus == null) return null;
-            return criteriaBuilder.equal(root.get("patientStatus"), patientStatus);
+            return criteriaBuilder.equal(root.get("status"), patientStatus);
         };
     }
 }

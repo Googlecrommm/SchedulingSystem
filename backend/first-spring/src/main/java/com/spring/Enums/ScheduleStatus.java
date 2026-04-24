@@ -1,9 +1,9 @@
 package com.spring.Enums;
 
 public enum ScheduleStatus {
+    Scheduled,
     Confirmed,
     Cancelled,
-    Discharged,
-    Pending,
+    Done,
     Archived
 }

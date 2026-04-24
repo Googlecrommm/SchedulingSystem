@@ -31,6 +31,9 @@ public class Departments {
     @OneToMany(mappedBy = "department")
     private List<Modalities> modalities;
 
+    @OneToMany(mappedBy = "department")
+    private List<Rooms> rooms;
+
     @JsonIgnore
     @OneToMany(mappedBy = "department")
     private List<Roles> roles;
@@ -74,5 +77,13 @@ public class Departments {
 
     public void setDepartmentStatus(SoftDelete departmentStatus) {
         this.departmentStatus = departmentStatus;
+    }
+
+    public List<Rooms> getRooms() {
+        return rooms;
+    }
+
+    public void setRooms(List<Rooms> rooms) {
+        this.rooms = rooms;
     }
 }

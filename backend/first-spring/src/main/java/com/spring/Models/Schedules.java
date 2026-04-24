@@ -39,6 +39,10 @@ public class Schedules {
     @JoinColumn(name = "typeId", nullable = false)
     private HospitalizationType hospitalizationType;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "roomId")
+    private Rooms room;
+
     @NotBlank
     @Size(max = 100)
     @Column(nullable = false, name = "procedureName", length = 100)
@@ -50,7 +54,7 @@ public class Schedules {
 
     @Column(name = "scheduleStatus", nullable = false)
     @Enumerated(EnumType.STRING)
-    private ScheduleStatus scheduleStatus = ScheduleStatus.Pending;
+    private ScheduleStatus scheduleStatus = ScheduleStatus.Scheduled;
 
     @NotBlank
     @Size(max = 100)
@@ -87,6 +91,14 @@ public class Schedules {
 
     public void setDoctor(Doctors doctor) {
         this.doctor = doctor;
+    }
+
+    public Rooms getRoom() {
+        return room;
+    }
+
+    public void setRoom(Rooms room) {
+        this.room = room;
     }
 
     public ScheduleStatus getScheduleStatus() {

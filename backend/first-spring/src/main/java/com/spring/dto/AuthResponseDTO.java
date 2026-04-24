@@ -4,11 +4,13 @@ public class AuthResponseDTO {
     private String name;
     private String role;
     private String token;
+    private String departmentName;
 
-    public AuthResponseDTO(String token, String name, String role){
+    public AuthResponseDTO(String token, String name, String role, String departmentName){
         this.name = name;
         this.role = role;
         this.token = token;
+        this.departmentName = departmentName;
     }
 
     public String getName() {
@@ -21,5 +23,9 @@ public class AuthResponseDTO {
 
     public String getToken() {
         return token;
+    }
+
+    public String getDepartmentName() {
+        return departmentName;
     }
 }

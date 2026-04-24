@@ -42,11 +42,23 @@ public class AuthService {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword())
         );
-        Users getUser = usersRepository.findByEmail(user.getEmail()).orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        Users getUser = usersRepository.findByEmail(user.getEmail())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
         if (getUser.getAccountStatus().equals(AccountStatus.Disabled)){
             throw new NotAllowed("This account is disabled");
         }
-        return new AuthResponseDTO(jwtService.generateToken(getUser), getUser.getName(), getUser.getRole().getRoleName());
+
+        String departmentName = getUser.getRole().getDepartment() != null
+                ? getUser.getRole().getDepartment().getDepartmentName()
+                : null;
+
+        return new AuthResponseDTO(
+                jwtService.generateToken(getUser),
+                getUser.getName(),
+                getUser.getRole().getRoleName(),
+                departmentName
+        );
     }
 
 }
