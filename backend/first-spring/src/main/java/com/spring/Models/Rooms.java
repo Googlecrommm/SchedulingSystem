@@ -28,7 +28,7 @@ public class Rooms {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "roomStatus", nullable = false)
-    private SoftDelete roomStatus;
+    private SoftDelete roomStatus = SoftDelete.Active;
 
     public Rooms(){}
 

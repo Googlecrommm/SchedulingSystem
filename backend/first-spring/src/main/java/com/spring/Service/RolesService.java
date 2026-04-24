@@ -31,8 +31,8 @@ public class RolesService {
 
     //CREATE ROLE
     public void addRole(Roles role){
-       if (rolesRepository.existsByRoleName(role.getRoleName())){
-           throw new AlreadyExists("Role already exists");
+       if (role.getRoleName().equalsIgnoreCase("Admin")){
+           throw new NotAllowed("Creating Admin role is not allowed");
        }
         rolesRepository.save(role);
     }
