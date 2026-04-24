@@ -12,7 +12,6 @@ public class PatientResponseDTO {
     private String address;
     private String contactNumber;
     private LocalDate birthDate;
-    private String occupation;
     private Sex sex;
     private PatientStatus patientStatus;
 
@@ -54,14 +53,6 @@ public class PatientResponseDTO {
 
     public void setBirthDate(LocalDate birthDate) {
         this.birthDate = birthDate;
-    }
-
-    public String getOccupation() {
-        return occupation;
-    }
-
-    public void setOccupation(String occupation) {
-        this.occupation = occupation;
     }
 
     public Sex getSex() {

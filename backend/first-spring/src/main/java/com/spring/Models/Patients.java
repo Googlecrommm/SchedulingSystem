@@ -37,11 +37,6 @@ public class Patients {
     @Column(name = "birthDate", nullable = false)
     private LocalDate birthDate;
 
-    @NotBlank
-    @Size(max = 100)
-    @Column(nullable = false, name = "occupation", length = 100)
-    private String occupation;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "patientStatus", nullable = false)
     private PatientStatus status = PatientStatus.Active;
@@ -117,14 +112,6 @@ public class Patients {
 
     public void setContactNumber(String contactNumber) {
         this.contactNumber = contactNumber;
-    }
-
-    public String getOccupation() {
-        return occupation;
-    }
-
-    public void setOccupation(String occupation) {
-        this.occupation = occupation;
     }
 
 

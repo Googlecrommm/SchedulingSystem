@@ -73,10 +73,6 @@ public class PatientService {
             patientToUpdate.setAddress(patient.getAddress());
         }
 
-        if (patient.getOccupation() != null && !patient.getOccupation().isEmpty()){
-            patientToUpdate.setOccupation(patient.getOccupation());
-        }
-
         if (patient.getContactNumber() != null && !patient.getContactNumber().isEmpty()){
             if (patient.getContactNumber().length() < 11){
                 throw new NotAllowed("Contact number must be 11 digits");
