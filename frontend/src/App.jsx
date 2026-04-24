@@ -17,6 +17,7 @@ import RadiologyDashboard       from "./components/frontdesk/RadioDashboard";
 import RadioMachineManagement   from "./components/frontdesk/RadioMachineManagement";
 import RadioProfessionalManagement  from "./components/frontdesk/RadioProfessionalManagement";
 import RehabProfessionalManagement  from "./components/frontdesk/RehabProfessionalManagement";
+import PatientManagement from "./components/admin/PatientManagement";
 
 
 
@@ -43,7 +44,7 @@ export default function App() {
         <Route path="/admin/medical-professionals" element={<ProfessionalManagement />} />
         <Route path="/admin/hospitalization-plans" element={<HospitalizationPlanManagement />} />
         <Route path="/admin/hospitalization-types" element={<HospitalizationCaseTypeManagement />} />
-        
+        <Route path="/admin/patient-management"    element={<PatientManagement />} />
 
         {/* ── Rehabilitation Frontdesk ── */}
         <Route path="/frontdesk/rehab-dashboard" element={<RehabilitationDashboard />} />

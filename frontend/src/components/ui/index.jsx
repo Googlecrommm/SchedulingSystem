@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users, Building2, UserCog, Cpu, Calendar,
   ChevronDown, ChevronLeft, ChevronRight,
   Menu, X, Search, Plus, MoreHorizontal,
-  Layers, Cross, ClipboardList, Tag
+  Layers, Cross, ClipboardList, Tag, UserRoundPlus
 } from "lucide-react";
 import DGMCLogo    from "../../assets/dgmc-logo.png";
 import DGMCIcon    from "../../assets/DGMC-icon.svg";
@@ -16,6 +16,7 @@ import TUVSmall    from "../../assets/tuvsmall-logo.svg";
 export const adminNavItems = [
   { label: "Dashboard",       icon: LayoutDashboard, path: "/admin/dashboard" },
   { label: "Schedules",       icon: Calendar,        path: "/admin/schedules" },
+  { label: "Patients",        icon: UserRoundPlus,        path: "/admin/patient-management" },
   { label: "User Management", icon: Users,            path: "/admin/user-management" },
   { label: "Departments",     icon: Building2,        path: "/admin/department-management" },
   { label: "Role",            icon: UserCog,          path: "/admin/role-management" },
