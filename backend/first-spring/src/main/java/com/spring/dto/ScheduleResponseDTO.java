@@ -5,8 +5,12 @@ import java.time.LocalDateTime;
 public class ScheduleResponseDTO {
     private int scheduleId;
     private String name;
+    private String patientName;
     private String procedureName;
     private String machineName;
+    private String roomName;
+    private String hospitalizationType;
+    private String hospitalizationPlan;
     private String explainBy;
     private LocalDateTime startDateTime;
     private LocalDateTime endDateTime;
@@ -25,6 +29,14 @@ public class ScheduleResponseDTO {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getPatientName() {
+        return patientName;
+    }
+
+    public void setPatientName(String patientName) {
+        this.patientName = patientName;
     }
 
     public String getProcedureName() {
@@ -65,5 +77,29 @@ public class ScheduleResponseDTO {
 
     public void setEndDateTime(LocalDateTime endDateTime) {
         this.endDateTime = endDateTime;
+    }
+
+    public String getHospitalizationType() {
+        return hospitalizationType;
+    }
+
+    public void setHospitalizationType(String hospitalizationType) {
+        this.hospitalizationType = hospitalizationType;
+    }
+
+    public String getHospitalizationPlan() {
+        return hospitalizationPlan;
+    }
+
+    public void setHospitalizationPlan(String hospitalizationPlan) {
+        this.hospitalizationPlan = hospitalizationPlan;
+    }
+
+    public String getRoomName() {
+        return roomName;
+    }
+
+    public void setRoomName(String roomName) {
+        this.roomName = roomName;
     }
 }

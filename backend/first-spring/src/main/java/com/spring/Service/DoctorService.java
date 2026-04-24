@@ -58,9 +58,33 @@ public class DoctorService {
                 });
     }
 
-    //DROPDOWN
+    //DROPDOWN (ALL DOCTORS)
     public List<DoctorsResponseDTO> doctorDropdown(){
         return doctorsRepository.findAllByAvailabilityStatusEquals(DoctorStatus.Available)
+                .stream()
+                .map(doctors -> {
+                    DoctorsResponseDTO doctorDTO = modelMapper.map(doctors, DoctorsResponseDTO.class);
+                    doctorDTO.setRoleName(doctors.getRole().getRoleName());
+                    return doctorDTO;
+                })
+                .toList();
+    }
+
+    //DROPDOWN (PHYSICAL THERAPIST)
+    public List<DoctorsResponseDTO> ptDropdown(){
+        return doctorsRepository.findAllByAvailabilityStatusEqualsAndRole_RoleNameEqualsIgnoreCase(DoctorStatus.Available, "Physical Therapist")
+                .stream()
+                .map(doctors -> {
+                    DoctorsResponseDTO doctorDTO = modelMapper.map(doctors, DoctorsResponseDTO.class);
+                    doctorDTO.setRoleName(doctors.getRole().getRoleName());
+                    return doctorDTO;
+                })
+                .toList();
+    }
+
+    //DROPDOWN (RADIOLOGIST)
+    public List<DoctorsResponseDTO> radiologistDropdown(){
+        return doctorsRepository.findAllByAvailabilityStatusEqualsAndRole_RoleNameEqualsIgnoreCase(DoctorStatus.Available, "Radiologist")
                 .stream()
                 .map(doctors -> {
                     DoctorsResponseDTO doctorDTO = modelMapper.map(doctors, DoctorsResponseDTO.class);

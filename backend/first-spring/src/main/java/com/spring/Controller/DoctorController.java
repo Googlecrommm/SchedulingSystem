@@ -48,11 +48,25 @@ public class DoctorController {
        return ResponseEntity.ok(doctorService.searchDoctor(searchName, pageable));
     }
 
-    //DROPDOWN
+    //DROPDOWN (ALL DOCTORS)
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("doctorDropdown")
     public ResponseEntity<List<DoctorsResponseDTO>> doctorDropdown(){
        return ResponseEntity.ok(doctorService.doctorDropdown());
+    }
+
+    //DROPDOWN (PHYSICAL THERAPIST)
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("therapistDropdown")
+    public ResponseEntity<List<DoctorsResponseDTO>> ptDropdown(){
+       return ResponseEntity.ok(doctorService.ptDropdown());
+    }
+
+    //DROPDOWN (PHYSICAL THERAPIST)
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("radiologistDropdown")
+    public ResponseEntity<List<DoctorsResponseDTO>> radiologistDropdown(){
+        return ResponseEntity.ok(doctorService.radiologistDropdown());
     }
 
     //UPDATE

@@ -21,4 +21,6 @@ public interface DoctorsRepository extends JpaRepository<Doctors, Integer>, JpaS
     Page<Doctors> searchByNameContaining(String searchName, Pageable pageable);
 
     List<Doctors> findAllByAvailabilityStatusEquals(DoctorStatus availabilityStatus);
+
+    List<Doctors> findAllByAvailabilityStatusEqualsAndRole_RoleNameEqualsIgnoreCase(DoctorStatus availabilityStatus, String roleName);
 }

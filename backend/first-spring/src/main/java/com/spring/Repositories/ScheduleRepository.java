@@ -10,31 +10,72 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Repository
 public interface ScheduleRepository extends JpaRepository<Schedules, Integer>, JpaSpecificationExecutor<Schedules> {
 
     Page<Schedules> findAll(Pageable pageable);
+    Page<Schedules> searchByPatient_NameContainingIgnoreCase(String patientName, Pageable pageable);
 
+    // 1. Doctor double-booking (same department)
     @Query("""
-    SELECT s FROM Schedules s
+    SELECT COUNT(s) > 0 FROM Schedules s
     WHERE s.scheduleId <> :excludeId
-    AND s.doctor.role.department.departmentId = :departmentId
-    AND s.scheduleStatus NOT IN ('Cancelled', 'Completed')
-    AND (
-        s.doctor.doctorId = :doctorId
-        OR (:machineId IS NOT NULL AND s.machine.machineId = :machineId)
-        OR s.patient.patientId = :patientId
-    )
+    AND s.scheduleStatus NOT IN ('Cancelled', 'Done', 'Archived')
+    AND s.doctor.doctorId = :doctorId
     AND s.startDateTime < :endDateTime
     AND s.endDateTime > :startDateTime
 """)
-    List<Schedules> findConflictingSchedules(
+    boolean isDoctorBooked(
             @Param("excludeId") int excludeId,
-            @Param("departmentId") int departmentId,
             @Param("doctorId") int doctorId,
-            @Param("machineId") Integer machineId,
+            @Param("startDateTime") LocalDateTime startDateTime,
+            @Param("endDateTime") LocalDateTime endDateTime
+    );
+
+    // 2. Machine double-booking
+    @Query("""
+    SELECT COUNT(s) > 0 FROM Schedules s
+    WHERE s.scheduleId <> :excludeId
+    AND s.scheduleStatus NOT IN ('Cancelled', 'Done', 'Archived')
+    AND s.machine.machineId = :machineId
+    AND s.startDateTime < :endDateTime
+    AND s.endDateTime > :startDateTime
+""")
+    boolean isMachineBooked(
+            @Param("excludeId") int excludeId,
+            @Param("machineId") int machineId,
+            @Param("startDateTime") LocalDateTime startDateTime,
+            @Param("endDateTime") LocalDateTime endDateTime
+    );
+
+    // 3. Room double-booking
+    @Query("""
+    SELECT COUNT(s) > 0 FROM Schedules s
+    WHERE s.scheduleId <> :excludeId
+    AND s.scheduleStatus NOT IN ('Cancelled', 'Done', 'Archived')
+    AND s.room.roomId = :roomId
+    AND s.startDateTime < :endDateTime
+    AND s.endDateTime > :startDateTime
+""")
+    boolean isRoomBooked(
+            @Param("excludeId") int excludeId,
+            @Param("roomId") int roomId,
+            @Param("startDateTime") LocalDateTime startDateTime,
+            @Param("endDateTime") LocalDateTime endDateTime
+    );
+
+    // 4. Patient double-booking (across ALL departments)
+    @Query("""
+    SELECT COUNT(s) > 0 FROM Schedules s
+    WHERE s.scheduleId <> :excludeId
+    AND s.scheduleStatus NOT IN ('Cancelled', 'Done', 'Archived')
+    AND s.patient.patientId = :patientId
+    AND s.startDateTime < :endDateTime
+    AND s.endDateTime > :startDateTime
+""")
+    boolean isPatientBooked(
+            @Param("excludeId") int excludeId,
             @Param("patientId") int patientId,
             @Param("startDateTime") LocalDateTime startDateTime,
             @Param("endDateTime") LocalDateTime endDateTime
