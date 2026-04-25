@@ -36,9 +36,38 @@ public class DoctorService {
 
 
     //READ & FILTER
-    public Page<DoctorsResponseDTO> getDoctors(String availabilityStatus, Pageable pageable){
+    public Page<DoctorsResponseDTO> getDoctors(String availabilityStatus, String roleName, Pageable pageable){
         Specification<Doctors> filters = Specification
-                .where(DoctorSpecification.hasStatus(availabilityStatus));
+                .where(DoctorSpecification.hasStatus(availabilityStatus))
+                .and(DoctorSpecification.hasRole(roleName));
+
+        return doctorsRepository.findAll(filters, pageable)
+                .map(doctors -> {
+                    DoctorsResponseDTO doctorDTO = modelMapper.map(doctors, DoctorsResponseDTO.class);
+                    doctorDTO.setRoleName(doctors.getRole().getRoleName());
+                    return doctorDTO;
+                });
+    }
+
+    //READ & FILTER (RADIOLOGIST)
+    public Page<DoctorsResponseDTO> getRadiologist(String availabilityStatus, Pageable pageable){
+        Specification<Doctors> filters = Specification
+                .where(DoctorSpecification.hasStatus(availabilityStatus))
+                .and(DoctorSpecification.hasRole("Radiologist"));
+
+        return doctorsRepository.findAll(filters, pageable)
+                .map(doctors -> {
+                    DoctorsResponseDTO doctorDTO = modelMapper.map(doctors, DoctorsResponseDTO.class);
+                    doctorDTO.setRoleName(doctors.getRole().getRoleName());
+                    return doctorDTO;
+                });
+    }
+
+    //READ & FILTER (PHYSICAL THERAPIST)
+    public Page<DoctorsResponseDTO> getTherapist(String availabilityStatus, Pageable pageable){
+        Specification<Doctors> filters = Specification
+                .where(DoctorSpecification.hasStatus(availabilityStatus))
+                .and(DoctorSpecification.hasRole("Physical Therapist"));
 
         return doctorsRepository.findAll(filters, pageable)
                 .map(doctors -> {

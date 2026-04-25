@@ -36,9 +36,30 @@ public class DoctorController {
     @GetMapping("getDoctors")
     public ResponseEntity<Page<DoctorsResponseDTO>> getDoctors(
             @RequestParam(required = false) String availabilityStatus,
+            @RequestParam(required = false) String roleName,
             Pageable pageable
     ){
-       return ResponseEntity.ok(doctorService.getDoctors(availabilityStatus, pageable));
+       return ResponseEntity.ok(doctorService.getDoctors(availabilityStatus, roleName, pageable));
+    }
+
+    //READ & FILTER (RADIOLOGIST)
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("getRadiologist")
+    public ResponseEntity<Page<DoctorsResponseDTO>> getRadiologist(
+            @RequestParam(required = false) String availabilityStatus,
+            Pageable pageable
+    ){
+       return ResponseEntity.ok(doctorService.getRadiologist(availabilityStatus, pageable));
+    }
+
+    //READ & FILTER (PHYSICAL THERAPIST)
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("getTherapist")
+    public ResponseEntity<Page<DoctorsResponseDTO>> getTherapist(
+            @RequestParam(required = false) String availabilityStatus,
+            Pageable pageable
+    ){
+        return ResponseEntity.ok(doctorService.getTherapist(availabilityStatus, pageable));
     }
 
     //SEARCH

@@ -11,4 +11,11 @@ public class DoctorSpecification {
             return criteriaBuilder.equal(root.get("availabilityStatus"), availabilityStatus);
         };
     }
+
+    public static Specification<Doctors> hasRole(String roleName){
+        return (root, query, criteriaBuilder) -> {
+            if (roleName == null) return null;
+            return criteriaBuilder.equal(root.get("role").get("roleName"), roleName);
+        };
+    }
 }
