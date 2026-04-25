@@ -1,5 +1,6 @@
 package com.spring.Repositories;
 
+import com.spring.Enums.ScheduleStatus;
 import com.spring.Models.Schedules;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +17,13 @@ public interface ScheduleRepository extends JpaRepository<Schedules, Integer>, J
 
     Page<Schedules> findAll(Pageable pageable);
     Page<Schedules> searchByPatient_NameContainingIgnoreCase(String patientName, Pageable pageable);
+
+    @Query("""
+    SELECT COUNT(s) FROM Schedules s
+    WHERE s.scheduleStatus = :scheduleStatus
+    """)
+    Long allSchedulesCount(@Param("scheduleStatus") ScheduleStatus scheduleStatus);
+
 
     // 1. Doctor double-booking (same department)
     @Query("""

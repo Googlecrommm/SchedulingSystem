@@ -16,6 +16,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class ScheduleService {
@@ -195,6 +197,62 @@ public class ScheduleService {
     public Page<ScheduleResponseDTO> searchSchedule(String patientName, Pageable pageable){
         return scheduleRepository.searchByPatient_NameContainingIgnoreCase(patientName, pageable)
                 .map(this::mapToDTO);
+    }
+
+    //COUNT ALL SCHEDULES
+    public long countAllSchedules(ScheduleStatus scheduleStatus){
+        Specification<Schedules> filters = Specification
+                .where(ScheduleSpecification.hasDepartment("Radiology"));
+
+        return scheduleRepository.allSchedulesCount(scheduleStatus);
+    }
+
+    //DASHBOARD COUNTS (ADMIN)
+    public Map<String, Long> getDashboardCounts(String department, String filter) {
+        Map<String, Long> counts = new HashMap<>();
+
+        for (ScheduleStatus status : ScheduleStatus.values()) {
+            Specification<Schedules> spec = Specification
+                    .where(ScheduleSpecification.hasDepartment(department))
+                    .and(ScheduleSpecification.hasStatus(status))
+                    .and(ScheduleSpecification.byDateFilter(filter));
+
+            counts.put(status.name(), scheduleRepository.count(spec));
+        }
+
+        return counts;
+    }
+
+    //DASHBOARD COUNTS (RADIOLOGY)
+    public Map<String, Long> getDashboardCountsRadio(String filter) {
+        Map<String, Long> counts = new HashMap<>();
+
+        for (ScheduleStatus status : ScheduleStatus.values()) {
+            Specification<Schedules> spec = Specification
+                    .where(ScheduleSpecification.hasDepartment("Radiology"))
+                    .and(ScheduleSpecification.hasStatus(status))
+                    .and(ScheduleSpecification.byDateFilter(filter));
+
+            counts.put(status.name(), scheduleRepository.count(spec));
+        }
+
+        return counts;
+    }
+
+    //DASHBOARD COUNTS (REHABILITATION)
+    public Map<String, Long> getDashboardCountsRehab(String filter) {
+        Map<String, Long> counts = new HashMap<>();
+
+        for (ScheduleStatus status : ScheduleStatus.values()) {
+            Specification<Schedules> spec = Specification
+                    .where(ScheduleSpecification.hasDepartment("Rehabilitation"))
+                    .and(ScheduleSpecification.hasStatus(status))
+                    .and(ScheduleSpecification.byDateFilter(filter));
+
+            counts.put(status.name(), scheduleRepository.count(spec));
+        }
+
+        return counts;
     }
 
     //UPDATE (full replace — requires complete data)

@@ -13,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api")
 public class ScheduleController {
@@ -72,6 +74,35 @@ public class ScheduleController {
     ){
         return ResponseEntity.ok(scheduleService.searchSchedule(patientName, pageable));
     }
+
+    //COUNT ALL SCHEDULES
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("dashboard/counts")
+    public ResponseEntity<Map<String, Long>> getDashboardCounts(
+            @RequestParam(required = false) String department,
+            @RequestParam(defaultValue = "overall") String filter
+    ) {
+        return ResponseEntity.ok(scheduleService.getDashboardCounts(department, filter));
+    }
+
+    //COUNT ALL SCHEDULES (RADIOLOGY)
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("dashboard/countRadio")
+    public ResponseEntity<Map<String, Long>> getDashboardCounts(
+            @RequestParam(defaultValue = "overall") String filter
+    ) {
+        return ResponseEntity.ok(scheduleService.getDashboardCountsRadio(filter));
+    }
+
+    //COUNT ALL SCHEDULES (REHABILITATION)
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("dashboard/countRehab")
+    public ResponseEntity<Map<String, Long>> getDashboardCountsRehab(
+            @RequestParam(defaultValue = "overall") String filter
+    ) {
+        return ResponseEntity.ok(scheduleService.getDashboardCountsRehab(filter));
+    }
+
 
     //UPDATE
     @PreAuthorize("hasRole('ADMIN')")
