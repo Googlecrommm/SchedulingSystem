@@ -60,12 +60,10 @@ public class PatientService {
     //UPDATE
     public void updatePatient(int patientId, Patients patient){
         Patients patientToUpdate = patientsRepository.findById(patientId).orElseThrow(() -> new NotFound("Patient not found"));
-
-        if (patientsRepository.existsByName(patient.getName())){
-            throw new AlreadyExists("Patient already exists");
-        }
-
         if (patient.getName() != null && !patient.getName().isEmpty()){
+            if (patientsRepository.existsByName(patient.getName())){
+                throw new AlreadyExists("Patient already exists");
+            }
             patientToUpdate.setName(patient.getName());
         }
 
