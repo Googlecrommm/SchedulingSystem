@@ -1,7 +1,6 @@
 package com.spring.Service;
 
 import com.spring.Enums.PatientStatus;
-import com.spring.Enums.SoftDelete;
 import com.spring.Exceptions.AlreadyExists;
 import com.spring.Exceptions.NoChangesDetected;
 import com.spring.Exceptions.NotAllowed;
@@ -60,8 +59,9 @@ public class PatientService {
     //UPDATE
     public void updatePatient(int patientId, Patients patient){
         Patients patientToUpdate = patientsRepository.findById(patientId).orElseThrow(() -> new NotFound("Patient not found"));
+
         if (patient.getName() != null && !patient.getName().isEmpty()){
-            if (patientsRepository.existsByName(patient.getName())){
+            if (patientsRepository.existsByNameAndPatientIdNot(patient.getName(), patientId)){
                 throw new AlreadyExists("Patient already exists");
             }
             patientToUpdate.setName(patient.getName());
@@ -74,6 +74,9 @@ public class PatientService {
         if (patient.getContactNumber() != null && !patient.getContactNumber().isEmpty()){
             if (patient.getContactNumber().length() < 11){
                 throw new NotAllowed("Contact number must be 11 digits");
+            }
+            if (patientsRepository.existsByContactNumberAndPatientIdNot(patient.getContactNumber(), patientId)){
+                throw new AlreadyExists("Contact number already exists");
             }
             patientToUpdate.setContactNumber(patient.getContactNumber());
         }

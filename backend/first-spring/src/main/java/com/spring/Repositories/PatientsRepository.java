@@ -13,7 +13,9 @@ import java.util.Optional;
 @Repository
 public interface PatientsRepository extends JpaRepository<Patients, Integer>, JpaSpecificationExecutor<Patients> {
     boolean existsByName(String name);
+    boolean existsByNameAndPatientIdNot(String name, int patientId);
     boolean existsByContactNumber(String contactNumber);
+    boolean existsByContactNumberAndPatientIdNot(String contactNumber, int patientId);
     Optional<Patients> findByContactNumber(String contactNumber);
     Page<Patients> findAll(Pageable pageable);
     Page<Patients> searchByNameContaining(String name, Pageable pageable);
