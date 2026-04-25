@@ -19,6 +19,7 @@ public class ScheduleResponseDTO {
     private String roomName;
     private String hospitalizationType;
     private String hospitalizationPlan;
+    private String remarks;
     private ScheduleStatus scheduleStatus;
     private LocalDateTime startDateTime;
     private LocalDateTime endDateTime;
@@ -141,5 +142,13 @@ public class ScheduleResponseDTO {
 
     public void setRoomName(String roomName) {
         this.roomName = roomName;
+    }
+
+    public String getRemarks() {
+        return remarks;
+    }
+
+    public void setRemarks(String remarks) {
+        this.remarks = remarks;
     }
 }
