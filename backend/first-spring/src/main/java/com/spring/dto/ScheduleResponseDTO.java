@@ -1,13 +1,19 @@
 package com.spring.dto;
 
 import com.spring.Enums.ScheduleStatus;
+import com.spring.Enums.Sex;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class ScheduleResponseDTO {
     private int scheduleId;
     private String name;
     private String patientName;
+    private String contactNumber;
+    private LocalDate birthDate;
+    private String address;
+    private Sex sex;
     private String procedureName;
     private String machineName;
     private String roomName;
@@ -39,6 +45,38 @@ public class ScheduleResponseDTO {
 
     public void setPatientName(String patientName) {
         this.patientName = patientName;
+    }
+
+    public String getContactNumber() {
+        return contactNumber;
+    }
+
+    public void setContactNumber(String contactNumber) {
+        this.contactNumber = contactNumber;
+    }
+
+    public LocalDate getBirthDate() {
+        return birthDate;
+    }
+
+    public void setBirthDate(LocalDate birthDate) {
+        this.birthDate = birthDate;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public Sex getSex() {
+        return sex;
+    }
+
+    public void setSex(Sex sex) {
+        this.sex = sex;
     }
 
     public String getProcedureName() {

@@ -36,8 +36,31 @@ public class ScheduleController {
     public ResponseEntity<Page<ScheduleResponseDTO>> getSchedules(
             @RequestParam(required = false) ScheduleStatus scheduleStatus,
             @RequestParam(required = false) String name,
+            @RequestParam(required = false) String departmentName,
             Pageable pageable){
-        return ResponseEntity.ok(scheduleService.getSchedules(scheduleStatus, name, pageable));
+        return ResponseEntity.ok(scheduleService.getSchedules(scheduleStatus, name, departmentName, pageable));
+    }
+
+    //READ & FILTER (RADIOLOGY)
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("getRadiologySched")
+    public ResponseEntity<Page<ScheduleResponseDTO>> getRadiologySched(
+            @RequestParam(required = false) ScheduleStatus scheduleStatus,
+            @RequestParam(required = false) String name,
+            Pageable pageable
+    ){
+        return ResponseEntity.ok(scheduleService.getRadiologySched(scheduleStatus, name, pageable));
+    }
+
+    //READ & FILTER (REHABILITATION)
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("getRehabSched")
+    public ResponseEntity<Page<ScheduleResponseDTO>> getRehabSched(
+            @RequestParam(required = false) ScheduleStatus scheduleStatus,
+            @RequestParam(required = false) String name,
+            Pageable pageable
+    ){
+        return ResponseEntity.ok(scheduleService.getRehabSched(scheduleStatus, name, pageable));
     }
 
     //SEARCH

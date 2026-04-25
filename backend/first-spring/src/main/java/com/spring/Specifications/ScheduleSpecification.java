@@ -20,5 +20,12 @@ public class ScheduleSpecification {
         };
     }
 
+    public static Specification<Schedules> hasDepartment(String departmentName){
+        return (root, query, criteriaBuilder) -> {
+            if (departmentName == null) return null;
+            return criteriaBuilder.equal(root.get("doctor").get("role").get("department").get("departmentName"), departmentName);
+        };
+    }
+
 
 }

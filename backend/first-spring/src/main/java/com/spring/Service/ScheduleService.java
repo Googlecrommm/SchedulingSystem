@@ -72,6 +72,10 @@ public class ScheduleService {
         ScheduleResponseDTO scheduleDTO = modelMapper.map(schedules, ScheduleResponseDTO.class);
         scheduleDTO.setName(schedules.getDoctor().getName());
         scheduleDTO.setPatientName(schedules.getPatient().getName());
+        scheduleDTO.setContactNumber(schedules.getPatient().getContactNumber());
+        scheduleDTO.setBirthDate(schedules.getPatient().getBirthDate());
+        scheduleDTO.setSex(schedules.getPatient().getSex());
+        scheduleDTO.setAddress(schedules.getPatient().getAddress());
         scheduleDTO.setHospitalizationPlan(schedules.getHospitalizationPlan().getCompanyName());
         scheduleDTO.setHospitalizationType(schedules.getHospitalizationType().getTypeName());
         scheduleDTO.setMachineName(schedules.getMachine() == null ? "Non-Machine" : schedules.getMachine().getMachineName());
@@ -141,19 +145,48 @@ public class ScheduleService {
             throw new NotAllowed("Start date/time must be before end date/time.");
         }
 
-        // 7. Validate conflict
+        // 7. Validate schedule is not in the past
+        LocalDateTime now = LocalDateTime.now();
+        if (schedule.getStartDateTime().isBefore(now)) {
+            throw new NotAllowed("Cannot create a schedule in the past.");
+        }
+
+        // 8. Validate conflict
         validateNoConflict(schedule);
 
-        // 8. Save
+        // 9. Save
         scheduleRepository.save(schedule);
     }
 
     //READ & FILTER
-    public Page<ScheduleResponseDTO> getSchedules(ScheduleStatus scheduleStatus, String name, Pageable pageable){
+    public Page<ScheduleResponseDTO> getSchedules(ScheduleStatus scheduleStatus, String name, String departmentName, Pageable pageable){
 
         Specification<Schedules> filters = Specification
                 .where(ScheduleSpecification.hasStatus(scheduleStatus))
-                .and(ScheduleSpecification.toDoctor(name));
+                .and(ScheduleSpecification.toDoctor(name))
+                .and(ScheduleSpecification.hasDepartment(departmentName));
+
+        return scheduleRepository.findAll(filters, pageable).map(this::mapToDTO);
+    }
+
+    //READ & FILTER (RADIOLOGY)
+    public Page<ScheduleResponseDTO> getRadiologySched(ScheduleStatus scheduleStatus, String name, Pageable pageable){
+
+        Specification<Schedules> filters = Specification
+                .where(ScheduleSpecification.hasStatus(scheduleStatus))
+                .and(ScheduleSpecification.toDoctor(name))
+                .and(ScheduleSpecification.hasDepartment("Radiology"));
+
+        return scheduleRepository.findAll(filters, pageable).map(this::mapToDTO);
+    }
+
+    //READ & FILTER (Rehabilitation)
+    public Page<ScheduleResponseDTO> getRehabSched(ScheduleStatus scheduleStatus, String name, Pageable pageable){
+
+        Specification<Schedules> filters = Specification
+                .where(ScheduleSpecification.hasStatus(scheduleStatus))
+                .and(ScheduleSpecification.toDoctor(name))
+                .and(ScheduleSpecification.hasDepartment("Rehabilitation"));
 
         return scheduleRepository.findAll(filters, pageable).map(this::mapToDTO);
     }
