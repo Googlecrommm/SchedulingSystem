@@ -1,5 +1,7 @@
 package com.spring.dto;
 
+import com.spring.Enums.ScheduleStatus;
+
 import java.time.LocalDateTime;
 
 public class ScheduleResponseDTO {
@@ -11,6 +13,7 @@ public class ScheduleResponseDTO {
     private String roomName;
     private String hospitalizationType;
     private String hospitalizationPlan;
+    private ScheduleStatus scheduleStatus;
     private String explainBy;
     private LocalDateTime startDateTime;
     private LocalDateTime endDateTime;
@@ -81,6 +84,14 @@ public class ScheduleResponseDTO {
 
     public String getHospitalizationType() {
         return hospitalizationType;
+    }
+
+    public ScheduleStatus getScheduleStatus() {
+        return scheduleStatus;
+    }
+
+    public void setScheduleStatus(ScheduleStatus scheduleStatus) {
+        this.scheduleStatus = scheduleStatus;
     }
 
     public void setHospitalizationType(String hospitalizationType) {

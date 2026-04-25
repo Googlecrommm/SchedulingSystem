@@ -73,6 +73,10 @@ public class DepartmentsService {
     public Departments updateById(int departmentId, Departments department){
         Departments initialValue = departmentsRepository.findById(departmentId).orElseThrow(() -> new NotFound("Department not found"));
 
+        if (department.getDepartmentName() == null){
+            throw new NotFound("No new data found");
+        }
+
         if (initialValue.getDepartmentName().equalsIgnoreCase("ICTD")){
             throw new NotAllowed("Edit not allowed");
         }
@@ -88,6 +92,8 @@ public class DepartmentsService {
         if (department.getDepartmentName().equals(initialValue.getDepartmentName())){
             throw new NoChangesDetected("No changes detected");
         }
+
+
 
         department.setDepartmentId(departmentId);
         return departmentsRepository.save(department);
