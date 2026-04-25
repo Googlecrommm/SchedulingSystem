@@ -14,7 +14,6 @@ public class ScheduleResponseDTO {
     private String hospitalizationType;
     private String hospitalizationPlan;
     private ScheduleStatus scheduleStatus;
-    private String explainBy;
     private LocalDateTime startDateTime;
     private LocalDateTime endDateTime;
 
@@ -56,14 +55,6 @@ public class ScheduleResponseDTO {
 
     public void setMachineName(String machineName) {
         this.machineName = machineName;
-    }
-
-    public String getExplainBy() {
-        return explainBy;
-    }
-
-    public void setExplainBy(String explainBy) {
-        this.explainBy = explainBy;
     }
 
     public LocalDateTime getStartDateTime() {

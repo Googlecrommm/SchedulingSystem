@@ -10,7 +10,6 @@ public class SchedulePatchRequest {
     private Integer roomId;         // same
     private String procedureName;
     private String remarks;
-    private String explainBy;
     private ScheduleStatus scheduleStatus;
     private LocalDateTime startDateTime;
     private LocalDateTime endDateTime;
@@ -53,14 +52,6 @@ public class SchedulePatchRequest {
 
     public void setRemarks(String remarks) {
         this.remarks = remarks;
-    }
-
-    public String getExplainBy() {
-        return explainBy;
-    }
-
-    public void setExplainBy(String explainBy) {
-        this.explainBy = explainBy;
     }
 
     public ScheduleStatus getScheduleStatus() {

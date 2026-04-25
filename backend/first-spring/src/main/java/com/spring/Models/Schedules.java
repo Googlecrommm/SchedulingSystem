@@ -56,11 +56,6 @@ public class Schedules {
     @Enumerated(EnumType.STRING)
     private ScheduleStatus scheduleStatus = ScheduleStatus.Scheduled;
 
-    @NotBlank
-    @Size(max = 100)
-    @Column(name = "explainBy", nullable = false, length = 100)
-    private String explainBy;
-
     @Column(name = "startDate", nullable = false)
     private LocalDateTime startDateTime;
 
@@ -145,13 +140,6 @@ public class Schedules {
         this.remarks = remarks;
     }
 
-    public String getExplainBy() {
-        return explainBy;
-    }
-
-    public void setExplainBy(String explainBy) {
-        this.explainBy = explainBy;
-    }
 
     public HospitalizationPlan getHospitalizationPlan() {
         return hospitalizationPlan;

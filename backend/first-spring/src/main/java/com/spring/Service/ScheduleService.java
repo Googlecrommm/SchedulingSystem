@@ -237,7 +237,6 @@ public class ScheduleService {
         existing.setScheduleStatus(updatedSchedule.getScheduleStatus());
         existing.setProcedureName(updatedSchedule.getProcedureName());
         existing.setRemarks(updatedSchedule.getRemarks());
-        existing.setExplainBy(updatedSchedule.getExplainBy());
         existing.setStartDateTime(updatedSchedule.getStartDateTime());
         existing.setEndDateTime(updatedSchedule.getEndDateTime());
 
@@ -338,9 +337,6 @@ public class ScheduleService {
         }
         if (patch.getRemarks() != null) {
             existing.setRemarks(patch.getRemarks());
-        }
-        if (patch.getExplainBy() != null) {
-            existing.setExplainBy(patch.getExplainBy());
         }
         if (patch.getStartDateTime() != null) {
             existing.setStartDateTime(patch.getStartDateTime());
