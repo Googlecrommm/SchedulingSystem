@@ -1,5 +1,5 @@
 import axios from "../../config/axiosInstance";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   UserCheck, UserX, Clock, AlertCircle, ChevronDown, LayoutDashboard, Calendar, Cpu,Cross,
@@ -120,6 +120,7 @@ export default function RadiologyDashboard() {
   const [activeTimeFrame, setActiveTimeFrame] = useState("Daily");
   const [modalityFilter,  setModalityFilter]  = useState("all");
   const [modalities,      setModalities]      = useState([]);
+  const [machines,        setMachines]        = useState([]);
   const [stats,           setStats]           = useState({ confirmed: 0, cancelled: 0, scheduled: 0 });
   const [chartData,       setChartData]       = useState([]);
   const [recentSchedules, setRecentSchedules] = useState([]);
@@ -127,12 +128,24 @@ export default function RadiologyDashboard() {
   const [loading,         setLoading]         = useState(true);
   const [error,           setError]           = useState(null);
 
-  useEffect(() => { fetchModalities(); }, []);
+  useEffect(() => { fetchDropdowns(); }, []);
 
-  // Re-fetch after modalities load so filter resolves correctly
+  // Re-fetch after dropdowns load so filter resolves correctly
   useEffect(() => {
     if (modalities.length > 0 || modalityFilter === "all") fetchDashboardData();
   }, [activeTimeFrame, modalityFilter, modalities]);
+
+  // Build a Set of machineNames belonging to the selected modality.
+  // e.g. "MRI" → Set { "MRI Machine 1", "MRI Machine 2" }
+  // Schedules are then matched via machineName which exists on ScheduleResponseDTO.
+  const allowedMachineNames = useMemo(() => {
+    if (modalityFilter === "all" || machines.length === 0) return null;
+    return new Set(
+      machines
+        .filter((m) => m.modalityName === modalityFilter)
+        .map((m) => m.machineName)
+    );
+  }, [modalityFilter, machines]);
 
   function getAuthHeader() {
     const token = localStorage.getItem("token");
@@ -160,10 +173,10 @@ export default function RadiologyDashboard() {
       ]);
 
       const counts = countsRes.data;
-      // Merge and apply modality filter client-side
+      // Merge and apply modality filter via machineName lookup
       const allSched = statusResults
         .flatMap((res) => res.data?.content ?? [])
-        .filter((s) => modName ? s.machineName === modName || s.modalityName === modName : true);
+        .filter((s) => allowedMachineNames ? allowedMachineNames.has(s.machineName) : true);
 
       // ── Helpers ────────────────────────────────────────────────────────────
       function parseDT(raw) {
@@ -330,15 +343,19 @@ export default function RadiologyDashboard() {
     }
   }
 
-  async function fetchModalities() {
+  async function fetchDropdowns() {
     try {
-      // GET /api/modalityDropdown → List of modality names or objects
-      const res  = await axios.get("/api/modalityDropdown", { headers: getAuthHeader() });
-      const data = Array.isArray(res.data) ? res.data : res.data?.content ?? [];
-      // Extract modalityName strings for the dropdown
-      setModalities(data.map((m) => m.modalityName ?? m));
+      const headers = getAuthHeader();
+      const [modalityRes, machineRes] = await Promise.all([
+        axios.get("/api/modalityDropdown", { headers }),
+        axios.get("/api/machineDropdown",  { headers }),
+      ]);
+      const modalityData = Array.isArray(modalityRes.data) ? modalityRes.data : modalityRes.data?.content ?? [];
+      const machineData  = Array.isArray(machineRes.data)  ? machineRes.data  : machineRes.data?.content  ?? [];
+      setModalities(modalityData.map((m) => m.modalityName ?? m));
+      setMachines(machineData.filter((m) => m.machineStatus !== "Archived"));
     } catch (err) {
-      console.error("Failed to fetch modalities:", err);
+      console.error("Failed to fetch dropdown data:", err);
     }
   }
 
