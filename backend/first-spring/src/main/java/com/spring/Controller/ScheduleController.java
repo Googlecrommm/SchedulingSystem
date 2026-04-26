@@ -39,8 +39,9 @@ public class ScheduleController {
             @RequestParam(required = false) ScheduleStatus scheduleStatus,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String departmentName,
+            @RequestParam(required = false) String patientName,
             Pageable pageable){
-        return ResponseEntity.ok(scheduleService.getSchedules(scheduleStatus, name, departmentName, pageable));
+        return ResponseEntity.ok(scheduleService.getSchedules(scheduleStatus, name, patientName, departmentName, pageable));
     }
 
     //READ & FILTER (RADIOLOGY)

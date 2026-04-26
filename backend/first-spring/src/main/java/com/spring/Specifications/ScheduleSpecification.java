@@ -11,7 +11,7 @@ public class ScheduleSpecification {
 
     public static Specification<Schedules> hasStatus(ScheduleStatus scheduleStatus){
         return (root, query, criteriaBuilder) -> {
-            if(scheduleStatus == null) return null;
+            if(scheduleStatus == null) return criteriaBuilder.notEqual(root.get("scheduleStatus"), ScheduleStatus.Archived);
             return criteriaBuilder.equal(root.get("scheduleStatus"), scheduleStatus);
         };
     }

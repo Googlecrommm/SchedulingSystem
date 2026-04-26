@@ -160,12 +160,13 @@ public class ScheduleService {
         scheduleRepository.save(schedule);
     }
 
-    //READ & FILTER
-    public Page<ScheduleResponseDTO> getSchedules(ScheduleStatus scheduleStatus, String name, String departmentName, Pageable pageable){
+    //READ & FILTER (ADMIN)
+    public Page<ScheduleResponseDTO> getSchedules(ScheduleStatus scheduleStatus, String name, String patientName, String departmentName, Pageable pageable){
 
         Specification<Schedules> filters = Specification
                 .where(ScheduleSpecification.hasStatus(scheduleStatus))
                 .and(ScheduleSpecification.toDoctor(name))
+                .and(ScheduleSpecification.searchPatient(patientName))
                 .and(ScheduleSpecification.hasDepartment(departmentName));
 
         return scheduleRepository.findAll(filters, pageable).map(this::mapToDTO);
