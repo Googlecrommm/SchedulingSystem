@@ -68,5 +68,9 @@ public class ScheduleSpecification {
         };
     }
 
+    public static Specification<Schedules> upcomingOnly() {
+        return (root, query, criteriaBuilder) ->
+                criteriaBuilder.greaterThanOrEqualTo(root.get("startDateTime"), LocalDateTime.now());
+    }
 
 }

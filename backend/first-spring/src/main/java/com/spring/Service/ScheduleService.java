@@ -11,7 +11,9 @@ import com.spring.dto.ScheduleResponseDTO;
 import jakarta.transaction.Transactional;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import com.itextpdf.text.*;
@@ -183,38 +185,60 @@ public class ScheduleService {
 
     //READ & FILTER (ADMIN)
     public Page<ScheduleResponseDTO> getSchedules(ScheduleStatus scheduleStatus, String name, String patientName, String departmentName, Pageable pageable){
+        ScheduleStatus effectiveStatus = scheduleStatus != null ? scheduleStatus : ScheduleStatus.Scheduled;
+
 
         Specification<Schedules> filters = Specification
-                .where(ScheduleSpecification.hasStatus(scheduleStatus))
+                .where(ScheduleSpecification.hasStatus(effectiveStatus))
                 .and(ScheduleSpecification.toDoctor(name))
                 .and(ScheduleSpecification.searchPatient(patientName))
                 .and(ScheduleSpecification.hasDepartment(departmentName));
 
-        return scheduleRepository.findAll(filters, pageable).map(this::mapToDTO);
+
+        Pageable sortedPageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(Sort.Direction.ASC, "startDateTime")
+        );
+
+        return scheduleRepository.findAll(filters, sortedPageable).map(this::mapToDTO);
     }
 
     //READ & FILTER (RADIOLOGY)
     public Page<ScheduleResponseDTO> getRadiologySched(ScheduleStatus scheduleStatus, String name, String patientName, Pageable pageable){
+        ScheduleStatus effectiveStatus = scheduleStatus != null ? scheduleStatus : ScheduleStatus.Scheduled;
 
         Specification<Schedules> filters = Specification
-                .where(ScheduleSpecification.hasStatus(scheduleStatus))
+                .where(ScheduleSpecification.hasStatus(effectiveStatus))
                 .and(ScheduleSpecification.toDoctor(name))
                 .and(ScheduleSpecification.searchPatient(patientName))
                 .and(ScheduleSpecification.hasDepartment("Radiology"));
 
-        return scheduleRepository.findAll(filters, pageable).map(this::mapToDTO);
+        Pageable sortedPageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(Sort.Direction.ASC, "startDateTime")
+        );
+
+        return scheduleRepository.findAll(filters, sortedPageable).map(this::mapToDTO);
     }
 
     //READ & FILTER (Rehabilitation)
     public Page<ScheduleResponseDTO> getRehabSched(ScheduleStatus scheduleStatus, String name, String patientName,  Pageable pageable){
+        ScheduleStatus effectiveStatus = scheduleStatus != null ? scheduleStatus : ScheduleStatus.Scheduled;
 
         Specification<Schedules> filters = Specification
-                .where(ScheduleSpecification.hasStatus(scheduleStatus))
+                .where(ScheduleSpecification.hasStatus(effectiveStatus))
                 .and(ScheduleSpecification.toDoctor(name))
                 .and(ScheduleSpecification.searchPatient(patientName))
                 .and(ScheduleSpecification.hasDepartment("Rehabilitation"));
+        Pageable sortedPageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(Sort.Direction.ASC, "startDateTime")
+        );
 
-        return scheduleRepository.findAll(filters, pageable).map(this::mapToDTO);
+        return scheduleRepository.findAll(filters, sortedPageable).map(this::mapToDTO);
     }
 
     //SEARCH
