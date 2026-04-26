@@ -61,7 +61,7 @@ public class DepartmentsService {
     //DROPDOWN
     public List<DepartmentResponseDTO> departmentDropdown(){
         return departmentsRepository
-                .findAllByDepartmentStatusNot(SoftDelete.Archived)
+                .findAllByDepartmentStatusNotAndDepartmentNameNot(SoftDelete.Archived, "ICTD")
                 .stream()
                 .map(departments -> {
                     return modelMapper.map(departments, DepartmentResponseDTO.class);
