@@ -14,6 +14,7 @@ public class ScheduleResponseDTO {
     private LocalDate birthDate;
     private String address;
     private Sex sex;
+    private String departmentName;
     private String procedureName;
     private String machineName;
     private String roomName;
@@ -150,5 +151,13 @@ public class ScheduleResponseDTO {
 
     public void setRemarks(String remarks) {
         this.remarks = remarks;
+    }
+
+    public String getDepartmentName() {
+        return departmentName;
+    }
+
+    public void setDepartmentName(String departmentName) {
+        this.departmentName = departmentName;
     }
 }

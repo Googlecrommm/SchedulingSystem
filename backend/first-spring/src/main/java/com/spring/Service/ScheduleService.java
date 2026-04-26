@@ -78,6 +78,7 @@ public class ScheduleService {
         scheduleDTO.setBirthDate(schedules.getPatient().getBirthDate());
         scheduleDTO.setSex(schedules.getPatient().getSex());
         scheduleDTO.setAddress(schedules.getPatient().getAddress());
+        scheduleDTO.setDepartmentName(schedules.getDoctor().getRole().getDepartment().getDepartmentName());
         scheduleDTO.setHospitalizationPlan(schedules.getHospitalizationPlan().getCompanyName());
         scheduleDTO.setHospitalizationType(schedules.getHospitalizationType().getTypeName());
         scheduleDTO.setMachineName(schedules.getMachine() == null ? "Non-Machine" : schedules.getMachine().getMachineName());
