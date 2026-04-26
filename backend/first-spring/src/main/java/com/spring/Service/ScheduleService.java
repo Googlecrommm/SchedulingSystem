@@ -172,11 +172,12 @@ public class ScheduleService {
     }
 
     //READ & FILTER (RADIOLOGY)
-    public Page<ScheduleResponseDTO> getRadiologySched(ScheduleStatus scheduleStatus, String name, Pageable pageable){
+    public Page<ScheduleResponseDTO> getRadiologySched(ScheduleStatus scheduleStatus, String name, String patientName, Pageable pageable){
 
         Specification<Schedules> filters = Specification
                 .where(ScheduleSpecification.hasStatus(scheduleStatus))
                 .and(ScheduleSpecification.toDoctor(name))
+                .and(ScheduleSpecification.searchPatient(patientName))
                 .and(ScheduleSpecification.hasDepartment("Radiology"));
 
         return scheduleRepository.findAll(filters, pageable).map(this::mapToDTO);

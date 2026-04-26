@@ -49,9 +49,10 @@ public class ScheduleController {
     public ResponseEntity<Page<ScheduleResponseDTO>> getRadiologySched(
             @RequestParam(required = false) ScheduleStatus scheduleStatus,
             @RequestParam(required = false) String name,
+            @RequestParam(required = false) String patientName,
             Pageable pageable
     ){
-        return ResponseEntity.ok(scheduleService.getRadiologySched(scheduleStatus, name, pageable));
+        return ResponseEntity.ok(scheduleService.getRadiologySched(scheduleStatus, name, patientName, pageable));
     }
 
     //READ & FILTER (REHABILITATION)
