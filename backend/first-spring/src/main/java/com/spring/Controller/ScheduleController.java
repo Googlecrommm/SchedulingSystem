@@ -12,6 +12,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 import java.util.Map;
 
@@ -88,6 +90,15 @@ public class ScheduleController {
         return ResponseEntity.ok(scheduleService.getDashboardCounts(department, filter));
     }
 
+    //COUNT MONTHLY
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("dashboard/monthly-breakdown")
+    public ResponseEntity<Map<String, Long>> getMonthlyBreakdown(
+            @RequestParam(required = false) String department
+    ) {
+        return ResponseEntity.ok(scheduleService.getMonthlyBreakdown(department));
+    }
+
     //COUNT ALL SCHEDULES (RADIOLOGY)
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("dashboard/countRadio")
@@ -155,5 +166,20 @@ public class ScheduleController {
     public ResponseEntity<SuccessResponse> restoreSchedule(@PathVariable int scheduleId){
         scheduleService.restoreSchedule(scheduleId);
         return ResponseEntity.ok().body(new SuccessResponse(200,"Schedule Marked as Scheduled"));
+    }
+
+    //PRINT
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/export/pdf")
+    public ResponseEntity<byte[]> exportPdf(
+            @RequestParam(required = false) String department,
+            @RequestParam(defaultValue = "overall") String filter
+    ) {
+        byte[] pdf = scheduleService.exportSchedulesToPdf(department, filter);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=schedules-" + filter + ".pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
     }
 }

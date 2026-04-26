@@ -14,6 +14,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import com.itextpdf.text.*;
+import com.itextpdf.text.pdf.PdfPCell;
+import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfWriter;
+import java.io.ByteArrayOutputStream;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAdjusters;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -45,6 +54,8 @@ public class ScheduleService {
         this.roomsRepository = roomsRepository;
         this.logsService = logsService;
     }
+
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMMM dd yyyy, hh:mma");
 
     public void validateNoConflict(Schedules newSchedule) {
         int excludeId = newSchedule.getScheduleId();
@@ -224,6 +235,28 @@ public class ScheduleService {
                 .where(ScheduleSpecification.hasDepartment("Radiology"));
 
         return scheduleRepository.allSchedulesCount(scheduleStatus);
+    }
+
+    // COUNT MONTHLY
+    public Map<String, Long> getMonthlyBreakdown(String department) {
+        Map<String, Long> counts = new LinkedHashMap<>();
+
+        String[] months = {"January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December"};
+
+        for (int i = 1; i <= 12; i++) {
+            LocalDateTime start = LocalDateTime.of(LocalDateTime.now().getYear(), i, 1, 0, 0);
+            LocalDateTime end = start.with(TemporalAdjusters.lastDayOfMonth()).withHour(23).withMinute(59);
+
+            final int month = i;
+            Specification<Schedules> spec = Specification
+                    .where(ScheduleSpecification.hasDepartment(department))
+                    .and((root, query, cb) -> cb.between(root.get("startDateTime"), start, end));
+
+            counts.put(months[i - 1], scheduleRepository.count(spec));
+        }
+
+        return counts;
     }
 
     //DASHBOARD COUNTS (ADMIN)
@@ -548,7 +581,6 @@ public class ScheduleService {
                         " as done" + " with the Schedule ID of " + scheduleId
         );
 
-        //Cromwell Naval marked the X-Ray schedule of Mike as done
         scheduleRepository.save(scheduleToDone);
     }
 
@@ -568,5 +600,60 @@ public class ScheduleService {
                         " as scheduled" + " with the Schedule ID of " + scheduleId
         );
         scheduleRepository.save(scheduleToRestore);
+    }
+
+    //PRINT
+    public byte[] exportSchedulesToPdf(String department, String filter) {
+        Specification<Schedules> spec = Specification
+                .where(ScheduleSpecification.hasDepartment(department))
+                .and(ScheduleSpecification.byDateFilter(filter));
+
+        List<Schedules> schedules = scheduleRepository.findAll(spec);
+
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Document document = new Document(PageSize.A4.rotate());
+            PdfWriter.getInstance(document, out);
+            document.open();
+
+            // Title
+            Font titleFont = new Font(Font.FontFamily.HELVETICA, 14, Font.BOLD);
+            Paragraph title = new Paragraph(department + " Schedules - " + filter.toUpperCase(), titleFont);
+            title.setAlignment(Element.ALIGN_CENTER);
+            document.add(title);
+            document.add(new Paragraph(" "));
+
+            // Table with columns
+            PdfPTable table = new PdfPTable(7);
+            table.setWidthPercentage(100);
+            table.setWidths(new float[]{1.5f, 2f, 2f, 2f, 2f, 2f, 1.5f});
+
+            // Headers
+            for (String header : new String[]{"Schedule ID", "Patient", "Doctor", "Procedure", "Start", "End", "Status"}) {
+                PdfPCell cell = new PdfPCell(new Phrase(header, new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.WHITE)));
+                cell.setBackgroundColor(BaseColor.BLUE);
+                cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                cell.setPadding(5);
+                table.addCell(cell);
+            }
+
+            // Rows
+            for (Schedules s : schedules) {
+                table.addCell(String.valueOf(s.getScheduleId()));
+                table.addCell(s.getPatient().getName());
+                table.addCell(s.getDoctor().getName());
+                table.addCell(s.getProcedureName());
+                table.addCell(s.getStartDateTime().format(formatter));
+                table.addCell(s.getEndDateTime().format(formatter));
+                table.addCell(s.getScheduleStatus().name());
+            }
+
+            document.add(table);
+            document.close();
+
+            return out.toByteArray();
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to generate PDF", e);
+        }
     }
 }
