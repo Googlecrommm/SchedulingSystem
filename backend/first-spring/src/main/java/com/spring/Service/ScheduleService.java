@@ -27,6 +27,7 @@ public class ScheduleService {
     private final MachinesRepository machinesRepository;
     private final ModelMapper modelMapper;
     private final RoomsRepository roomsRepository;
+    private final LogsService logsService;
 
     public ScheduleService(
             ScheduleRepository scheduleRepository,
@@ -34,13 +35,15 @@ public class ScheduleService {
             DoctorsRepository doctorsRepository,
             MachinesRepository machinesRepository,
             ModelMapper modelMapper,
-            RoomsRepository roomsRepository){
+            RoomsRepository roomsRepository,
+            LogsService logsService){
         this.scheduleRepository = scheduleRepository;
         this.patientsRepository = patientsRepository;
         this.doctorsRepository = doctorsRepository;
         this.machinesRepository = machinesRepository;
         this.modelMapper = modelMapper;
         this.roomsRepository = roomsRepository;
+        this.logsService = logsService;
     }
 
     public void validateNoConflict(Schedules newSchedule) {
@@ -158,6 +161,12 @@ public class ScheduleService {
         validateNoConflict(schedule);
 
         // 9. Save
+        //LOG CREATE
+        logsService.log(
+                "Schedule Added",
+                "added new schedule for " + schedule.getPatient().getName() +"'s " + schedule.getProcedureName() +
+                        " at " + schedule.getStartDateTime()
+        );
         scheduleRepository.save(schedule);
     }
 
@@ -350,6 +359,11 @@ public class ScheduleService {
         validateNoConflict(existing);
 
         // 9. Save
+        //LOG CREATE
+        logsService.log(
+                "Schedule Updated",
+                "updated the schedule information of " + existing.getPatient().getName()
+        );
         scheduleRepository.save(existing);
     }
 
@@ -455,6 +469,11 @@ public class ScheduleService {
         validateNoConflict(existing);
 
         // 9. Save
+        //LOG CREATE
+        logsService.log(
+                "Schedule Updated",
+                "updated the schedule information of " + existing.getPatient().getName()
+        );
         scheduleRepository.save(existing);
     }
 
@@ -465,9 +484,14 @@ public class ScheduleService {
         if (scheduleToArchive.getScheduleStatus().equals(ScheduleStatus.Archived)){
             throw new NoChangesDetected("This schedule is already archived");
         }
-
         scheduleToArchive.setScheduleStatus(ScheduleStatus.Archived);
 
+        //LOG CREATE
+        logsService.log(
+                "Schedule Archived",
+                "archived the "+ scheduleToArchive.getProcedureName() +" schedule of " + scheduleToArchive.getPatient().getName() +
+                        " with the Schedule ID of " + scheduleId
+        );
         scheduleRepository.save(scheduleToArchive);
     }
 
@@ -480,7 +504,12 @@ public class ScheduleService {
         }
 
         scheduleToCancel.setScheduleStatus(ScheduleStatus.Cancelled);
-
+        //LOG CREATE
+        logsService.log(
+                "Schedule Cancelled",
+                "cancelled the "+ scheduleToCancel.getProcedureName() +" schedule of " + scheduleToCancel.getPatient().getName() +
+                        " with the Schedule ID of " + scheduleId
+        );
         scheduleRepository.save(scheduleToCancel);
     }
 
@@ -493,7 +522,12 @@ public class ScheduleService {
         }
 
         scheduleToConfirm.setScheduleStatus(ScheduleStatus.Confirmed);
-
+        //LOG CREATE
+        logsService.log(
+                "Schedule Confirmed",
+                "confirmed the "+ scheduleToConfirm.getProcedureName() +" schedule of " + scheduleToConfirm.getPatient().getName() +
+                        " with the Schedule ID of " + scheduleId
+        );
         scheduleRepository.save(scheduleToConfirm);
     }
 
@@ -506,6 +540,15 @@ public class ScheduleService {
         }
 
         scheduleToDone.setScheduleStatus(ScheduleStatus.Done);
+
+        //LOG CREATE
+        logsService.log(
+                "Marked as Done",
+                "marked the "+ scheduleToDone.getProcedureName() + " schedule of " + scheduleToDone.getPatient().getName() +
+                        " as done" + " with the Schedule ID of " + scheduleId
+        );
+
+        //Cromwell Naval marked the X-Ray schedule of Mike as done
         scheduleRepository.save(scheduleToDone);
     }
 
@@ -518,6 +561,12 @@ public class ScheduleService {
         }
 
         scheduleToRestore.setScheduleStatus(ScheduleStatus.Scheduled);
+        //LOG CREATE
+        logsService.log(
+                "Marked as Scheduled",
+                "marked the "+ scheduleToRestore.getProcedureName() + " schedule of " + scheduleToRestore.getPatient().getName() +
+                        " as scheduled" + " with the Schedule ID of " + scheduleId
+        );
         scheduleRepository.save(scheduleToRestore);
     }
 }

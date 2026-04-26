@@ -20,7 +20,7 @@ public class LogsService {
         this.usersRepository = usersRepository;
     }
 
-
+    //CREATE
     public void log(String logHeader, String description) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
@@ -30,7 +30,7 @@ public class LogsService {
         Logs log = new Logs();
         log.setUser(currentUser);
         log.setLogHeader(logHeader);
-        log.setDescription(description);
+        log.setDescription(currentUser.getName() + " " + description);
         log.setCreatedAt(LocalDateTime.now());
 
         logsRepository.save(log);
