@@ -30,6 +30,16 @@ public class ScheduleSpecification {
         };
     }
 
+    public static Specification<Schedules> searchPatient(String patientName){
+        return (root, query, criteriaBuilder) -> {
+            if (patientName == null) return null;
+            return criteriaBuilder.like(
+                    criteriaBuilder.lower(root.get("patient").get("name")),
+                    "%" + patientName.toLowerCase() + "%"
+            );
+        };
+    }
+
     public static Specification<Schedules> byDateFilter(String filter) {
         return (root, query, criteriaBuilder) -> {
             if (filter == null || filter.equalsIgnoreCase("overall")) return null;

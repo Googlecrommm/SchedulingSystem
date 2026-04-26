@@ -60,9 +60,10 @@ public class ScheduleController {
     public ResponseEntity<Page<ScheduleResponseDTO>> getRehabSched(
             @RequestParam(required = false) ScheduleStatus scheduleStatus,
             @RequestParam(required = false) String name,
+            @RequestParam(required = false) String patientName,
             Pageable pageable
     ){
-        return ResponseEntity.ok(scheduleService.getRehabSched(scheduleStatus, name, pageable));
+        return ResponseEntity.ok(scheduleService.getRehabSched(scheduleStatus, name, patientName, pageable));
     }
 
     //SEARCH

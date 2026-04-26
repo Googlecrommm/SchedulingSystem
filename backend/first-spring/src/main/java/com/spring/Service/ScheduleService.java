@@ -183,11 +183,12 @@ public class ScheduleService {
     }
 
     //READ & FILTER (Rehabilitation)
-    public Page<ScheduleResponseDTO> getRehabSched(ScheduleStatus scheduleStatus, String name, Pageable pageable){
+    public Page<ScheduleResponseDTO> getRehabSched(ScheduleStatus scheduleStatus, String name, String patientName,  Pageable pageable){
 
         Specification<Schedules> filters = Specification
                 .where(ScheduleSpecification.hasStatus(scheduleStatus))
                 .and(ScheduleSpecification.toDoctor(name))
+                .and(ScheduleSpecification.searchPatient(patientName))
                 .and(ScheduleSpecification.hasDepartment("Rehabilitation"));
 
         return scheduleRepository.findAll(filters, pageable).map(this::mapToDTO);
@@ -195,6 +196,12 @@ public class ScheduleService {
 
     //SEARCH
     public Page<ScheduleResponseDTO> searchSchedule(String patientName, Pageable pageable){
+        return scheduleRepository.searchByPatient_NameContainingIgnoreCase(patientName, pageable)
+                .map(this::mapToDTO);
+    }
+
+    //SEARCH
+    public Page<ScheduleResponseDTO> searchRadioSched(String patientName, Pageable pageable){
         return scheduleRepository.searchByPatient_NameContainingIgnoreCase(patientName, pageable)
                 .map(this::mapToDTO);
     }
