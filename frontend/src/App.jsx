@@ -18,6 +18,9 @@ import RadioMachineManagement   from "./components/frontdesk/RadioMachineManagem
 import RadioProfessionalManagement  from "./components/frontdesk/RadioProfessionalManagement";
 import RehabProfessionalManagement  from "./components/frontdesk/RehabProfessionalManagement";
 import PatientManagement from "./components/admin/PatientManagement";
+import RoomManagement from "./components/admin/RoomManagement";
+import ActivityLogs from "./components/admin/ActivityLogs";
+
 
 
 
@@ -45,6 +48,8 @@ export default function App() {
         <Route path="/admin/hospitalization-plans" element={<HospitalizationPlanManagement />} />
         <Route path="/admin/hospitalization-types" element={<HospitalizationCaseTypeManagement />} />
         <Route path="/admin/patient-management"    element={<PatientManagement />} />
+        <Route path="/admin/room-management" element={<RoomManagement />} />
+        <Route path="/admin/activity-logs" element={<ActivityLogs />} />
 
         {/* ── Rehabilitation Frontdesk ── */}
         <Route path="/frontdesk/rehab-dashboard" element={<RehabilitationDashboard />} />

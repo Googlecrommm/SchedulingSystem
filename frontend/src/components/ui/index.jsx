@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users, Building2, UserCog, Cpu, Calendar,
   ChevronDown, ChevronLeft, ChevronRight,
   Menu, X, Search, Plus, MoreHorizontal,
-  Layers, Cross, ClipboardList, Tag, UserRoundPlus
+  Layers, Cross, ClipboardList, Tag, UserRoundPlus, BedDouble, History
 } from "lucide-react";
 import DGMCLogo    from "../../assets/dgmc-logo.png";
 import DGMCIcon    from "../../assets/DGMC-icon.svg";
@@ -22,9 +22,11 @@ export const adminNavItems = [
   { label: "Role",            icon: UserCog,          path: "/admin/role-management" },
   { label: "Machine",         icon: Cpu,              path: "/admin/machine-management" },
   { label: "Modality",        icon: Layers,          path: "/admin/modality-management"  }, 
+  { label: "Rooms",           icon: BedDouble,        path: "/admin/room-management" }, 
   { label: "Medical Professionals", icon: Cross, path: "/admin/medical-professionals"    },
   { label: "Hospitalization Plans", icon: ClipboardList, path: "/admin/hospitalization-plans" },
-  { label: "Hospitalization Case Types", icon: Tag, path: "/admin/hospitalization-types" }
+  { label: "Hospitalization Case Types", icon: Tag, path: "/admin/hospitalization-types" },
+  { label: "Logs",            icon: History,         path: "/admin/activity-logs" },
 ];
 
 export const frontdeskNavItems = [

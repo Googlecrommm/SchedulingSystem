@@ -129,7 +129,7 @@ export default function RadioProfessionalManagement() {
         size: 10,
         ...(activeTabStatus && { availabilityStatus: activeTabStatus }),
       };
-      const res = await axios.get("/api/getDoctors", {
+      const res = await axios.get("/api/getRadiologist", {
         headers: getAuthHeader(),
         params,
       });

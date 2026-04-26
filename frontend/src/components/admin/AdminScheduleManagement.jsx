@@ -1,9 +1,10 @@
-
 import { useState, useEffect, useRef } from "react";
 import {
   Calendar, CalendarCheck, CalendarX, Clock, Archive,
-  CheckCircle, Eye, Pencil, RefreshCw, ChevronDown,
+  CheckCircle, Eye, RefreshCw, ChevronDown,
 } from "lucide-react";
+
+import axios from "../../config/axiosInstance";
 
 import {
   AdminLayout,
@@ -15,6 +16,11 @@ import {
   scheduleStatusColor,
   ConfirmDialog,
 } from "../ui";
+
+function getAuthHeader() {
+  const token = localStorage.getItem("token");
+  return { Authorization: `Bearer ${token}` };
+}
 
 
 
@@ -32,13 +38,12 @@ const COLUMNS = ["Name", "Date", "Time", "Department", "Status", "Action"];
 
 function getActions(status) {
   switch (status?.toLowerCase()) {
-    case "confirmed": return [{ label: "View", icon: Eye }, { label: "Edit", icon: Pencil }];
+    case "confirmed": return [{ label: "View", icon: Eye }];
     case "cancelled": return [{ label: "View", icon: Eye }];
     case "archived":  return [{ label: "View", icon: Eye }, { label: "Unarchive", icon: RefreshCw }];
     case "done":      return [{ label: "View", icon: Eye }];
     default:          return [
       { label: "View",    icon: Eye     },
-      { label: "Edit",    icon: Pencil  },
       { label: "Archive", icon: Archive, danger: true },
     ];
   }
@@ -107,43 +112,97 @@ function DepartmentDropdown({ value, onChange, departments }) {
 }
 
 
-function ViewScheduleModal({ schedule, onClose }) {
+function ReadonlyField({ label, value, fullWidth = false }) {
   const ro = readonlyInputClass;
+  return (
+    <div className={fullWidth ? "col-span-2" : ""}>
+      <label className="block text-sm font-semibold text-primary mb-1.5">{label}</label>
+      <input readOnly value={value ?? "—"} className={ro} />
+    </div>
+  );
+}
 
-  const fields = [
-    { label: "Patient Name", value: schedule.name },
-    { label: "Department",   value: schedule.department },
-    { label: "Status",       value: schedule.status },
-  ];
+function ViewScheduleModal({ schedule, onClose }) {
+  const startDT = schedule.startDateTime ? new Date(schedule.startDateTime.replace(" ", "T")) : null;
+  const endDT   = schedule.endDateTime   ? new Date(schedule.endDateTime.replace(" ", "T"))   : null;
 
-  const dateTimeFields = [
-    { label: "Date",       value: schedule.start_datetime ? new Date(schedule.start_datetime.replace(" ", "T")).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }) : "—" },
-    { label: "Time",       value: schedule.start_datetime && schedule.end_datetime
-        ? `${new Date(schedule.start_datetime.replace(" ", "T")).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} - ${new Date(schedule.end_datetime.replace(" ", "T")).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}`
-        : "—" },
-  ];
+  const dateValue = startDT
+    ? startDT.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })
+    : "—";
+
+  const timeValue = startDT && endDT
+    ? `${startDT.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} – ${endDT.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}`
+    : "—";
+
+  const dept       = schedule.departmentName?.toLowerCase() ?? "";
+  const isRadio    = dept.includes("radiol");
+  const isRehab    = dept.includes("rehab");
 
   return (
-    <Modal title="View Schedule" onClose={onClose} maxWidth="max-w-lg" scrollable>
+    <Modal title="View Schedule" onClose={onClose} maxWidth="max-w-2xl" scrollable>
       <div className="space-y-4">
 
-        {fields.map(({ label, value }) => (
-          <div key={label}>
-            <label className="block text-sm font-semibold text-primary mb-1.5">{label}</label>
-            <input readOnly value={value ?? "—"} className={ro} />
-          </div>
-        ))}
+        {/* ── Patient Info ─────────────────────────────────── */}
+        <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Patient Information</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {dateTimeFields.map(({ label, value }) => (
-            <div key={label}>
-              <label className="block text-sm font-semibold text-primary mb-1.5">{label}</label>
-              <input readOnly value={value} className={ro} />
-            </div>
-          ))}
+          <ReadonlyField label="Patient Name"   value={schedule.patientName} />
+          <ReadonlyField label="Sex"            value={schedule.sex} />
+          <ReadonlyField label="Date of Birth"  value={schedule.birthDate} />
+          <ReadonlyField label="Contact No."    value={schedule.contactNumber} />
         </div>
 
-        <ModalFooter onClose={onClose} />
+        <ReadonlyField label="Address" value={schedule.address} />
+
+        {/* ── Schedule Info ─────────────────────────────────── */}
+        <p className="text-xs font-bold uppercase tracking-widest text-gray-400 pt-1">Schedule Information</p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <ReadonlyField label="Department"  value={schedule.departmentName} />
+          <ReadonlyField label="Status"      value={schedule.scheduleStatus} />
+          <ReadonlyField label="Date"        value={dateValue} />
+          <ReadonlyField label="Time"        value={timeValue} />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <ReadonlyField label="Doctor / Specialist" value={schedule.name} />
+          <ReadonlyField label="Procedure"           value={schedule.procedureName} />
+        </div>
+
+        {/* Radiology-only */}
+        {isRadio && (
+          <ReadonlyField label="Machine" value={schedule.machineName} />
+        )}
+
+        {/* Rehab-only */}
+        {isRehab && (
+          <ReadonlyField label="Room" value={schedule.roomName} />
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <ReadonlyField label="Hospitalization Plan"      value={schedule.hospitalizationPlan} />
+          <ReadonlyField label="Hospitalization Case Type" value={schedule.hospitalizationType} />
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-primary mb-1.5">Remarks</label>
+          <textarea
+            readOnly
+            rows={3}
+            value={schedule.remarks ?? ""}
+            placeholder="No remarks"
+            className={`${readonlyInputClass} resize-none`}
+          />
+        </div>
+
+        <button
+          onClick={onClose}
+          className="w-full py-2.5 rounded-xl bg-primary hover:bg-primary-light active:bg-primary-dark
+                     text-white text-sm font-semibold transition-colors duration-200 cursor-pointer"
+        >
+          Close
+        </button>
+
       </div>
     </Modal>
   );
@@ -169,21 +228,86 @@ export default function AdminScheduleManagement() {
   const [viewSchedule,     setViewSchedule]      = useState(null);
   const [confirmAction,    setConfirmAction]     = useState(null);
 
+  const [page,       setPage]       = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
-  useEffect(() => { setSearchQuery(""); }, [activeTab]);
-
+  // Reset page and search when tab or dept filter changes
   useEffect(() => {
-    fetchSchedules();
+    setPage(0);
+    setSearchQuery("");
   }, [activeTab, deptFilter]);
 
+  // Load departments once on mount; fetchSchedules runs after departments state is set
+  useEffect(() => { fetchDepartments(); }, []);
+
+  // Re-fetch whenever any filter or page changes (departments included so filter resolves correctly)
   useEffect(() => {
-    fetchDepartments();
-  }, []);
+    fetchSchedules();
+  }, [activeTab, searchQuery, deptFilter, page, departments]);
 
   async function fetchSchedules() {
     setLoading(true);
     try {
+      const headers = getAuthHeader();
+      const deptName = deptFilter !== "all"
+        ? departments.find((d) => String(d.departmentId) === String(deptFilter))?.departmentName
+        : undefined;
+      const patientName = searchQuery.trim() || undefined;
 
+      if (activeTab === "All") {
+        // Backend defaults to Scheduled when scheduleStatus is null, so we must
+        // fetch each status individually and merge for the "All" tab.
+        const ALL_STATUSES = ["Scheduled", "Confirmed", "Cancelled", "Done"];
+        const results = await Promise.all(
+          ALL_STATUSES.map((status) =>
+            axios.get("/api/getSchedules", {
+              headers,
+              params: {
+                scheduleStatus: status,
+                page: 0,
+                size: 2000,
+                ...(deptName    && { departmentName: deptName }),
+                ...(patientName && { patientName }),
+              },
+            })
+          )
+        );
+
+        // Merge, sort by startDateTime ascending, then paginate client-side
+        const merged = results.flatMap((res) => res.data?.content ?? []);
+        const STATUS_PRIORITY = { Scheduled: 0, Confirmed: 1, Cancelled: 2, Done: 3 };
+        merged.sort((a, b) => {
+          const pa = STATUS_PRIORITY[a.scheduleStatus] ?? 99;
+          const pb = STATUS_PRIORITY[b.scheduleStatus] ?? 99;
+          if (pa !== pb) return pa - pb;
+          const da = a.startDateTime ? new Date(String(a.startDateTime).replace(" ", "T")) : 0;
+          const db = b.startDateTime ? new Date(String(b.startDateTime).replace(" ", "T")) : 0;
+          return da - db;
+        });
+
+        const PAGE_SIZE   = 10;
+        const totalItems  = merged.length;
+        const totalPgs    = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+        const safePage    = Math.min(page, totalPgs - 1);
+        const pageSlice   = merged.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+
+        setSchedules(pageSlice);
+        setTotalPages(totalPgs);
+      } else {
+        // Specific status tab — let the server filter directly
+        const res = await axios.get("/api/getSchedules", {
+          headers,
+          params: {
+            scheduleStatus: activeTab,
+            page,
+            size: 10,
+            ...(deptName    && { departmentName: deptName }),
+            ...(patientName && { patientName }),
+          },
+        });
+        setSchedules(res.data?.content ?? []);
+        setTotalPages(res.data?.totalPages ?? 1);
+      }
     } catch (err) {
       console.error("Failed to fetch schedules:", err);
     } finally {
@@ -193,28 +317,17 @@ export default function AdminScheduleManagement() {
 
   async function fetchDepartments() {
     try {
-
+      // GET /api/departmentsDropdown → List<DepartmentResponseDTO> (departmentId, departmentName)
+      const res = await axios.get("/api/departmentsDropdown", { headers: getAuthHeader() });
+      setDepartments(Array.isArray(res.data) ? res.data : res.data?.content ?? []);
     } catch (err) {
       console.error("Failed to fetch departments:", err);
     }
   }
 
 
-  const filtered = schedules.filter((s) => {
-    const matchesTab =
-      activeTab === "All"
-        ? s.status?.toLowerCase() !== "archived"
-        : s.status?.toLowerCase() === activeTab.toLowerCase();
-
-    const matchesSearch =
-      s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.department?.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesDept =
-      deptFilter === "all" || String(s.departmentId) === String(deptFilter);
-
-    return matchesTab && matchesSearch && matchesDept;
-  });
+  // Server handles all filtering — schedules is already the correct page
+  const filtered = schedules;
 
 
   function handleAction(action, schedule) {
@@ -228,7 +341,12 @@ export default function AdminScheduleManagement() {
   async function applyConfirm() {
     const { type, schedule } = confirmAction;
     try {
-
+      const endpointMap = {
+        archive:   `/api/archiveSchedule/${schedule.scheduleId}`,
+        unarchive: `/api/restoreSchedule/${schedule.scheduleId}`,
+      };
+      await axios.put(endpointMap[type], {}, { headers: getAuthHeader() });
+      await fetchSchedules();
     } catch (err) {
       console.error(`Failed to ${type} schedule:`, err);
     } finally {
@@ -285,24 +403,28 @@ export default function AdminScheduleManagement() {
         loading={loading}
         emptyIcon={Calendar}
         emptyText="No schedules found"
+        page={page + 1}
+        totalPages={totalPages}
+        onPrev={() => setPage((p) => Math.max(0, p - 1))}
+        onNext={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
         renderRow={(s) => (
-          <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.name}</td>
+          <tr key={s.scheduleId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.patientName}</td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">
-              {s.start_datetime ? new Date(s.start_datetime.replace(" ", "T")).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }) : "—"}
+              {s.startDateTime ? new Date(s.startDateTime.replace(" ", "T")).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }) : "—"}
             </td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">
-              {s.start_datetime && s.end_datetime
-                ? `${new Date(s.start_datetime.replace(" ", "T")).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} - ${new Date(s.end_datetime.replace(" ", "T")).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}`
+              {s.startDateTime && s.endDateTime
+                ? `${new Date(s.startDateTime.replace(" ", "T")).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} - ${new Date(s.endDateTime.replace(" ", "T")).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}`
                 : "—"}
             </td>
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.department}</td>
-            <td className={`px-6 py-4 text-center text-sm font-semibold ${scheduleStatusColor(s.status)}`}>
-              {s.status ? s.status.charAt(0).toUpperCase() + s.status.slice(1) : "—"}
+            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.departmentName ?? "—"}</td>
+            <td className={`px-6 py-4 text-center text-sm font-semibold ${scheduleStatusColor(s.scheduleStatus)}`}>
+              {s.scheduleStatus ? s.scheduleStatus.charAt(0).toUpperCase() + s.scheduleStatus.slice(1) : "—"}
             </td>
             <td className="px-6 py-4 text-center">
               <ActionDropdown
-                items={getActions(s.status)}
+                items={getActions(s.scheduleStatus)}
                 onAction={(action) => handleAction(action, s)}
               />
             </td>
@@ -321,7 +443,7 @@ export default function AdminScheduleManagement() {
       {confirmAction && meta && (
         <ConfirmDialog
           title={meta.title}
-          message={meta.msg(confirmAction.schedule.name)}
+          message={meta.msg(confirmAction.schedule.patientName ?? "This schedule")}
           confirmLabel={meta.label}
           danger={meta.danger}
           onConfirm={applyConfirm}

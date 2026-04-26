@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Cpu, CheckCircle, Wrench } from "lucide-react";
 import { LayoutDashboard, Calendar, Cross, } from "lucide-react";
+import axios from "../../config/axiosInstance";
 
 import {
   AdminLayout,
@@ -23,7 +24,10 @@ function getMachineActions(machine) {
   if (machine.status === "Available") {
     return [{ label: "Under Maintenance", icon: Wrench }];
   }
-  return [{ label: "Available", icon: CheckCircle }];
+  if (machine.status === "Under Maintenance") {
+    return [{ label: "Available", icon: CheckCircle }];
+  }
+  return [];
 }
 
 
@@ -43,11 +47,16 @@ const confirmMeta = {
 };
 
 
+function formatStatus(status) {
+  if (status === "Under_Maintenance") return "Under Maintenance";
+  return status;
+}
+
 function mapMachine(m) {
   return {
     id:     m.machineId,
     name:   m.machineName,
-    status: m.machineStatus, 
+    status: formatStatus(m.machineStatus),
   };
 }
 
@@ -70,7 +79,16 @@ export default function RadioMachineManagement() {
   async function fetchMachines() {
     setLoading(true);
     try {
-      
+      const res = await axios.get("/api/getMachines", {
+        headers: getAuthHeader(),
+        params: {
+          page: 0,
+          size: 1000,
+        },
+      });
+      const content = res.data?.content ?? [];
+      // Exclude archived machines — frontdesk only sees active/maintenance
+      setMachines(content.filter((m) => m.machineStatus !== "Archived").map(mapMachine));
     } catch (err) {
       console.error("Failed to fetch machines:", err);
     } finally {
@@ -80,9 +98,13 @@ export default function RadioMachineManagement() {
 
   async function applyConfirm() {
     const { type, machine } = confirmAction;
-    const newStatus = type === "maintenance" ? "Under Maintenance" : "Available";
     try {
-     
+      if (type === "maintenance") {
+        await axios.put("/api/markAsMaintenance/" + machine.id, {}, { headers: getAuthHeader() });
+      } else if (type === "available") {
+        await axios.put("/api/activateMachine/" + machine.id, {}, { headers: getAuthHeader() });
+      }
+      await fetchMachines();
     } catch (err) {
       console.error(`Failed to update machine status:`, err);
     } finally {

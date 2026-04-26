@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import {
   Calendar, CalendarCheck, CalendarX, Clock, Archive, CheckCircle,
-  Eye, UserCheck, UserX, Pencil, Trash2, RefreshCw, ChevronDown, Search, X,
+  Eye, UserCheck, UserX, Trash2, RefreshCw, ChevronDown, Search, X, Pencil,
 } from "lucide-react";
+import axios from "../../config/axiosInstance";
 
 import {
   AdminLayout,
@@ -35,20 +36,21 @@ const TABS = [
 const COLUMNS = ["Full Name", "Date", "Time", "Therapist", "Status", "Action"];
 
 const BLANK_PATIENT = {
-  therapist:    "",
-  date:         "",
-  startTime:    "",
-  endTime:      "",
-  patientName:  "",
-  patientId:    "",   
-  dob:          "",
-  contactNo:    "",
-  sex:          "",
-  occupation:   "",
-  address:      "",
-  hospPlan:     "",
-  hospCaseType: "",
-  remarks:      "",
+  therapist:     "",
+  room:          "",
+  date:          new Date().toISOString().slice(0, 10),
+  startTime:     "",
+  endTime:       "",
+  patientName:   "",
+  patientId:     "",
+  dob:           "",
+  contactNo:     "",
+  sex:           "",
+  address:       "",
+  hospPlan:      "",
+  hospCaseType:  "",
+  procedureName: "",
+  remarks:       "",
 };
 
 const confirmMeta = {
@@ -68,7 +70,7 @@ function getAuthHeader() {
 
 function buildDatetime(date, time) {
   if (!date || !time) return "";
-  return `${date} ${time}:00`;
+  return `${date}T${time}:00`;
 }
 
 
@@ -95,22 +97,29 @@ function formatTime(iso) {
   });
 }
 
+function formatTimeAMPM(hhmm) {
+  if (!hhmm) return "—";
+  const [h, m] = hhmm.split(":").map(Number);
+  const period = h < 12 ? "AM" : "PM";
+  const h12    = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
 function getActions(status) {
   switch (status?.toLowerCase()) {
-    case "confirmed": return [{ label: "View", icon: Eye }, { label: "Done", icon: UserCheck }];
+    case "confirmed": return [{ label: "View", icon: Eye }, { label: "Edit", icon: Pencil }, { label: "Done", icon: UserCheck }];
     case "cancelled": return [{ label: "View", icon: Eye }];
     case "archived":  return [{ label: "View", icon: Eye }, { label: "Unarchive", icon: RefreshCw }];
     case "done":      return [{ label: "View", icon: Eye }];
     default: return [
       { label: "View",    icon: Eye       },
+      { label: "Edit",    icon: Pencil    },
       { label: "Confirm", icon: UserCheck },
       { label: "Cancel",  icon: UserX     },
-      { label: "Edit",    icon: Pencil    },
       { label: "Archive", icon: Trash2, danger: true },
     ];
   }
 }
-
 
 
 
@@ -156,13 +165,13 @@ function PatientSearchableInput({ formik, hasError }) {
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const res = await fetch(
+        // Backend: GET /api/searchPatient/{name} → Page<PatientResponseDTO>
+        // PatientResponseDTO fields: patientId, name, address, contactNumber, birthDate, sex, patientStatus
+        const res = await axios.get(
           `/api/searchPatient/${encodeURIComponent(val.trim())}`,
-          { headers: getAuthHeader() }
+          { headers: getAuthHeader(), params: { page: 0, size: 20 } }
         );
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : data?.content ?? [];
+        const list = Array.isArray(res.data) ? res.data : res.data?.content ?? [];
         setResults(list);
         setOpen(list.length > 0);
       } catch {
@@ -175,18 +184,19 @@ function PatientSearchableInput({ formik, hasError }) {
   }
 
   function handleSelect(patient) {
-    setQuery(patient.patientName ?? patient.name ?? "");
+    // PatientResponseDTO uses: name, patientId, birthDate, contactNumber, sex, address
+    const displayName = patient.name ?? "";
+    setQuery(displayName);
     setIsExisting(true);
     setOpen(false);
     setResults([]);
 
-    formik.setFieldValue("patientName", patient.patientName ?? patient.name ?? "");
-    formik.setFieldValue("patientId",   patient.patientId ?? "");
-    formik.setFieldValue("sex",         patient.sex        ?? "");
-    formik.setFieldValue("dob",         patient.dob        ?? "");
-    formik.setFieldValue("contactNo",   patient.contactNo  ?? "");
-    formik.setFieldValue("address",     patient.address    ?? "");
-    formik.setFieldValue("occupation",  patient.occupation ?? "");
+    formik.setFieldValue("patientName", displayName);
+    formik.setFieldValue("patientId",   patient.patientId    ?? "");
+    formik.setFieldValue("sex",         patient.sex          ?? "");
+    formik.setFieldValue("dob",         patient.birthDate    ?? "");
+    formik.setFieldValue("contactNo",   patient.contactNumber ?? "");
+    formik.setFieldValue("address",     patient.address      ?? "");
   }
 
   function handleClear() {
@@ -200,7 +210,6 @@ function PatientSearchableInput({ formik, hasError }) {
     formik.setFieldValue("dob",         "");
     formik.setFieldValue("contactNo",   "");
     formik.setFieldValue("address",     "");
-    formik.setFieldValue("occupation",  "");
   }
 
   const borderClass = hasError
@@ -265,12 +274,13 @@ function PatientSearchableInput({ formik, hasError }) {
               onClick={() => handleSelect(p)}
               className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-primary/5 hover:text-primary transition-colors"
             >
-              <span className="font-medium">{p.patientName ?? p.name}</span>
-              {p.dob && (
-                <span className="ml-2 text-xs text-gray-400">DOB: {p.dob}</span>
+              {/* PatientResponseDTO uses `name` (not patientName) */}
+              <span className="font-medium">{p.name}</span>
+              {p.birthDate && (
+                <span className="ml-2 text-xs text-gray-400">DOB: {p.birthDate}</span>
               )}
-              {p.contactNo && (
-                <span className="ml-2 text-xs text-gray-400">{p.contactNo}</span>
+              {p.contactNumber && (
+                <span className="ml-2 text-xs text-gray-400">{p.contactNumber}</span>
               )}
             </button>
           ))}
@@ -284,7 +294,12 @@ function PatientSearchableInput({ formik, hasError }) {
 
 const patientSchema = Yup.object({
   therapist:    Yup.string().required("Therapist is required"),
-  date:         Yup.string().required("Date is required"),
+  room:         Yup.string().required("Room is required"),
+  date:         Yup.string().required("Date is required")
+    .test("not-past", "Date cannot be in the past", (val) => {
+      if (!val) return true;
+      return val >= new Date().toISOString().slice(0, 10);
+    }),
   startTime:    Yup.string().required("Start time is required"),
   endTime:      Yup.string()
     .required("End time is required")
@@ -299,11 +314,11 @@ const patientSchema = Yup.object({
     .matches(/^\+?[0-9]{7,15}$/, "Enter a valid contact number")
     .required("Contact number is required"),
   sex:          Yup.string().required("Sex is required"),
-  occupation:   Yup.string().required("Occupation is required"),
   address:      Yup.string().required("Address is required"),
   hospPlan:     Yup.string(),
   hospCaseType: Yup.string(),
-  remarks:      Yup.string(),
+  procedureName: Yup.string().required("Procedure name is required"),
+  remarks:      Yup.string().required("Remarks is required"),
 });
 
 
@@ -331,7 +346,103 @@ function SelectField({ formik, field, placeholder, options, keyProp, valueProp, 
 }
 
 
-function PatientForm({ initialValues, submitLabel, onSubmit, onClose, therapists, hospPlans, hospCaseTypes }) {
+// Generate 15-minute interval time options in 12-hour format (value = "HH:MM" 24h for formik)
+const TIME_OPTIONS = (() => {
+  const opts = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const hh = String(h).padStart(2, "0");
+      const mm = String(m).padStart(2, "0");
+      const value = `${hh}:${mm}`;
+      const period = h < 12 ? "AM" : "PM";
+      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      const label = `${h12}:${mm} ${period}`;
+      opts.push({ value, label });
+    }
+  }
+  return opts;
+})();
+
+// Builds TWO sets of blocked slots — one for Start Time, one for End Time.
+//
+// For a booking 1:00 PM → 2:00 PM:
+//   startBlocked: slots where a new booking CANNOT start → [1:00, 1:15, 1:30, 1:45]
+//     (1:00 PM is blocked as start because the room is occupied from that point)
+//   endBlocked:   slots where a new booking CANNOT end   → [1:15, 1:30, 1:45, 2:00]
+//     (1:00 PM is allowed as an end time — room becomes free exactly at 1:00 PM)
+//
+// This lets 12:00 PM → 1:00 PM work: 12:00 is free to start, 1:00 is free to end.
+function buildBlockedSets(bookedRanges) {
+  const startBlocked = new Set();
+  const endBlocked   = new Set();
+
+  for (const { startTime, endTime } of bookedRanges) {
+    const startMins = toMins(startTime);
+    const endMins   = toMins(endTime);
+
+    for (let m = startMins; m < endMins; m += 15) {
+      const slot = toSlot(m);
+      startBlocked.add(slot); // can't start inside this booking
+      if (m > startMins) endBlocked.add(slot); // can't end mid-booking (but CAN end at booking start)
+    }
+    // The booking's own endTime is also blocked as an end (would overlap next booking)
+    endBlocked.add(toSlot(endMins));
+  }
+
+  return { startBlocked, endBlocked };
+}
+
+function toMins(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function toSlot(mins) {
+  const hh = String(Math.floor(mins / 60)).padStart(2, "0");
+  const mm = String(mins % 60).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+function TimeDropdown({ formik, field, startBlocked = new Set(), endBlocked = new Set(), selectedDate = "" }) {
+  const ic = useInputClass(formik);
+  const startTime = formik.values.startTime;
+  const blockedSet = field === "startTime" ? startBlocked : endBlocked;
+
+  // Block past time slots when today's date is selected
+  const today   = new Date().toISOString().slice(0, 10);
+  const isToday = selectedDate === today;
+  const nowMins = isToday
+    ? new Date().getHours() * 60 + new Date().getMinutes()
+    : -1;
+
+  return (
+    <div className="relative">
+      <select
+        className={`${ic(field)} appearance-none cursor-pointer`}
+        {...formik.getFieldProps(field)}
+      >
+        <option value="" disabled>Select time</option>
+        {TIME_OPTIONS.map((opt) => {
+          const isBlocked     = blockedSet.has(opt.value);
+          const isBeforeStart = field === "endTime" && startTime && opt.value <= startTime;
+          const isPast        = isToday && toMins(opt.value) <= nowMins;
+          const disabled      = isBlocked || isBeforeStart || isPast;
+          return (
+            <option key={opt.value} value={opt.value} disabled={disabled}>
+              {opt.label}{isBlocked ? " (Booked)" : isPast ? " (Past)" : ""}
+            </option>
+          );
+        })}
+      </select>
+      <ChevronDown
+        size={14}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+      />
+    </div>
+  );
+}
+
+function PatientForm({ initialValues, submitLabel, onSubmit, onClose, therapists, rooms, hospPlans, hospCaseTypes, schedules = [] }) {
   const formik = useFormik({
     initialValues,
     validationSchema: patientSchema,
@@ -349,25 +460,97 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose, therapists
 
   const ic = useInputClass(formik);
 
+  // ─── Compute blocked time slots from already-loaded schedules ──────────────
+  // Blocks are computed from TWO sources independently then merged:
+  //   1. Room conflicts  — any active schedule using the same room on the same date
+  //   2. Doctor conflicts — any active schedule assigned to the same doctor on the same date
+  // ScheduleResponseDTO uses `roomName` (not roomId) and `name` (doctor name),
+  // so we resolve the selected IDs to names via the dropdown lists.
+  const selectedRoom      = formik.values.room;
+  const selectedDate      = formik.values.date;
+  const selectedTherapist = formik.values.therapist;
+
+  const selectedRoomName   = rooms.find((r) => String(r.roomId)    === String(selectedRoom))?.roomName ?? null;
+  const selectedDoctorName = therapists.find((t) => String(t.doctorId) === String(selectedTherapist))?.name ?? null;
+
+  const bookedRanges = useMemo(() => {
+    if (!selectedDate) return [];
+    if (!selectedRoomName && !selectedDoctorName) return [];
+
+    return schedules
+      .filter((s) => {
+        const status = s.scheduleStatus?.toLowerCase();
+        if (status === "cancelled" || status === "archived") return false;
+        if (!s.startDateTime || !s.endDateTime) return false;
+
+        const schedDate = s.startDateTime.toString().slice(0, 10);
+        if (schedDate !== selectedDate) return false;
+
+        // Block if this schedule occupies the same room OR the same doctor
+        const roomMatch   = selectedRoomName   && s.roomName === selectedRoomName;
+        const doctorMatch = selectedDoctorName && s.name     === selectedDoctorName;
+        return roomMatch || doctorMatch;
+      })
+      .map((s) => ({
+        startTime: s.startDateTime.toString().slice(11, 16), // "HH:mm"
+        endTime:   s.endDateTime.toString().slice(11, 16),
+      }));
+  }, [schedules, selectedRoomName, selectedDoctorName, selectedDate]);
+
+  const { startBlocked, endBlocked } = useMemo(() => buildBlockedSets(bookedRanges), [bookedRanges]);
+
+  // Clear time fields when room, doctor, or date changes so stale picks don't persist
+  const prevRoomRef      = useRef(selectedRoom);
+  const prevDateRef      = useRef(selectedDate);
+  const prevTherapistRef = useRef(selectedTherapist);
+  useEffect(() => {
+    if (
+      prevRoomRef.current      !== selectedRoom      ||
+      prevDateRef.current      !== selectedDate      ||
+      prevTherapistRef.current !== selectedTherapist
+    ) {
+      formik.setFieldValue("startTime", "");
+      formik.setFieldValue("endTime",   "");
+      prevRoomRef.current      = selectedRoom;
+      prevDateRef.current      = selectedDate;
+      prevTherapistRef.current = selectedTherapist;
+    }
+  }, [selectedRoom, selectedDate, selectedTherapist]);
+
   return (
     <form onSubmit={formik.handleSubmit} noValidate className="space-y-4">
 
+      <FormField label="Therapist" error={formik.touched.therapist && formik.errors.therapist}>
+        {/* DoctorsResponseDTO: doctorId, name */}
+        <SelectField
+          formik={formik}
+          field="therapist"
+          placeholder="Select Therapist"
+          options={therapists}
+          keyProp="doctorId"
+          valueProp="doctorId"
+          labelProp="name"
+        />
+      </FormField>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <FormField label="Therapist" error={formik.touched.therapist && formik.errors.therapist}>
+        <FormField label="Room" error={formik.touched.room && formik.errors.room}>
+          {/* RoomResponseDTO: roomId, roomName */}
           <SelectField
             formik={formik}
-            field="therapist"
-            placeholder="Select Therapist"
-            options={therapists}
-            keyProp="doctorId"
-            valueProp="doctorId"
-            labelProp="name"
+            field="room"
+            placeholder="Select Room"
+            options={rooms}
+            keyProp="roomId"
+            valueProp="roomId"
+            labelProp="roomName"
           />
         </FormField>
 
         <FormField label="Date" error={formik.touched.date && formik.errors.date}>
           <input
             type="date"
+            min={new Date().toISOString().slice(0, 10)}
             className={ic("date")}
             {...formik.getFieldProps("date")}
           />
@@ -376,21 +559,22 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose, therapists
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Start Time" error={formik.touched.startTime && formik.errors.startTime}>
-          <input
-            type="time"
-            className={ic("startTime")}
-            {...formik.getFieldProps("startTime")}
-          />
+          <TimeDropdown formik={formik} field="startTime" startBlocked={startBlocked} endBlocked={endBlocked} selectedDate={selectedDate} />
         </FormField>
 
         <FormField label="End Time" error={formik.touched.endTime && formik.errors.endTime}>
-          <input
-            type="time"
-            className={ic("endTime")}
-            {...formik.getFieldProps("endTime")}
-          />
+          <TimeDropdown formik={formik} field="endTime" startBlocked={startBlocked} endBlocked={endBlocked} selectedDate={selectedDate} />
         </FormField>
       </div>
+
+      <FormField label="Procedure Name" error={formik.touched.procedureName && formik.errors.procedureName}>
+        <input
+          type="text"
+          placeholder="e.g. Physical Therapy"
+          className={ic("procedureName")}
+          {...formik.getFieldProps("procedureName")}
+        />
+      </FormField>
 
       <FormField label="Patient Name" error={formik.touched.patientName && formik.errors.patientName}>
         <PatientSearchableInput
@@ -418,30 +602,19 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose, therapists
         </FormField>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <FormField label="Sex" error={formik.touched.sex && formik.errors.sex}>
-          <div className="relative">
-            <select
-              className={`${ic("sex")} appearance-none cursor-pointer`}
-              {...formik.getFieldProps("sex")}
-            >
-              <option value="" disabled>Select</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
-            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          </div>
-        </FormField>
-
-        <FormField label="Occupation" error={formik.touched.occupation && formik.errors.occupation}>
-          <input
-            type="text"
-            placeholder="Occupation"
-            className={ic("occupation")}
-            {...formik.getFieldProps("occupation")}
-          />
-        </FormField>
-      </div>
+      <FormField label="Sex" error={formik.touched.sex && formik.errors.sex}>
+        <div className="relative">
+          <select
+            className={`${ic("sex")} appearance-none cursor-pointer`}
+            {...formik.getFieldProps("sex")}
+          >
+            <option value="" disabled>Select</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </select>
+          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        </div>
+      </FormField>
 
       <FormField label="Address" error={formik.touched.address && formik.errors.address}>
         <input
@@ -454,6 +627,7 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose, therapists
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Hospitalization Plan" error={formik.touched.hospPlan && formik.errors.hospPlan}>
+          {/* HospitalizationPlanResponseDTO: planId, code, companyName */}
           <SelectField
             formik={formik}
             field="hospPlan"
@@ -461,27 +635,29 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose, therapists
             options={hospPlans}
             keyProp="planId"
             valueProp="planId"
-            labelProp="planDescription"
+            labelProp="companyName"
           />
         </FormField>
 
         <FormField label="Hospitalization Case Type" error={formik.touched.hospCaseType && formik.errors.hospCaseType}>
+          {/* HospitalizationTypeResponseDTO: typeId, typeName */}
           <SelectField
             formik={formik}
             field="hospCaseType"
             placeholder="Select Case Type"
             options={hospCaseTypes}
-            keyProp="caseTypeId"
-            valueProp="caseTypeId"
-            labelProp="caseTypeDescription"
+            keyProp="typeId"
+            valueProp="typeId"
+            labelProp="typeName"
           />
         </FormField>
       </div>
 
+
       <FormField label="Remarks" error={formik.touched.remarks && formik.errors.remarks}>
         <textarea
           rows={4}
-          placeholder="Optional notes…"
+          placeholder="Enter remarks…"
           className={`${ic("remarks")} resize-none`}
           {...formik.getFieldProps("remarks")}
         />
@@ -497,110 +673,295 @@ function PatientForm({ initialValues, submitLabel, onSubmit, onClose, therapists
 }
 
 
+const editScheduleSchema = Yup.object({
+  therapist:     Yup.string().required("Therapist is required"),
+  room:          Yup.string().required("Room is required"),
+  date:          Yup.string().required("Date is required")
+    .test("not-past", "Date cannot be in the past", (val) => {
+      if (!val) return true;
+      return val >= new Date().toISOString().slice(0, 10);
+    }),
+  startTime:     Yup.string().required("Start time is required"),
+  endTime:       Yup.string()
+    .required("End time is required")
+    .test("after-start", "End time must be after start time", function (endTime) {
+      const { startTime } = this.parent;
+      if (!startTime || !endTime) return true;
+      return endTime > startTime;
+    }),
+  hospPlan:      Yup.string(),
+  hospCaseType:  Yup.string(),
+  procedureName: Yup.string().required("Procedure name is required"),
+  remarks:       Yup.string().required("Remarks is required"),
+});
+
+function EditScheduleModal({ schedule, therapists, rooms, hospPlans, hospCaseTypes, schedules, onSubmit, onClose }) {
+  const { date: initDate, time: initStartTime } = splitDatetime(schedule.startDateTime);
+  const { time: initEndTime } = splitDatetime(schedule.endDateTime);
+
+  // ScheduleResponseDTO only carries names, not IDs — resolve to IDs via the dropdown lists
+  const initTherapistId = String(therapists.find((t)   => t.name        === schedule.name)?.doctorId              ?? "");
+  const initRoomId      = String(rooms.find((r)        => r.roomName    === schedule.roomName)?.roomId            ?? "");
+  const initHospPlanId  = String(hospPlans.find((p)    => p.companyName === schedule.hospitalizationPlan)?.planId ?? "");
+  const initHospTypeId  = String(hospCaseTypes.find((c) => c.typeName   === schedule.hospitalizationType)?.typeId ?? "");
+
+  const formik = useFormik({
+    initialValues: {
+      therapist:     initTherapistId,
+      room:          initRoomId,
+      date:          initDate,
+      startTime:     initStartTime,
+      endTime:       initEndTime,
+      hospPlan:      initHospPlanId,
+      hospCaseType:  initHospTypeId,
+      procedureName: schedule.procedureName ?? "",
+      remarks:       schedule.remarks ?? "",
+    },
+    validationSchema: editScheduleSchema,
+    onSubmit: async (values, { setSubmitting }) => {
+      try {
+        await onSubmit(values);
+        onClose();
+      } catch (err) {
+        console.error("Edit submit error:", err);
+      } finally {
+        setSubmitting(false);
+      }
+    },
+  });
+
+  const icFn = useInputClass(formik);
+
+  const selectedRoom      = formik.values.room;
+  const selectedDate      = formik.values.date;
+  const selectedTherapist = formik.values.therapist;
+
+  const selectedRoomName   = rooms.find((r) => String(r.roomId)    === String(selectedRoom))?.roomName ?? null;
+  const selectedDoctorName = therapists.find((t) => String(t.doctorId) === String(selectedTherapist))?.name ?? null;
+
+  const bookedRanges = useMemo(() => {
+    if (!selectedDate) return [];
+    if (!selectedRoomName && !selectedDoctorName) return [];
+    return schedules
+      .filter((s) => {
+        if (s.scheduleId === schedule.scheduleId) return false;
+        const status = s.scheduleStatus?.toLowerCase();
+        if (status === "cancelled" || status === "archived") return false;
+        if (!s.startDateTime || !s.endDateTime) return false;
+        const schedDate = s.startDateTime.toString().slice(0, 10);
+        if (schedDate !== selectedDate) return false;
+        const roomMatch   = selectedRoomName   && s.roomName === selectedRoomName;
+        const doctorMatch = selectedDoctorName && s.name     === selectedDoctorName;
+        return roomMatch || doctorMatch;
+      })
+      .map((s) => ({
+        startTime: s.startDateTime.toString().slice(11, 16),
+        endTime:   s.endDateTime.toString().slice(11, 16),
+      }));
+  }, [schedules, selectedRoomName, selectedDoctorName, selectedDate, schedule.scheduleId]);
+
+  const { startBlocked, endBlocked } = useMemo(() => buildBlockedSets(bookedRanges), [bookedRanges]);
+
+  const prevRoomRef      = useRef(selectedRoom);
+  const prevDateRef      = useRef(selectedDate);
+  const prevTherapistRef = useRef(selectedTherapist);
+  useEffect(() => {
+    if (
+      prevRoomRef.current      !== selectedRoom      ||
+      prevDateRef.current      !== selectedDate      ||
+      prevTherapistRef.current !== selectedTherapist
+    ) {
+      formik.setFieldValue("startTime", "");
+      formik.setFieldValue("endTime",   "");
+      prevRoomRef.current      = selectedRoom;
+      prevDateRef.current      = selectedDate;
+      prevTherapistRef.current = selectedTherapist;
+    }
+  }, [selectedRoom, selectedDate, selectedTherapist]);
+
+  return (
+    <Modal title="Edit Patient Schedule" onClose={onClose} maxWidth="max-w-2xl" scrollable>
+      <form onSubmit={formik.handleSubmit} noValidate className="space-y-4">
+
+        {/* Patient Name — read-only */}
+        <FormField label="Patient Name">
+          <input
+            readOnly
+            value={schedule.patientName ?? "—"}
+            className={readonlyInputClass}
+          />
+        </FormField>
+
+        {/* Procedure Name */}
+        <FormField label="Procedure Name" error={formik.touched.procedureName && formik.errors.procedureName}>
+          <input
+            type="text"
+            placeholder="e.g. Physical Therapy"
+            className={icFn("procedureName")}
+            {...formik.getFieldProps("procedureName")}
+          />
+        </FormField>
+
+        {/* Therapist */}
+        <FormField label="Therapist" error={formik.touched.therapist && formik.errors.therapist}>
+          <SelectField
+            formik={formik}
+            field="therapist"
+            placeholder="Select Therapist"
+            options={therapists}
+            keyProp="doctorId"
+            valueProp="doctorId"
+            labelProp="name"
+          />
+        </FormField>
+
+        {/* Room + Date */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <FormField label="Room" error={formik.touched.room && formik.errors.room}>
+            <SelectField
+              formik={formik}
+              field="room"
+              placeholder="Select Room"
+              options={rooms}
+              keyProp="roomId"
+              valueProp="roomId"
+              labelProp="roomName"
+            />
+          </FormField>
+          <FormField label="Date" error={formik.touched.date && formik.errors.date}>
+            <input
+              type="date"
+              min={new Date().toISOString().slice(0, 10)}
+              className={icFn("date")}
+              {...formik.getFieldProps("date")}
+            />
+          </FormField>
+        </div>
+
+        {/* Start + End Time */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <FormField label="Start Time" error={formik.touched.startTime && formik.errors.startTime}>
+            <TimeDropdown formik={formik} field="startTime" startBlocked={startBlocked} endBlocked={endBlocked} selectedDate={selectedDate} />
+          </FormField>
+          <FormField label="End Time" error={formik.touched.endTime && formik.errors.endTime}>
+            <TimeDropdown formik={formik} field="endTime" startBlocked={startBlocked} endBlocked={endBlocked} selectedDate={selectedDate} />
+          </FormField>
+        </div>
+
+        {/* Hosp Plan + Hosp Case Type */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <FormField label="Hospitalization Plan" error={formik.touched.hospPlan && formik.errors.hospPlan}>
+            <SelectField
+              formik={formik}
+              field="hospPlan"
+              placeholder="Select Plan"
+              options={hospPlans}
+              keyProp="planId"
+              valueProp="planId"
+              labelProp="companyName"
+            />
+          </FormField>
+          <FormField label="Hospitalization Case Type" error={formik.touched.hospCaseType && formik.errors.hospCaseType}>
+            <SelectField
+              formik={formik}
+              field="hospCaseType"
+              placeholder="Select Case Type"
+              options={hospCaseTypes}
+              keyProp="typeId"
+              valueProp="typeId"
+              labelProp="typeName"
+            />
+          </FormField>
+        </div>
+
+        {/* Remarks */}
+        <FormField label="Remarks" error={formik.touched.remarks && formik.errors.remarks}>
+          <textarea
+            rows={4}
+            placeholder="Enter remarks…"
+            className={`${icFn("remarks")} resize-none`}
+            {...formik.getFieldProps("remarks")}
+          />
+        </FormField>
+
+        <ModalFooter
+          onClear={() => formik.resetForm()}
+          submitLabel="Save Changes"
+          submitting={formik.isSubmitting}
+        />
+      </form>
+    </Modal>
+  );
+}
+
+
 function ViewPatientModal({ patient, onClose }) {
   const ro = readonlyInputClass;
 
-  function displayDatetime(datetime) {
-    if (!datetime) return "—";
-    const d = new Date(datetime.replace(" ", "T"));
-    const date = d.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
-    const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-    return `${date}    ${time}`;
-  }
+  const initDate      = patient.startDateTime ? patient.startDateTime.toString().slice(0, 10) : "";
+  const initStartTime = patient.startDateTime ? patient.startDateTime.toString().slice(11, 16) : "";
+  const initEndTime   = patient.endDateTime   ? patient.endDateTime.toString().slice(11, 16)   : "";
 
   return (
     <Modal title="View Patient Schedule" onClose={onClose} maxWidth="max-w-2xl" scrollable>
       <div className="space-y-4">
 
+        {/* Patient Name — mirrors Edit layout, disabled */}
+        <FormField label="Patient Name">
+          <input readOnly value={patient.patientName ?? "—"} className={ro} />
+        </FormField>
+
+        {/* Procedure Name */}
+        <FormField label="Procedure Name">
+          <input readOnly value={patient.procedureName ?? "—"} className={ro} />
+        </FormField>
+
+        {/* Therapist */}
+        <FormField label="Therapist">
+          <input readOnly value={patient.name ?? "—"} className={ro} />
+        </FormField>
+
+        {/* Room + Status */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-semibold text-primary mb-1.5">Therapist</label>
-            <div className="relative">
-              <input readOnly value={patient.therapistName ?? "—"} className={`${ro} pr-10`} />
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-primary mb-1.5">Date</label>
+          <FormField label="Room">
+            <input readOnly value={patient.roomName ?? "—"} className={ro} />
+          </FormField>
+          <FormField label="Status">
             <input
               readOnly
-              value={patient.start_datetime ? new Date(patient.start_datetime.replace(" ", "T")).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }) : "—"}
+              value={patient.scheduleStatus ?? "—"}
               className={ro}
             />
-          </div>
+          </FormField>
         </div>
 
+        {/* Date */}
+        <FormField label="Date">
+          <input readOnly type="date" value={initDate} className={ro} />
+        </FormField>
+
+        {/* Start Time + End Time */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-semibold text-primary mb-1.5">Start Time</label>
-            <input readOnly value={displayDatetime(patient.start_datetime)} className={ro} />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-primary mb-1.5">End Time</label>
-            <input readOnly value={displayDatetime(patient.end_datetime)} className={ro} />
-          </div>
+          <FormField label="Start Time">
+            <input readOnly value={formatTimeAMPM(initStartTime)} className={ro} />
+          </FormField>
+          <FormField label="End Time">
+            <input readOnly value={formatTimeAMPM(initEndTime)} className={ro} />
+          </FormField>
         </div>
 
+        {/* Hosp Plan + Hosp Case Type */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-semibold text-primary mb-1.5">Patient Name</label>
-            <input readOnly value={patient.patientName ?? "—"} className={ro} />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-primary mb-1.5">Status</label>
-            <input readOnly value={patient.status ? patient.status.charAt(0).toUpperCase() + patient.status.slice(1) : "—"} className={ro} />
-          </div>
+          <FormField label="Hospitalization Plan">
+            <input readOnly value={patient.hospitalizationPlan ?? "—"} className={ro} />
+          </FormField>
+          <FormField label="Hospitalization Case Type">
+            <input readOnly value={patient.hospitalizationType ?? "—"} className={ro} />
+          </FormField>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-semibold text-primary mb-1.5">Date of Birth</label>
-            <input readOnly value={patient.dob ?? "—"} className={ro} />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-primary mb-1.5">Contact No.</label>
-            <input readOnly value={patient.contactNo ?? "—"} className={ro} />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-semibold text-primary mb-1.5">Sex</label>
-            <div className="relative">
-              <input readOnly value={patient.sex ?? "—"} className={`${ro} pr-10`} />
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-primary mb-1.5">Occupation</label>
-            <input readOnly value={patient.occupation ?? "—"} className={ro} />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-primary mb-1.5">Address</label>
-          <input readOnly value={patient.address ?? "—"} className={ro} />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-semibold text-primary mb-1.5">Hospitalization Plan</label>
-            <div className="relative">
-              <input readOnly value={patient.hospPlanName ?? "—"} className={`${ro} pr-10`} />
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-primary mb-1.5">Hospitalization Case Type</label>
-            <div className="relative">
-              <input readOnly value={patient.hospCaseTypeName ?? "—"} className={`${ro} pr-10`} />
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-primary mb-1.5">Remarks</label>
+        {/* Remarks */}
+        <FormField label="Remarks">
           <textarea
             readOnly
             rows={4}
@@ -608,7 +969,7 @@ function ViewPatientModal({ patient, onClose }) {
             placeholder="No remarks"
             className={`${ro} resize-none`}
           />
-        </div>
+        </FormField>
 
         <button
           onClick={onClose}
@@ -628,55 +989,157 @@ export default function RehabScheduleManagement() {
   const [searchQuery,   setSearchQuery]   = useState("");
   const [showAdd,       setShowAdd]       = useState(false);
   const [viewPatient,   setViewPatient]   = useState(null);
-  const [editPatient,   setEditPatient]   = useState(null);
+  const [editSchedule,  setEditSchedule]  = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
   const [schedules,     setSchedules]     = useState([]);
   const [loading,       setLoading]       = useState(false);
 
+  const [page,       setPage]       = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   const [therapists,    setTherapists]    = useState([]);
+  const [rooms,         setRooms]         = useState([]);
   const [hospPlans,     setHospPlans]     = useState([]);
   const [hospCaseTypes, setHospCaseTypes] = useState([]);
 
+  // Reset to page 0 whenever tab or search changes
+  useEffect(() => {
+    setPage(0);
+  }, [activeTab, searchQuery]);
+
+  // Re-fetch whenever tab, search, or page changes
   useEffect(() => {
     fetchSchedules();
+  }, [activeTab, searchQuery, page]);
+
+  useEffect(() => {
     fetchDropdownData();
   }, []);
 
-  useEffect(() => {
-    setSearchQuery("");
-  }, [activeTab]);
-
+  // ─── Fetch schedules (server-side filtered + paginated) ───────────────────
+  // GET /api/getRehabSched
+  //   scheduleStatus = Scheduled | Confirmed | Cancelled | Done | Archived (omit for All)
+  //   name           = patient name search (omit if empty)
+  //   page / size    = Spring Pageable params
   async function fetchSchedules() {
     setLoading(true);
     try {
+      const headers     = getAuthHeader();
+      const patientName = searchQuery.trim() || undefined;
 
+      if (activeTab === "All") {
+        // Fetch every page for each status using the backend's own pagination,
+        // then merge and paginate client-side. No hardcoded size cap.
+        async function fetchAllPages(status) {
+          const records = [];
+          let pageNum   = 0;
+          while (true) {
+            const res = await axios.get("/api/getRehabSched", {
+              headers,
+              params: {
+                scheduleStatus: status,
+                page: pageNum,
+                size: 50,
+                ...(patientName && { patientName }),
+              },
+            });
+            records.push(...(res.data?.content ?? []));
+            if (res.data?.last !== false) break;
+            pageNum++;
+          }
+          return records;
+        }
+
+        const ALL_STATUSES = ["Scheduled", "Confirmed", "Cancelled", "Done"];
+        const results = await Promise.all(ALL_STATUSES.map(fetchAllPages));
+
+        // Merge and sort by status priority then date
+        const merged = results.flat();
+        const STATUS_PRIORITY = { Scheduled: 0, Confirmed: 1, Cancelled: 2, Done: 3 };
+        merged.sort((a, b) => {
+          const pa = STATUS_PRIORITY[a.scheduleStatus] ?? 99;
+          const pb = STATUS_PRIORITY[b.scheduleStatus] ?? 99;
+          if (pa !== pb) return pa - pb;
+          const da = a.startDateTime ? new Date(String(a.startDateTime).replace(" ", "T")) : 0;
+          const db = b.startDateTime ? new Date(String(b.startDateTime).replace(" ", "T")) : 0;
+          return da - db;
+        });
+
+        const PAGE_SIZE = 10;
+        const totalPgs  = Math.max(1, Math.ceil(merged.length / PAGE_SIZE));
+        const safePage  = Math.min(page, totalPgs - 1);
+        setSchedules(merged.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE));
+        setTotalPages(totalPgs);
+      } else {
+        // Specific status tab — let the server filter directly
+        const res = await axios.get("/api/getRehabSched", {
+          headers,
+          params: {
+            scheduleStatus: activeTab,
+            page,
+            size: 10,
+            ...(patientName && { patientName }),
+          },
+        });
+        setSchedules(res.data?.content   ?? []);
+        setTotalPages(res.data?.totalPages ?? 1);
+      }
     } catch (err) {
       console.error("Failed to fetch schedules:", err);
+      setSchedules([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
   }
 
+  // ─── Fetch dropdown data ───────────────────────────────────────────────────
   async function fetchDropdownData() {
     try {
+      const headers = getAuthHeader();
 
+      const [therapistRes, roomRes, planRes, typeRes] = await Promise.all([
+        // GET /api/therapistDropdown → List<DoctorsResponseDTO> (doctorId, name)
+        axios.get("/api/therapistDropdown", { headers }),
+        // GET /api/roomDropdown → List<RoomResponseDTO> (roomId, roomName)
+        axios.get("/api/roomDropdown", { headers }),
+        // GET /api/plansDropdown → List<HospitalizationPlanResponseDTO> (planId, companyName, code)
+        axios.get("/api/plansDropdown", { headers }),
+        // GET /api/typesDropdown → List<HospitalizationTypeResponseDTO> (typeId, typeName)
+        axios.get("/api/typesDropdown", { headers }),
+      ]);
+
+      // Dropdown endpoints return plain Lists, not paginated
+      setTherapists(   Array.isArray(therapistRes.data) ? therapistRes.data : therapistRes.data?.content ?? []);
+      setRooms(        Array.isArray(roomRes.data)       ? roomRes.data       : roomRes.data?.content       ?? []);
+      setHospPlans(    Array.isArray(planRes.data)       ? planRes.data       : planRes.data?.content       ?? []);
+      setHospCaseTypes(Array.isArray(typeRes.data)       ? typeRes.data       : typeRes.data?.content       ?? []);
     } catch (err) {
       console.error("Failed to fetch dropdown data:", err);
     }
   }
 
-  const filtered = schedules.filter((s) => {
-    const q = searchQuery.toLowerCase();
-    const matchesSearch =
-      s.patientName?.toLowerCase().includes(q) ||
-      s.therapistName?.toLowerCase().includes(q);
+  // No client-side filtering needed — server handles status + search + pagination
 
-    if (activeTab === "All") return s.status?.toLowerCase() !== "archived" && matchesSearch;
-    return s.status?.toLowerCase() === activeTab.toLowerCase() && matchesSearch;
-  });
-
+  // ─── Status update ─────────────────────────────────────────────────────────
+  // Backend endpoints from ScheduleController:
+  //   PUT /api/confirmSchedule/{id}
+  //   PUT /api/cancelSchedule/{id}
+  //   PUT /api/archiveSchedule/{id}
+  //   PUT /api/restoreSchedule/{id}  ← restores to Scheduled
+  //   PUT /api/doneSchedule/{id}
   async function updateStatus(id, status) {
+    const endpointMap = {
+      Confirmed: `/api/confirmSchedule/${id}`,
+      Cancelled: `/api/cancelSchedule/${id}`,
+      Archived:  `/api/archiveSchedule/${id}`,
+      Scheduled: `/api/restoreSchedule/${id}`,
+      Done:      `/api/doneSchedule/${id}`,
+    };
+    const url = endpointMap[status];
+    if (!url) return;
     try {
+      await axios.put(url, {}, { headers: getAuthHeader() });
       await fetchSchedules();
     } catch (err) {
       console.error("Failed to update schedule status:", err);
@@ -699,7 +1162,7 @@ export default function RehabScheduleManagement() {
   function handleAction(action, s) {
     switch (action) {
       case "View":      return setViewPatient(s);
-      case "Edit":      return setEditPatient(s);
+      case "Edit":      return setEditSchedule(s);
       case "Confirm":   return setConfirmAction({ type: "accept",    schedule: s });
       case "Cancel":    return setConfirmAction({ type: "reject",    schedule: s });
       case "Archive":   return setConfirmAction({ type: "archive",   schedule: s });
@@ -708,67 +1171,66 @@ export default function RehabScheduleManagement() {
     }
   }
 
+  // ─── Edit schedule ─────────────────────────────────────────────────────────
+  // Backend: PATCH /api/updateSchedule/{id} → SchedulePatchRequest
+  async function handleEdit(scheduleId, values) {
+    const payload = {
+      startDateTime:       buildDatetime(values.date, values.startTime),
+      endDateTime:         buildDatetime(values.date, values.endTime),
+      procedureName:       values.procedureName,
+      remarks:             values.remarks || null,
+      doctor:              { doctorId: Number(values.therapist) },
+      room:                values.room         ? { roomId:  Number(values.room)         } : null,
+      hospitalizationPlan: values.hospPlan     ? { planId:  Number(values.hospPlan)     } : null,
+      hospitalizationType: values.hospCaseType ? { typeId:  Number(values.hospCaseType) } : null,
+    };
+    await axios.patch(`/api/updateSchedule/${scheduleId}`, payload, { headers: getAuthHeader() });
+    await fetchSchedules();
+  }
+
+  // ─── Create schedule ───────────────────────────────────────────────────────
+  // Backend: POST /api/createScheduleAndPatient → CreatePatientWithScheduleResponseDTO
+  //
+  // The service checks `request.getExistingPatientId()` first:
+  //   • Not null  → looks up existing patient by that ID
+  //   • Null      → creates a new patient from `request.getPatient()` (a Patients object)
+  //
+  // `request.getSchedules()` holds the schedule with nested doctor/room/etc.
   async function handleCreate(values) {
+    const isExisting = !!values.patientId;
+
     const payload = {
-      patientName:   values.patientName,
-      dob:           values.dob,
-      sex:           values.sex,
-      contactNo:     values.contactNo,
-      address:       values.address,
-      occupation:    values.occupation,
-      remarks:       values.remarks,
-      start_datetime: buildDatetime(values.date, values.startTime),
-      end_datetime:   buildDatetime(values.date, values.endTime),
-      doctor:                  { doctorId: Number(values.therapist) },
-      hospitalizationPlan:     values.hospPlan     ? { planId:     Number(values.hospPlan)     } : null,
-      hospitalizationCaseType: values.hospCaseType ? { caseTypeId: Number(values.hospCaseType) } : null,
-      ...(values.patientId ? { patient: { patientId: Number(values.patientId) } } : {}),
+      // — Existing patient path —
+      // Service reads: request.getExistingPatientId()
+      existingPatientId: isExisting ? Number(values.patientId) : null,
+
+      // — New patient path —
+      // Service reads: request.getPatient().getContactNumber() / .getName() / etc.
+      // Only sent when there is no existing patient; service ignores it otherwise.
+      patient: isExisting ? null : {
+        name:          values.patientName,
+        birthDate:     values.dob,
+        sex:           values.sex,
+        contactNumber: values.contactNo,
+        address:       values.address,
+      },
+
+      // — Schedule fields —
+      // Service reads: request.getSchedules()
+      schedules: {
+        startDateTime:       buildDatetime(values.date, values.startTime),
+        endDateTime:         buildDatetime(values.date, values.endTime),
+        procedureName:       values.procedureName,
+        remarks:             values.remarks  || null,
+        doctor:              { doctorId: Number(values.therapist) },
+        room:                values.room        ? { roomId:  Number(values.room)        } : null,
+        hospitalizationPlan: values.hospPlan    ? { planId:  Number(values.hospPlan)    } : null,
+        hospitalizationType: values.hospCaseType? { typeId:  Number(values.hospCaseType)} : null,
+      },
     };
 
-    console.log("Create payload:", payload);
+    await axios.post("/api/createScheduleAndPatient", payload, { headers: getAuthHeader() });
     await fetchSchedules();
-  }
-
-  async function handleEdit(values) {
-    const payload = {
-      patientName:   values.patientName,
-      dob:           values.dob,
-      sex:           values.sex,
-      contactNo:     values.contactNo,
-      address:       values.address,
-      occupation:    values.occupation,
-      remarks:       values.remarks,
-      start_datetime: buildDatetime(values.date, values.startTime),
-      end_datetime:   buildDatetime(values.date, values.endTime),
-      doctor:                  { doctorId: Number(values.therapist) },
-      hospitalizationPlan:     values.hospPlan     ? { planId:     Number(values.hospPlan)     } : null,
-      hospitalizationCaseType: values.hospCaseType ? { caseTypeId: Number(values.hospCaseType) } : null,
-      ...(values.patientId ? { patient: { patientId: Number(values.patientId) } } : {}),
-    };
-
-    console.log("Edit payload:", payload);
-    await fetchSchedules();
-  }
-
-  function toEditInitial(s) {
-    const { date, time: startTime } = splitDatetime(s.start_datetime);
-    const { time: endTime }         = splitDatetime(s.end_datetime);
-    return {
-      therapist:    String(s.doctorId    ?? ""),
-      date,
-      startTime,
-      endTime,
-      patientName:  s.patientName  ?? "",
-      patientId:    s.patientId    ?? "",
-      dob:          s.dob          ?? "",
-      contactNo:    s.contactNo    ?? "",
-      sex:          s.sex          ?? "",
-      occupation:   s.occupation   ?? "",
-      address:      s.address      ?? "",
-      hospPlan:     String(s.hospPlanId     ?? ""),
-      hospCaseType: String(s.hospCaseTypeId ?? ""),
-      remarks:      s.remarks      ?? "",
-    };
   }
 
   const meta = confirmAction && confirmMeta[confirmAction.type];
@@ -794,28 +1256,36 @@ export default function RehabScheduleManagement() {
 
       <DataTable
         columns={COLUMNS}
-        rows={filtered}
+        rows={schedules}
         loading={loading}
         emptyIcon={Calendar}
         emptyText="No schedules found"
+        page={page + 1}
+        totalPages={totalPages}
+        onPrev={() => setPage((p) => Math.max(0, p - 1))}
+        onNext={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
         renderRow={(s) => (
           <tr key={s.scheduleId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+            {/* ScheduleResponseDTO: patientName */}
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.patientName}</td>
+            {/* ScheduleResponseDTO: startDateTime (camelCase, not snake_case) */}
             <td className="px-6 py-4 text-center text-sm text-gray-600">
-              {formatDate(s.start_datetime)}
+              {formatDate(s.startDateTime)}
             </td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">
-              {s.start_datetime && s.end_datetime
-                ? `${formatTime(s.start_datetime)} - ${formatTime(s.end_datetime)}`
+              {s.startDateTime && s.endDateTime
+                ? `${formatTime(s.startDateTime)} - ${formatTime(s.endDateTime)}`
                 : "—"}
             </td>
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.therapistName ?? "—"}</td>
-            <td className={`px-6 py-4 text-center text-sm font-semibold ${scheduleStatusColor(s.status)}`}>
-              {s.status ? s.status.charAt(0).toUpperCase() + s.status.slice(1) : "—"}
+            {/* ScheduleResponseDTO: name = doctor/therapist name */}
+            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.name ?? "—"}</td>
+            {/* scheduleStatus — backend should return this field; adjust if named differently */}
+            <td className={`px-6 py-4 text-center text-sm font-semibold ${scheduleStatusColor(s.scheduleStatus)}`}>
+              {s.scheduleStatus ? s.scheduleStatus.charAt(0).toUpperCase() + s.scheduleStatus.slice(1) : "—"}
             </td>
             <td className="px-6 py-4 text-center">
               <ActionDropdown
-                items={getActions(s.status)}
+                items={getActions(s.scheduleStatus)}
                 onAction={(action) => handleAction(action, s)}
               />
             </td>
@@ -829,12 +1299,27 @@ export default function RehabScheduleManagement() {
             initialValues={BLANK_PATIENT}
             submitLabel="Submit"
             therapists={therapists}
+            rooms={rooms}
             hospPlans={hospPlans}
             hospCaseTypes={hospCaseTypes}
+            schedules={schedules}
             onSubmit={handleCreate}
             onClose={() => setShowAdd(false)}
           />
         </Modal>
+      )}
+
+      {editSchedule && (
+        <EditScheduleModal
+          schedule={editSchedule}
+          therapists={therapists}
+          rooms={rooms}
+          hospPlans={hospPlans}
+          hospCaseTypes={hospCaseTypes}
+          schedules={schedules}
+          onSubmit={(values) => handleEdit(editSchedule.scheduleId, values)}
+          onClose={() => setEditSchedule(null)}
+        />
       )}
 
       {viewPatient && (
@@ -842,20 +1327,6 @@ export default function RehabScheduleManagement() {
           patient={viewPatient}
           onClose={() => setViewPatient(null)}
         />
-      )}
-
-      {editPatient && (
-        <Modal title="Edit Patient Schedule" onClose={() => setEditPatient(null)} maxWidth="max-w-2xl" scrollable>
-          <PatientForm
-            initialValues={toEditInitial(editPatient)}
-            submitLabel="Edit"
-            therapists={therapists}
-            hospPlans={hospPlans}
-            hospCaseTypes={hospCaseTypes}
-            onSubmit={handleEdit}
-            onClose={() => setEditPatient(null)}
-          />
-        </Modal>
       )}
 
       {confirmAction && meta && (

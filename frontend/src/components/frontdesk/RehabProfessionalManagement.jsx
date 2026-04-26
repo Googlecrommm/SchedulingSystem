@@ -113,7 +113,7 @@ export default function RehabProfessionalManagement() {
         page: page - 1, 
         ...(activeTabStatus && { availabilityStatus: activeTabStatus }),
       };
-      const res = await axios.get("/api/getDoctors", {
+      const res = await axios.get("/api/getTherapist", {
         headers: getAuthHeader(),
         params,
       });
