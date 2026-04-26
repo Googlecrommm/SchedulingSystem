@@ -21,10 +21,12 @@ import java.util.List;
 public class PatientService {
     private final PatientsRepository patientsRepository;
     private final ModelMapper modelMapper;
+    private final LogsService logsService;
 
-    public PatientService(PatientsRepository patientsRepository, ModelMapper modelMapper){
+    public PatientService(PatientsRepository patientsRepository, ModelMapper modelMapper, LogsService logsService){
         this.patientsRepository = patientsRepository;
         this.modelMapper = modelMapper;
+        this.logsService = logsService;
     }
 
     //READ & FILTER
@@ -91,6 +93,11 @@ public class PatientService {
 
         patientToUpdate.setStatus(patientToUpdate.getStatus());
 
+        //LOG CREATE
+        logsService.log(
+                "Patient Information Updated",
+                "updated the information of " + patientToUpdate.getName()
+        );
         patientsRepository.save(patientToUpdate);
 
     }
@@ -104,6 +111,11 @@ public class PatientService {
         }
 
         patientToArchive.setStatus(PatientStatus.Archived);
+        //LOG CREATE
+        logsService.log(
+                "Patient Archived",
+                "archived patient " + patientToArchive.getName()
+        );
         patientsRepository.save(patientToArchive);
     }
 
@@ -116,6 +128,11 @@ public class PatientService {
         }
 
         patientToArchive.setStatus(PatientStatus.Active);
+        //LOG CREATE
+        logsService.log(
+                "Patient Restored",
+                "restored patient " + patientToArchive.getName()
+        );
         patientsRepository.save(patientToArchive);
     }
 }

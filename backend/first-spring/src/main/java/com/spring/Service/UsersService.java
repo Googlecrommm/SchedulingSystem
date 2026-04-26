@@ -24,11 +24,13 @@ public class UsersService {
     private final UsersRepository usersRepository;
     private final ModelMapper modelMapper;
     private final PasswordEncoder passwordEncoder;
+    private final LogsService logsService;
 
-    public UsersService(UsersRepository usersRepository, ModelMapper modelMapper, PasswordEncoder passwordEncoder){
+    public UsersService(UsersRepository usersRepository, ModelMapper modelMapper, PasswordEncoder passwordEncoder, LogsService logsService){
         this.usersRepository = usersRepository;
         this.modelMapper = modelMapper;
         this.passwordEncoder = passwordEncoder;
+        this.logsService = logsService;
     }
 
     //READ
@@ -97,6 +99,11 @@ public class UsersService {
             userToUpdate.setAccountStatus(user.getAccountStatus());
         }
 
+        //LOG CREATE
+        logsService.log(
+                "User Information Updated",
+                "updated the information of " + userToUpdate.getName()
+        );
         usersRepository.save(userToUpdate);
     }
 
@@ -113,6 +120,12 @@ public class UsersService {
         }
 
         userToDisable.setAccountStatus(AccountStatus.Disabled);
+
+        //LOG CREATE
+        logsService.log(
+                "User Account Disabled",
+                "disabled the account of " + userToDisable.getName()
+        );
         usersRepository.save(userToDisable);
     }
 
@@ -125,6 +138,11 @@ public class UsersService {
         }
 
         userToActivate.setAccountStatus(AccountStatus.Active);
+        //LOG CREATE
+        logsService.log(
+                "User Account Activated",
+                "activated the account of " + userToActivate.getName()
+        );
         usersRepository.save(userToActivate);
     }
 
