@@ -185,11 +185,11 @@ public class ScheduleService {
 
     //READ & FILTER (ADMIN)
     public Page<ScheduleResponseDTO> getSchedules(ScheduleStatus scheduleStatus, String name, String patientName, String departmentName, Pageable pageable){
-        ScheduleStatus effectiveStatus = scheduleStatus != null ? scheduleStatus : ScheduleStatus.Scheduled;
+        
 
 
         Specification<Schedules> filters = Specification
-                .where(ScheduleSpecification.hasStatus(effectiveStatus))
+                .where(ScheduleSpecification.hasStatus(scheduleStatus))
                 .and(ScheduleSpecification.toDoctor(name))
                 .and(ScheduleSpecification.searchPatient(patientName))
                 .and(ScheduleSpecification.hasDepartment(departmentName));
@@ -206,10 +206,10 @@ public class ScheduleService {
 
     //READ & FILTER (RADIOLOGY)
     public Page<ScheduleResponseDTO> getRadiologySched(ScheduleStatus scheduleStatus, String name, String patientName, Pageable pageable){
-        ScheduleStatus effectiveStatus = scheduleStatus != null ? scheduleStatus : ScheduleStatus.Scheduled;
+       
 
         Specification<Schedules> filters = Specification
-                .where(ScheduleSpecification.hasStatus(effectiveStatus))
+                .where(ScheduleSpecification.hasStatus(scheduleStatus))
                 .and(ScheduleSpecification.toDoctor(name))
                 .and(ScheduleSpecification.searchPatient(patientName))
                 .and(ScheduleSpecification.hasDepartment("Radiology"));
@@ -225,10 +225,10 @@ public class ScheduleService {
 
     //READ & FILTER (Rehabilitation)
     public Page<ScheduleResponseDTO> getRehabSched(ScheduleStatus scheduleStatus, String name, String patientName,  Pageable pageable){
-        ScheduleStatus effectiveStatus = scheduleStatus != null ? scheduleStatus : ScheduleStatus.Scheduled;
+       
 
         Specification<Schedules> filters = Specification
-                .where(ScheduleSpecification.hasStatus(effectiveStatus))
+                .where(ScheduleSpecification.hasStatus(scheduleStatus))
                 .and(ScheduleSpecification.toDoctor(name))
                 .and(ScheduleSpecification.searchPatient(patientName))
                 .and(ScheduleSpecification.hasDepartment("Rehabilitation"));
@@ -641,7 +641,7 @@ public class ScheduleService {
 
             // Title
             Font titleFont = new Font(Font.FontFamily.HELVETICA, 14, Font.BOLD);
-            Paragraph title = new Paragraph(department + " Schedules - " + filter.toUpperCase(), titleFont);
+            Paragraph title = new Paragraph((department == null ? "All Departments" : department) + " Schedules - " + filter.toUpperCase(), titleFont);
             title.setAlignment(Element.ALIGN_CENTER);
             document.add(title);
             document.add(new Paragraph(" "));

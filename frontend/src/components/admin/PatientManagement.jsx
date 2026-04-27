@@ -52,7 +52,7 @@ function mapPatient(p) {
 function formatBirthdate(iso) {
   if (!iso) return "—";
   const date = new Date(iso.includes("T") ? iso : iso + "T00:00:00");
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString("en-CA", {
     month: "2-digit",
     day:   "2-digit",
     year:  "numeric",

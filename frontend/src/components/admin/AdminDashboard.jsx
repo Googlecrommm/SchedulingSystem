@@ -2,7 +2,7 @@ import axios from "../../config/axiosInstance";
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
-  UserCheck, UserX, Clock, ChevronDown,
+  UserCheck, UserX, Clock, ChevronDown, FileDown,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -104,6 +104,7 @@ export default function AdminDashboard() {
   const [chartDate,       setChartDate]       = useState("");
   const [recentSchedules, setRecentSchedules] = useState([]);
   const [loading,         setLoading]         = useState(true);
+  const [pdfLoading,      setPdfLoading]      = useState(false);
 
   useEffect(() => { fetchDepartments(); }, []);
 
@@ -221,16 +222,16 @@ export default function AdminDashboard() {
           const h12    = h === 0 ? 12 : h > 12 ? h - 12 : h;
           series.push({ label: `${h12}${period}`, ...countByWindow(hourSched) });
         }
-        rangeLabel = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+        rangeLabel = now.toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
       } else if (activeTimeFrame === "Weekly") {
         const monday = new Date(now); monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
         for (let i = 0; i < 7; i++) {
           const d   = new Date(monday); d.setDate(monday.getDate() + i);
-          series.push({ label: d.toLocaleDateString("en-US", { weekday: "short" }), ...countByDate(windowSched, toDateStr(d)) });
+          series.push({ label: d.toLocaleDateString("en-CA", { weekday: "short" }), ...countByDate(windowSched, toDateStr(d)) });
         }
         const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
-        const fmt    = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        const fmt    = (d) => d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
         rangeLabel   = `${fmt(monday)} – ${fmt(sunday)}`;
 
       } else if (activeTimeFrame === "Monthly") {
@@ -244,7 +245,7 @@ export default function AdminDashboard() {
           series.push({ label: `Week ${weekNum}`, ...countByWindow(windowSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d >= wStart && d <= wEnd; })) });
           cursor.setDate(cursor.getDate() + 7); weekNum++;
         }
-        rangeLabel = now.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+        rangeLabel = now.toLocaleDateString("en-CA", { month: "long", year: "numeric" });
 
       } else if (activeTimeFrame === "Yearly") {
         const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -304,13 +305,13 @@ export default function AdminDashboard() {
   function formatDate(raw) {
     const d = parseDT(raw);
     if (!d) return "—";
-    return d.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
+    return d.toLocaleDateString("en-CA", { month: "2-digit", day: "2-digit", year: "numeric" });
   }
 
   function formatTimeRange(startRaw, endRaw) {
     const s = parseDT(startRaw), e = parseDT(endRaw);
     if (!s) return "—";
-    const fmt = (dt) => dt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+    const fmt = (dt) => dt.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true });
     return `${fmt(s)}${e ? ` - ${fmt(e)}` : ""}`;
   }
 
@@ -324,6 +325,34 @@ export default function AdminDashboard() {
     const str = String(raw).replace(" ", "T").split(".")[0];
     const dt  = new Date(str);
     return isNaN(dt.getTime()) ? null : dt;
+  }
+
+  async function handleDownloadPdf() {
+    setPdfLoading(true);
+    try {
+      const headers  = getAuthHeader();
+      const filter   = activeTimeFrame.toLowerCase();
+      const deptName = deptFilter === "all"
+        ? undefined
+        : departments.find((d) => String(d.departmentId) === String(deptFilter))?.departmentName;
+
+      const response = await axios.get("/api/export/pdf", {
+        headers,
+        params: { filter, ...(deptName && { department: deptName }) },
+        responseType: "blob",
+      });
+
+      const url      = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
+      const link     = document.createElement("a");
+      link.href      = url;
+      link.download  = `schedules-${filter}${deptName ? `-${deptName}` : ""}.pdf`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("PDF export failed:", err);
+    } finally {
+      setPdfLoading(false);
+    }
   }
 
   const statsCards = [
@@ -368,9 +397,19 @@ export default function AdminDashboard() {
 
           {/* Chart */}
           <div className="bg-white rounded-2xl shadow-card p-6 mb-6">
-            <h2 className="text-lg font-bold text-primary mb-4 font-montserrat">
-              Status Chart
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-primary font-montserrat">
+                Status Chart
+              </h2>
+              <button
+                onClick={handleDownloadPdf}
+                disabled={pdfLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-white bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <FileDown size={15} />
+                {pdfLoading ? "Exporting…" : "Download PDF"}
+              </button>
+            </div>
 
             <div className="flex items-center gap-1 border-b border-gray-200 mb-6 overflow-x-auto overflow-y-hidden">
               {TIME_FRAMES.map((label) => (

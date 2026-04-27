@@ -132,11 +132,11 @@ function ViewScheduleModal({ schedule, onClose }) {
   const endDT   = schedule.endDateTime   ? new Date(schedule.endDateTime.replace(" ", "T"))   : null;
 
   const dateValue = startDT
-    ? startDT.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })
+    ? startDT.toLocaleDateString("en-CA", { month: "2-digit", day: "2-digit", year: "numeric" })
     : "—";
 
   const timeValue = startDT && endDT
-    ? `${startDT.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} – ${endDT.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}`
+    ? `${startDT.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true })} – ${endDT.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true })}`
     : "—";
 
   const dept    = schedule.departmentName?.toLowerCase() ?? "";
@@ -371,14 +371,14 @@ export default function AdminScheduleManagement() {
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.patientName}</td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">
               {s.startDateTime
-                ? new Date(s.startDateTime.replace(" ", "T")).toLocaleDateString("en-US", {
+                ? new Date(s.startDateTime.replace(" ", "T")).toLocaleDateString("en-CA", {
                     month: "2-digit", day: "2-digit", year: "numeric",
                   })
                 : "—"}
             </td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">
               {s.startDateTime && s.endDateTime
-                ? `${new Date(s.startDateTime.replace(" ", "T")).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} - ${new Date(s.endDateTime.replace(" ", "T")).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}`
+                ? `${new Date(s.startDateTime.replace(" ", "T")).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true })} - ${new Date(s.endDateTime.replace(" ", "T")).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true })}`
                 : "—"}
             </td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.departmentName ?? "—"}</td>

@@ -84,14 +84,14 @@ function splitDatetime(datetime) {
 
 function formatDate(iso) {
   if (!iso) return "—";
-  return new Date(iso.replace(" ", "T")).toLocaleDateString("en-US", {
+  return new Date(iso.replace(" ", "T")).toLocaleDateString("en-CA", {
     month: "2-digit", day: "2-digit", year: "numeric",
   });
 }
 
 function formatTime(iso) {
   if (!iso) return "—";
-  return new Date(iso.replace(" ", "T")).toLocaleTimeString("en-US", {
+  return new Date(iso.replace(" ", "T")).toLocaleTimeString("en-CA", {
     hour: "numeric", minute: "2-digit", hour12: true,
   });
 }

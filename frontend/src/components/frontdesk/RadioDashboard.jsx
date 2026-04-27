@@ -2,7 +2,7 @@ import axios from "../../config/axiosInstance";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
-  UserCheck, UserX, Clock, AlertCircle, ChevronDown, LayoutDashboard, Calendar, Cpu,Cross,
+  UserCheck, UserX, Clock, AlertCircle, ChevronDown, LayoutDashboard, Calendar, Cpu, Cross, FileDown,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -127,6 +127,7 @@ export default function RadiologyDashboard() {
   const [chartDate,       setChartDate]       = useState("");
   const [loading,         setLoading]         = useState(true);
   const [error,           setError]           = useState(null);
+  const [pdfLoading,      setPdfLoading]      = useState(false);
 
   useEffect(() => { fetchDropdowns(); }, []);
 
@@ -261,7 +262,7 @@ export default function RadiologyDashboard() {
             scheduled: hourSched.filter((s) => isStatus(s, "Scheduled")).length,
           });
         }
-        rangeLabel = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+        rangeLabel = now.toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
       } else if (activeTimeFrame === "Weekly") {
         const dow    = now.getDay();
@@ -269,10 +270,10 @@ export default function RadiologyDashboard() {
         for (let i = 0; i < 7; i++) {
           const d   = new Date(monday); d.setDate(monday.getDate() + i);
           const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-          series.push({ label: d.toLocaleDateString("en-US", { weekday: "short" }), ...countByDate(allSched, iso) });
+          series.push({ label: d.toLocaleDateString("en-CA", { weekday: "short" }), ...countByDate(allSched, iso) });
         }
         const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
-        const fmt    = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        const fmt    = (d) => d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
         rangeLabel   = `${fmt(monday)} – ${fmt(sunday)}`;
 
       } else if (activeTimeFrame === "Monthly") {
@@ -292,7 +293,7 @@ export default function RadiologyDashboard() {
           });
           cursor.setDate(cursor.getDate() + 7); weekNum++;
         }
-        rangeLabel = now.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+        rangeLabel = now.toLocaleDateString("en-CA", { month: "long", year: "numeric" });
 
       } else if (activeTimeFrame === "Yearly") {
         const year   = now.getFullYear();
@@ -362,10 +363,35 @@ export default function RadiologyDashboard() {
   
   function formatDateTime(iso) {
     if (!iso) return "—";
-    return new Date(iso.replace(" ", "T")).toLocaleString("en-US", {
+    return new Date(iso.replace(" ", "T")).toLocaleString("en-CA", {
       month: "2-digit", day: "2-digit", year: "numeric",
       hour: "numeric", minute: "2-digit", hour12: true,
     });
+  }
+
+  async function handleDownloadPdf() {
+    setPdfLoading(true);
+    try {
+      const headers = getAuthHeader();
+      const filter  = activeTimeFrame.toLowerCase();
+
+      const response = await axios.get("/api/export/pdf", {
+        headers,
+        params: { filter, department: "Radiology" },
+        responseType: "blob",
+      });
+
+      const url     = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
+      const link    = document.createElement("a");
+      link.href     = url;
+      link.download = `radiology-schedules-${filter}.pdf`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("PDF export failed:", err);
+    } finally {
+      setPdfLoading(false);
+    }
   }
 
   const statsCards = [
@@ -415,9 +441,19 @@ export default function RadiologyDashboard() {
 
       
           <div className="bg-white rounded-2xl shadow-card p-6 mb-6">
-            <h2 className="text-lg font-bold text-primary mb-4 font-montserrat">
-              Status Chart
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-primary font-montserrat">
+                Status Chart
+              </h2>
+              <button
+                onClick={handleDownloadPdf}
+                disabled={pdfLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-white bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <FileDown size={15} />
+                {pdfLoading ? "Exporting…" : "Download PDF"}
+              </button>
+            </div>
 
             <div className="flex items-center gap-1 border-b border-gray-200 mb-6 overflow-x-auto overflow-y-hidden">
               {TIME_FRAMES.map((label) => (
@@ -506,11 +542,11 @@ export default function RadiologyDashboard() {
                       <tr key={s.scheduleId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                         <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">{s.patientName}</td>
                         <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">
-                          {s.startDateTime ? new Date(s.startDateTime.replace(" ", "T")).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }) : "—"}
+                          {s.startDateTime ? new Date(s.startDateTime.replace(" ", "T")).toLocaleDateString("en-CA", { month: "2-digit", day: "2-digit", year: "numeric" }) : "—"}
                         </td>
                         <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">
                           {s.startDateTime && s.endDateTime
-                            ? `${new Date(s.startDateTime.replace(" ", "T")).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} - ${new Date(s.endDateTime.replace(" ", "T")).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}`
+                            ? `${new Date(s.startDateTime.replace(" ", "T")).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true })} - ${new Date(s.endDateTime.replace(" ", "T")).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true })}`
                             : "—"}
                         </td>
                         <td className="px-4 sm:px-6 py-4 text-center">

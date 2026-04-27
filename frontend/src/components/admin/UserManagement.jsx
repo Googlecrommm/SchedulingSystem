@@ -185,13 +185,19 @@ export default function UserManagement() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
-      
       const activeRoles = data.filter((r) => r.roleStatus !== "Archived");
-      setRoles(activeRoles.map((r) => ({ id: r.roleId, name: r.roleName })));
-    } catch (err) {
-      console.error("Failed to fetch dropdown data:", err);
-    }
-  }
+      setRoles(
+      activeRoles.map((r) => ({
+      id: r.roleId,
+       name: r.departmentName
+      ? `${r.roleName} (${r.departmentName})`
+      : r.roleName,
+       }))
+);
+} catch (err) {
+  console.error("Failed to fetch dropdown data:", err);
+}
+}
 
   
   const filtered = users

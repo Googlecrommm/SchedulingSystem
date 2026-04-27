@@ -2,7 +2,7 @@ import axios from "../../config/axiosInstance";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
-  UserCheck, UserX, Clock, AlertCircle,
+  UserCheck, UserX, Clock, AlertCircle, FileDown,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -64,6 +64,7 @@ export default function RehabilitationDashboard() {
   const [chartDate,       setChartDate]       = useState("");
   const [loading,         setLoading]         = useState(true);
   const [error,           setError]           = useState(null);
+  const [pdfLoading,      setPdfLoading]      = useState(false);
 
   useEffect(() => { fetchDashboardData(); }, [activeTimeFrame]);
 
@@ -266,6 +267,31 @@ export default function RehabilitationDashboard() {
     });
   }
 
+  async function handleDownloadPdf() {
+    setPdfLoading(true);
+    try {
+      const headers = getAuthHeader();
+      const filter  = activeTimeFrame.toLowerCase();
+
+      const response = await axios.get("/api/export/pdf", {
+        headers,
+        params: { filter, department: "Rehabilitation" },
+        responseType: "blob",
+      });
+
+      const url     = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
+      const link    = document.createElement("a");
+      link.href     = url;
+      link.download = `rehab-schedules-${filter}.pdf`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("PDF export failed:", err);
+    } finally {
+      setPdfLoading(false);
+    }
+  }
+
   const statsCards = [
     { icon: UserCheck, label: "Confirmed", value: stats.confirmed, color: "text-green-500"  },
     { icon: UserX,     label: "Cancelled", value: stats.cancelled, color: "text-accent"     },
@@ -304,11 +330,21 @@ export default function RehabilitationDashboard() {
 
       
           <div className="bg-white rounded-2xl shadow-card p-6 mb-6">
-            <h2 className="text-lg font-bold text-primary mb-4 font-montserrat">
-              Appointment Status Overview
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-primary font-montserrat">
+                Appointment Status Overview
+              </h2>
+              <button
+                onClick={handleDownloadPdf}
+                disabled={pdfLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-white bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <FileDown size={15} />
+                {pdfLoading ? "Exporting…" : "Download PDF"}
+              </button>
+            </div>
 
-            <div className="flex items-center gap-1 border-b border-gray-200 mb-6 overflow-y-hidden">
+            <div className="flex items-center gap-1 border-b border-gray-200 mb-6 overflow-y-hidden overflow-x-auto">
               {TIME_FRAMES.map((label) => (
                 <button
                   key={label}

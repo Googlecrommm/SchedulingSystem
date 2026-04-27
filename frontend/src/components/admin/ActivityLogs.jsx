@@ -51,7 +51,7 @@ function getAuthHeader() {
 function formatDateTime(isoString) {
   if (!isoString) return "";
   const date = new Date(isoString);
-  return date.toLocaleString("en-US", {
+  return date.toLocaleString("en-CA", {
     month:  "long",
     day:    "numeric",
     year:   "numeric",
