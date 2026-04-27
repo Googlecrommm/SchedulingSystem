@@ -316,7 +316,7 @@ function PatientSearchableInput({ formik, hasError }) {
       setSearching(true);
       try {
         const res = await axios.get(
-          `/api/searchPatient/${encodeURIComponent(val.trim())}`,
+          `/api/SearchPatient/${encodeURIComponent(val.trim())}`,
           { headers: getAuthHeader() }
         );
         const list = Array.isArray(res.data) ? res.data : res.data?.content ?? [];
