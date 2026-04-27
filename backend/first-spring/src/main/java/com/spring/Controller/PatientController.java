@@ -1,7 +1,6 @@
 package com.spring.Controller;
 
 import com.spring.Enums.PatientStatus;
-import com.spring.Enums.SoftDelete;
 import com.spring.Models.Patients;
 import com.spring.Service.PatientService;
 import com.spring.dto.PatientResponseDTO;

@@ -50,7 +50,7 @@ public class PatientService {
 
     //SEARCH UNPAGINATED
     public List<PatientResponseDTO> SearchPatient(String name){
-        return patientsRepository.searchByNameContaining(name)
+        return patientsRepository.searchByNameContainingAndStatusNot(name, PatientStatus.Archived)
                 .stream()
                 .map(patients -> {
                     return modelMapper.map(patients, PatientResponseDTO.class);

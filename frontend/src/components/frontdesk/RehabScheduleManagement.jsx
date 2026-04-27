@@ -230,7 +230,7 @@ function PatientSearchableInput({ formik, hasError }) {
       setSearching(true);
       try {
         const res = await axios.get(
-          `/api/SearchPatient/${encodeURIComponent(val.trim())}`,
+          `/api/searchPatient/${encodeURIComponent(val.trim())}`,
           { headers: getAuthHeader(), params: { page: 0, size: 20 } }
         );
         const list = Array.isArray(res.data) ? res.data : res.data?.content ?? [];
@@ -412,9 +412,11 @@ function TimeDropdown({ formik, field, startBlocked = new Set(), endBlocked = ne
   const startTime = formik.values.startTime;
   const blockedSet = field === "startTime" ? startBlocked : endBlocked;
 
-  const today   = new Date().toISOString().slice(0, 10);
-  const isToday = selectedDate === today;
-  const nowMins = isToday ? new Date().getHours() * 60 + new Date().getMinutes() : -1;
+  const today       = new Date().toISOString().slice(0, 10);
+  const isToday     = selectedDate === today;
+  const isPastDate  = selectedDate && selectedDate < today;
+  // For today: block times already passed. For past dates: block all (use 24*60).
+  const nowMins     = isPastDate ? 24 * 60 : isToday ? new Date().getHours() * 60 + new Date().getMinutes() : -1;
 
   return (
     <div className="relative">
@@ -426,11 +428,13 @@ function TimeDropdown({ formik, field, startBlocked = new Set(), endBlocked = ne
         {TIME_OPTIONS.map((opt) => {
           const isBlocked     = blockedSet.has(opt.value);
           const isBeforeStart = field === "endTime" && startTime && opt.value <= startTime;
-          const isPast        = isToday && toMins(opt.value) <= nowMins;
+          const isPast        = (isToday || isPastDate) && toMins(opt.value) <= nowMins;
           const disabled      = isBlocked || isBeforeStart || isPast;
+          // Hide past and booked options for past dates or past times today
+          if (isPast || (isPastDate && disabled)) return null;
           return (
             <option key={opt.value} value={opt.value} disabled={disabled}>
-              {opt.label}{isBlocked ? " (Booked)" : isPast ? " (Past)" : ""}
+              {opt.label}{isBlocked ? " (Booked)" : ""}
             </option>
           );
         })}

@@ -151,9 +151,11 @@ function TimeDropdown({ formik, field, startBlocked = new Set(), endBlocked = ne
   const blockedSet = field === "startTime" ? startBlocked : endBlocked;
 
   // Compute the current time slot rounded down to the nearest 15-min mark
-  const today    = new Date().toISOString().slice(0, 10);
-  const isToday  = selectedDate === today;
-  const nowMins  = isToday
+  const today      = new Date().toISOString().slice(0, 10);
+  const isToday    = selectedDate === today;
+  const isPastDate = selectedDate && selectedDate < today;
+  // For today: block times already passed. For past dates: block all (use 24*60).
+  const nowMins    = isPastDate ? 24 * 60 : isToday
     ? new Date().getHours() * 60 + new Date().getMinutes()
     : -1;
 
@@ -167,12 +169,14 @@ function TimeDropdown({ formik, field, startBlocked = new Set(), endBlocked = ne
         {TIME_OPTIONS.map((opt) => {
           const isBlocked     = blockedSet.has(opt.value);
           const isBeforeStart = field === "endTime" && startTime && opt.value <= startTime;
-          // Block past times when today is selected
-          const isPast        = isToday && toMins(opt.value) <= nowMins;
+          // Block past times when today is selected or date is in the past
+          const isPast        = (isToday || isPastDate) && toMins(opt.value) <= nowMins;
           const disabled      = isBlocked || isBeforeStart || isPast;
+          // Hide past and booked options for past dates or past times today
+          if (isPast || (isPastDate && disabled)) return null;
           return (
             <option key={opt.value} value={opt.value} disabled={disabled}>
-              {opt.label}{isBlocked ? " (Booked)" : isPast ? " (Past)" : ""}
+              {opt.label}{isBlocked ? " (Booked)" : ""}
             </option>
           );
         })}

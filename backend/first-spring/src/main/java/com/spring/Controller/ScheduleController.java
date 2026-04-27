@@ -1,7 +1,6 @@
 package com.spring.Controller;
 
 import com.spring.Enums.ScheduleStatus;
-import com.spring.Models.Schedules;
 import com.spring.Service.ScheduleService;
 import com.spring.dto.CreatePatientWithScheduleResponseDTO;
 import com.spring.dto.SchedulePatchRequest;

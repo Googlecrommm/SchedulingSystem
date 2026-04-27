@@ -5,7 +5,6 @@ import com.spring.Service.DoctorService;
 import com.spring.dto.DoctorsResponseDTO;
 import com.spring.dto.SuccessResponse;
 import jakarta.validation.Valid;
-import org.apache.coyote.Response;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;

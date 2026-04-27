@@ -2,7 +2,6 @@ package com.spring.dto;
 
 import com.spring.Enums.SoftDelete;
 
-import javax.management.relation.RoleStatus;
 
 public class RoleResponseDTO {
     private int roleId;

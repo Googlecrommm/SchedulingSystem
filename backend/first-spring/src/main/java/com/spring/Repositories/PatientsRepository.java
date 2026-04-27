@@ -1,5 +1,6 @@
 package com.spring.Repositories;
 
+import com.spring.Enums.PatientStatus;
 import com.spring.Models.Patients;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,5 +20,5 @@ public interface PatientsRepository extends JpaRepository<Patients, Integer>, Jp
     Optional<Patients> findByContactNumber(String contactNumber);
     Page<Patients> findAll(Pageable pageable);
     Page<Patients> searchByNameContaining(String name, Pageable pageable);
-    List<Patients> searchByNameContaining(String name);
+    List<Patients> searchByNameContainingAndStatusNot(String name, PatientStatus status);
 }
