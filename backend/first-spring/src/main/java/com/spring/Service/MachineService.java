@@ -3,15 +3,20 @@ package com.spring.Service;
 import com.spring.Enums.MachineStatus;
 import com.spring.Exceptions.AlreadyExists;
 import com.spring.Exceptions.NoChangesDetected;
+import com.spring.Exceptions.NotAllowed;
 import com.spring.Exceptions.NotFound;
 import com.spring.Models.Machines;
+import com.spring.Models.Modalities;
+import com.spring.Models.Users;
 import com.spring.Repositories.MachinesRepository;
+import com.spring.Repositories.ModalitiesRepository;
 import com.spring.Specifications.MachineSpecification;
 import com.spring.dto.MachineResponseDTO;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,10 +25,35 @@ import java.util.List;
 public class MachineService {
     private final MachinesRepository machinesRepository;
     private final ModelMapper modelMapper;
+    private final ModalitiesRepository modalitiesRepository;
 
-    public MachineService(MachinesRepository machinesRepository, ModelMapper modelMapper) {
+    public MachineService(MachinesRepository machinesRepository, ModelMapper modelMapper,
+                          ModalitiesRepository modalitiesRepository) {
         this.machinesRepository = machinesRepository;
         this.modelMapper = modelMapper;
+        this.modalitiesRepository = modalitiesRepository;
+    }
+
+    // ─── Admin bypasses department check; frontdesk is scoped to their department ─
+    private void validateMachineBelongsToDepartment(Machines machine, Authentication authentication) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (isAdmin) return;
+
+        Users user = (Users) authentication.getPrincipal();
+
+        if (user.getRole() == null || user.getRole().getDepartment() == null) {
+            throw new NotAllowed("You are not assigned to any department.");
+        }
+
+        String userDept = user.getRole().getDepartment().getDepartmentName();
+        String machineDept = machine.getModality().getDepartment().getDepartmentName();
+
+        if (!userDept.equalsIgnoreCase(machineDept)) {
+            throw new NotAllowed(
+                    "You can only manage machines within your department (" + userDept + ")."
+            );
+        }
     }
 
     // ─── Reusable DTO mapping helper ────────────────────────────────────────────
@@ -33,34 +63,57 @@ public class MachineService {
         return machineDTO;
     }
 
-    //CREATE
-    public void createMachine(Machines machine) {
+    //CREATE — admin and frontdesk, frontdesk scoped to their department
+    public void createMachine(Machines machine, Authentication authentication) {
         if (machinesRepository.existsByMachineName(machine.getMachineName())) {
             throw new AlreadyExists("This machine already exists");
         }
+
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!isAdmin) {
+            Users user = (Users) authentication.getPrincipal();
+
+            if (user.getRole() == null || user.getRole().getDepartment() == null) {
+                throw new NotAllowed("You are not assigned to any department.");
+            }
+
+            // Re-fetch modality to get its department
+            Modalities modality = modalitiesRepository.findById(machine.getModality().getModalityId())
+                    .orElseThrow(() -> new RuntimeException("Modality not found"));
+
+            String userDept = user.getRole().getDepartment().getDepartmentName();
+            String modalityDept = modality.getDepartment().getDepartmentName();
+
+            if (!userDept.equalsIgnoreCase(modalityDept)) {
+                throw new NotAllowed(
+                        "You can only add machines under your department (" + userDept + ")."
+                );
+            }
+        }
+
         machinesRepository.save(machine);
     }
 
-    //READ & FILTER — departmentName null = admin sees all, non-null = scoped
+    //READ & FILTER
     public Page<MachineResponseDTO> getMachines(String machineStatus, String modalityName, String departmentName, Pageable pageable) {
         Specification<Machines> filters = Specification
                 .where(MachineSpecification.hasStatus(machineStatus))
                 .and(MachineSpecification.hasModality(modalityName))
-                .and(MachineSpecification.hasDepartment(departmentName)); // ADDED
+                .and(MachineSpecification.hasDepartment(departmentName));
 
         return machinesRepository.findAll(filters, pageable).map(this::mapToDTO);
     }
 
-    //DROPDOWN — admin gets all, department user gets only their department
+    //DROPDOWN
     public List<MachineResponseDTO> machineDropdown(String departmentName) {
         if (departmentName == null) {
-            // Admin — all available machines across all departments
             return machinesRepository.findAllByMachineStatus(MachineStatus.Available)
                     .stream()
                     .map(this::mapToDTO)
                     .toList();
         }
-        // Department user — only available machines in their department
         return machinesRepository
                 .findAllByMachineStatusAndModality_Department_DepartmentNameIgnoreCase(
                         MachineStatus.Available, departmentName)
@@ -69,10 +122,10 @@ public class MachineService {
                 .toList();
     }
 
-    //SEARCH — scoped by department for non-admins
+    //SEARCH
     public Page<MachineResponseDTO> searchMachine(String machineName, String departmentName, Pageable pageable) {
         Specification<Machines> filters = Specification
-                .where(MachineSpecification.hasDepartment(departmentName)) // ADDED
+                .where(MachineSpecification.hasDepartment(departmentName))
                 .and((root, query, cb) ->
                         cb.like(cb.lower(root.get("machineName")),
                                 "%" + machineName.toLowerCase() + "%"));
@@ -80,10 +133,12 @@ public class MachineService {
         return machinesRepository.findAll(filters, pageable).map(this::mapToDTO);
     }
 
-    //UPDATE — admin only
-    public void updateMachine(int machineId, Machines machine) {
+    //UPDATE — admin and frontdesk, frontdesk scoped to their department
+    public void updateMachine(int machineId, Machines machine, Authentication authentication) {
         Machines machineToUpdate = machinesRepository.findById(machineId)
                 .orElseThrow(() -> new NotFound("Machine not found"));
+
+        validateMachineBelongsToDepartment(machineToUpdate, authentication);
 
         if (machinesRepository.existsByMachineName(machine.getMachineName())) {
             throw new AlreadyExists("Machine already exists");
@@ -101,10 +156,12 @@ public class MachineService {
         machinesRepository.save(machineToUpdate);
     }
 
-    //MARK AS UNDER MAINTENANCE — admin only
-    public void markAsMaintenance(int machineId) {
+    //MARK AS UNDER MAINTENANCE — admin and frontdesk, frontdesk scoped to their department
+    public void markAsMaintenance(int machineId, Authentication authentication) {
         Machines machineToMaintenance = machinesRepository.findById(machineId)
                 .orElseThrow(() -> new NotFound("Machine not found"));
+
+        validateMachineBelongsToDepartment(machineToMaintenance, authentication);
 
         if (machineToMaintenance.getMachineStatus().equals(MachineStatus.Under_Maintenance)) {
             throw new NoChangesDetected("Machine is already under maintenance");
@@ -114,10 +171,12 @@ public class MachineService {
         machinesRepository.save(machineToMaintenance);
     }
 
-    //ARCHIVE — admin only
-    public void archiveMachine(int machineId) {
+    //ARCHIVE — admin and frontdesk, frontdesk scoped to their department
+    public void archiveMachine(int machineId, Authentication authentication) {
         Machines machineToArchive = machinesRepository.findById(machineId)
                 .orElseThrow(() -> new NotFound("Machine not found"));
+
+        validateMachineBelongsToDepartment(machineToArchive, authentication);
 
         if (machineToArchive.getMachineStatus().equals(MachineStatus.Archived)) {
             throw new NoChangesDetected("Machine is already archived");
@@ -127,10 +186,12 @@ public class MachineService {
         machinesRepository.save(machineToArchive);
     }
 
-    //RESTORE — admin only
-    public void activateMachine(int machineId) {
+    //RESTORE — admin and frontdesk, frontdesk scoped to their department
+    public void activateMachine(int machineId, Authentication authentication) {
         Machines machineToActivate = machinesRepository.findById(machineId)
                 .orElseThrow(() -> new NotFound("Machine not found"));
+
+        validateMachineBelongsToDepartment(machineToActivate, authentication);
 
         if (machineToActivate.getMachineStatus().equals(MachineStatus.Available)) {
             throw new NoChangesDetected("Machine is already active");

@@ -86,6 +86,7 @@ public class RolesService {
                 .toList();
     }
 
+
     //SEARCH ROLE BY NAME
     public Page<RoleResponseDTO> searchRole(String searchName, Pageable pageable){
         return rolesRepository

@@ -25,11 +25,13 @@ public class MachineController {
         this.departmentSecurityHelper = departmentSecurityHelper;
     }
 
-    //CREATE — admin only
-    @PreAuthorize("hasRole('ADMIN')")
+    //CREATE — admin and frontdesk, frontdesk scoped to their department
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("createMachine")
-    public ResponseEntity<SuccessResponse> createMachine(@RequestBody Machines machine) {
-        machineService.createMachine(machine);
+    public ResponseEntity<SuccessResponse> createMachine(
+            @RequestBody Machines machine,
+            Authentication authentication) {
+        machineService.createMachine(machine, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Machine Added"));
     }
 
@@ -75,37 +77,44 @@ public class MachineController {
                 machineService.searchMachine(machineName, effectiveDept, pageable));
     }
 
-    //UPDATE — admin only
-    @PreAuthorize("hasRole('ADMIN')")
+    //UPDATE — admin and frontdesk, frontdesk scoped to their department
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
     @PutMapping("updateMachine/{machineId}")
     public ResponseEntity<SuccessResponse> updateMachine(
             @PathVariable int machineId,
-            @RequestBody Machines machine) {
-        machineService.updateMachine(machineId, machine);
+            @RequestBody Machines machine,
+            Authentication authentication) {
+        machineService.updateMachine(machineId, machine, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Machine Updated"));
     }
 
-    //MARK AS UNDER MAINTENANCE — admin only
-    @PreAuthorize("hasRole('ADMIN')")
+    //MARK AS UNDER MAINTENANCE — admin and frontdesk, frontdesk scoped to their department
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
     @PutMapping("markAsMaintenance/{machineId}")
-    public ResponseEntity<SuccessResponse> markAsMaintenance(@PathVariable int machineId) {
-        machineService.markAsMaintenance(machineId);
+    public ResponseEntity<SuccessResponse> markAsMaintenance(
+            @PathVariable int machineId,
+            Authentication authentication) {
+        machineService.markAsMaintenance(machineId, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Marked as Under Maintenance"));
     }
 
-    //ARCHIVE — admin only
-    @PreAuthorize("hasRole('ADMIN')")
+    //ARCHIVE — admin and frontdesk, frontdesk scoped to their department
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
     @PutMapping("archiveMachine/{machineId}")
-    public ResponseEntity<SuccessResponse> archiveMachine(@PathVariable int machineId) {
-        machineService.archiveMachine(machineId);
+    public ResponseEntity<SuccessResponse> archiveMachine(
+            @PathVariable int machineId,
+            Authentication authentication) {
+        machineService.archiveMachine(machineId, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Machine Archived"));
     }
 
-    //RESTORE — admin only
-    @PreAuthorize("hasRole('ADMIN')")
+    //RESTORE — admin and frontdesk, frontdesk scoped to their department
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
     @PutMapping("activateMachine/{machineId}")
-    public ResponseEntity<SuccessResponse> activateMachine(@PathVariable int machineId) {
-        machineService.activateMachine(machineId);
+    public ResponseEntity<SuccessResponse> activateMachine(
+            @PathVariable int machineId,
+            Authentication authentication) {
+        machineService.activateMachine(machineId, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Machine Activated"));
     }
 }
