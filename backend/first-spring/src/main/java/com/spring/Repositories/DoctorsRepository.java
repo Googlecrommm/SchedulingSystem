@@ -4,13 +4,11 @@ import com.spring.Enums.DoctorStatus;
 import com.spring.Models.Doctors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-
 
 @Repository
 public interface DoctorsRepository extends JpaRepository<Doctors, Integer>, JpaSpecificationExecutor<Doctors> {
@@ -19,9 +17,15 @@ public interface DoctorsRepository extends JpaRepository<Doctors, Integer>, JpaS
 
     Page<Doctors> findAll(Pageable pageable);
 
-    Page<Doctors> findByFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(String firstName, String lastName, Pageable pageable);
+    Page<Doctors> findByFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(
+            String firstName, String lastName, Pageable pageable);
 
     List<Doctors> findAllByAvailabilityStatusEquals(DoctorStatus availabilityStatus);
 
-    List<Doctors> findAllByAvailabilityStatusEqualsAndRole_RoleNameEqualsIgnoreCase(DoctorStatus availabilityStatus, String roleName);
+    List<Doctors> findAllByAvailabilityStatusEqualsAndRole_RoleNameEqualsIgnoreCase(
+            DoctorStatus availabilityStatus, String roleName);
+
+    // ADDED — for department-scoped dropdown (non-admin users)
+    List<Doctors> findAllByAvailabilityStatusEqualsAndRole_Department_DepartmentNameIgnoreCase(
+            DoctorStatus availabilityStatus, String departmentName);
 }

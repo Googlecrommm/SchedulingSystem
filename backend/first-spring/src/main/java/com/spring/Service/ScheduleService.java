@@ -105,6 +105,28 @@ public class ScheduleService {
         return scheduleDTO;
     }
 
+    // ─── Reusable machine department validation helper ───────────────────────────
+    private void validateMachineDepartment(Machines machine, Doctors doctor) {
+        if (machine.getModality() == null || machine.getModality().getDepartment() == null) return;
+
+        int doctorDepartmentId = doctor.getRole().getDepartment().getDepartmentId();
+        int machineDepartmentId = machine.getModality().getDepartment().getDepartmentId();
+
+        if (doctorDepartmentId != machineDepartmentId) {
+            throw new NotAllowed("Machine does not belong to the doctor's department.");
+        }
+    }
+
+    // ─── Reusable room department validation helper ──────────────────────────────
+    private void validateRoomDepartment(Rooms room, Doctors doctor) {
+        int doctorDepartmentId = doctor.getRole().getDepartment().getDepartmentId();
+        int roomDepartmentId = room.getDepartment().getDepartmentId();
+
+        if (doctorDepartmentId != roomDepartmentId) {
+            throw new NotAllowed("Room does not belong to the doctor's department.");
+        }
+    }
+
     //CREATE
     @Transactional
     public void createScheduleAndPatient(CreatePatientWithScheduleResponseDTO request) {
@@ -138,27 +160,21 @@ public class ScheduleService {
                         + schedule.getDoctor().getDoctorId()));
         schedule.setDoctor(fullDoctor);
 
-        // 4. Re-fetch full Machine entity if present
+        // 4. Re-fetch and validate Machine if present
         if (schedule.getMachine() != null) {
             Machines fullMachine = machinesRepository.findById(schedule.getMachine().getMachineId())
                     .orElseThrow(() -> new RuntimeException("Machine not found with ID: "
                             + schedule.getMachine().getMachineId()));
+            validateMachineDepartment(fullMachine, fullDoctor); // ADDED
             schedule.setMachine(fullMachine);
         }
 
-        // 5. Re-fetch full Room entity if present
+        // 5. Re-fetch and validate Room if present
         if (schedule.getRoom() != null) {
             Rooms fullRoom = roomsRepository.findById(schedule.getRoom().getRoomId())
                     .orElseThrow(() -> new RuntimeException("Room not found with ID: "
                             + schedule.getRoom().getRoomId()));
-
-            int doctorDepartmentId = fullDoctor.getRole().getDepartment().getDepartmentId();
-            int roomDepartmentId = fullRoom.getDepartment().getDepartmentId();
-
-            if (doctorDepartmentId != roomDepartmentId) {
-                throw new NotAllowed("Room does not belong to the doctor's department.");
-            }
-
+            validateRoomDepartment(fullRoom, fullDoctor); // REPLACED inline check
             schedule.setRoom(fullRoom);
         }
 
@@ -177,20 +193,19 @@ public class ScheduleService {
         validateNoConflict(schedule);
 
         // 9. Save
-        //LOG CREATE
         logsService.log(
                 "Schedule Added",
                 "added new schedule for "
                         + schedule.getPatient().getFirstName() + " "
                         + (schedule.getPatient().getMiddleName() == null ? " " : schedule.getPatient().getMiddleName())
                         + schedule.getPatient().getLastName()
-                        +"'s " + schedule.getProcedureName() +
-                        " at " + schedule.getStartDateTime()
+                        + "'s " + schedule.getProcedureName()
+                        + " at " + schedule.getStartDateTime()
         );
         scheduleRepository.save(schedule);
     }
 
-    //READ & FILTER (ADMIN)
+    //READ & FILTER — single method handles all departments dynamically
     public Page<ScheduleResponseDTO> getSchedules(ScheduleStatus scheduleStatus, String name, String patientName, String departmentName, Pageable pageable){
 
         Specification<Schedules> filters = Specification
@@ -208,38 +223,8 @@ public class ScheduleService {
         return scheduleRepository.findAll(filters, sortedPageable).map(this::mapToDTO);
     }
 
-    //READ & FILTER (RADIOLOGY)
-    public Page<ScheduleResponseDTO> getRadiologySched(ScheduleStatus scheduleStatus, String name, String patientName, Pageable pageable){
-        Specification<Schedules> filters = Specification
-                .where(ScheduleSpecification.hasStatus(scheduleStatus))
-                .and(ScheduleSpecification.toDoctor(name))
-                .and(ScheduleSpecification.searchPatient(patientName))
-                .and(ScheduleSpecification.hasDepartment("Radiology"));
-
-        Pageable sortedPageable = PageRequest.of(
-                pageable.getPageNumber(),
-                pageable.getPageSize(),
-                Sort.by(Sort.Direction.ASC, "startDateTime")
-        );
-
-        return scheduleRepository.findAll(filters, sortedPageable).map(this::mapToDTO);
-    }
-
-    //READ & FILTER (Rehabilitation)
-    public Page<ScheduleResponseDTO> getRehabSched(ScheduleStatus scheduleStatus, String name, String patientName,  Pageable pageable){
-        Specification<Schedules> filters = Specification
-                .where(ScheduleSpecification.hasStatus(scheduleStatus))
-                .and(ScheduleSpecification.toDoctor(name))
-                .and(ScheduleSpecification.searchPatient(patientName))
-                .and(ScheduleSpecification.hasDepartment("Rehabilitation"));
-        Pageable sortedPageable = PageRequest.of(
-                pageable.getPageNumber(),
-                pageable.getPageSize(),
-                Sort.by(Sort.Direction.ASC, "startDateTime")
-        );
-
-        return scheduleRepository.findAll(filters, sortedPageable).map(this::mapToDTO);
-    }
+    // DELETED: getRadiologySched()  — replaced by getSchedules() with departmentName param
+    // DELETED: getRehabSched()      — replaced by getSchedules() with departmentName param
 
     //SEARCH
     public Page<ScheduleResponseDTO> searchSchedule(String patientName, Pageable pageable){
@@ -247,21 +232,10 @@ public class ScheduleService {
                 .map(this::mapToDTO);
     }
 
-    //SEARCH
-    public Page<ScheduleResponseDTO> searchRadioSched(String patientName, Pageable pageable){
-        return scheduleRepository.searchByPatientName(patientName, pageable)
-                .map(this::mapToDTO);
-    }
+    // DELETED: searchRadioSched()   — identical to searchSchedule(), was dead code
+    // DELETED: countAllSchedules()  — built a Radiology spec but never used it, was dead code
 
-    //COUNT ALL SCHEDULES
-    public long countAllSchedules(ScheduleStatus scheduleStatus){
-        Specification<Schedules> filters = Specification
-                .where(ScheduleSpecification.hasDepartment("Radiology"));
-
-        return scheduleRepository.allSchedulesCount(scheduleStatus);
-    }
-
-    // COUNT MONTHLY
+    // COUNT MONTHLY — dynamic, works for any department
     public Map<String, Long> getMonthlyBreakdown(String department) {
         Map<String, Long> counts = new LinkedHashMap<>();
 
@@ -272,7 +246,6 @@ public class ScheduleService {
             LocalDateTime start = LocalDateTime.of(LocalDateTime.now().getYear(), i, 1, 0, 0);
             LocalDateTime end = start.with(TemporalAdjusters.lastDayOfMonth()).withHour(23).withMinute(59);
 
-            final int month = i;
             Specification<Schedules> spec = Specification
                     .where(ScheduleSpecification.hasDepartment(department))
                     .and((root, query, cb) -> cb.between(root.get("startDateTime"), start, end));
@@ -283,7 +256,7 @@ public class ScheduleService {
         return counts;
     }
 
-    //DASHBOARD COUNTS (ADMIN)
+    //DASHBOARD COUNTS — single method handles all departments dynamically
     public Map<String, Long> getDashboardCounts(String department, String filter) {
         Map<String, Long> counts = new HashMap<>();
 
@@ -299,37 +272,8 @@ public class ScheduleService {
         return counts;
     }
 
-    //DASHBOARD COUNTS (RADIOLOGY)
-    public Map<String, Long> getDashboardCountsRadio(String filter) {
-        Map<String, Long> counts = new HashMap<>();
-
-        for (ScheduleStatus status : ScheduleStatus.values()) {
-            Specification<Schedules> spec = Specification
-                    .where(ScheduleSpecification.hasDepartment("Radiology"))
-                    .and(ScheduleSpecification.hasStatus(status))
-                    .and(ScheduleSpecification.byDateFilter(filter));
-
-            counts.put(status.name(), scheduleRepository.count(spec));
-        }
-
-        return counts;
-    }
-
-    //DASHBOARD COUNTS (REHABILITATION)
-    public Map<String, Long> getDashboardCountsRehab(String filter) {
-        Map<String, Long> counts = new HashMap<>();
-
-        for (ScheduleStatus status : ScheduleStatus.values()) {
-            Specification<Schedules> spec = Specification
-                    .where(ScheduleSpecification.hasDepartment("Rehabilitation"))
-                    .and(ScheduleSpecification.hasStatus(status))
-                    .and(ScheduleSpecification.byDateFilter(filter));
-
-            counts.put(status.name(), scheduleRepository.count(spec));
-        }
-
-        return counts;
-    }
+    // DELETED: getDashboardCountsRadio()  — replaced by getDashboardCounts() with department param
+    // DELETED: getDashboardCountsRehab()  — replaced by getDashboardCounts() with department param
 
     //UPDATE (full replace — requires complete data)
     @Transactional
@@ -347,15 +291,12 @@ public class ScheduleService {
 
             boolean doctorTaken = scheduleRepository.isDoctorBooked(
                     excludeId, existing.getDoctor().getDoctorId(), start, end);
-
             boolean machineTaken = existing.getMachine() != null &&
                     scheduleRepository.isMachineBooked(
                             excludeId, existing.getMachine().getMachineId(), start, end);
-
             boolean roomTaken = existing.getRoom() != null &&
                     scheduleRepository.isRoomBooked(
                             excludeId, existing.getRoom().getRoomId(), start, end);
-
             boolean patientTaken = scheduleRepository.isPatientBooked(
                     excludeId, existing.getPatient().getPatientId(), start, end);
 
@@ -372,29 +313,23 @@ public class ScheduleService {
                         + updatedSchedule.getDoctor().getDoctorId()));
         existing.setDoctor(fullDoctor);
 
-        // 4. Re-fetch full Machine entity if present
+        // 4. Re-fetch and validate Machine if present
         if (updatedSchedule.getMachine() != null) {
             Machines fullMachine = machinesRepository.findById(updatedSchedule.getMachine().getMachineId())
                     .orElseThrow(() -> new RuntimeException("Machine not found with ID: "
                             + updatedSchedule.getMachine().getMachineId()));
+            validateMachineDepartment(fullMachine, fullDoctor); // ADDED
             existing.setMachine(fullMachine);
         } else {
             existing.setMachine(null);
         }
 
-        // 5. Re-fetch full Room entity if present
+        // 5. Re-fetch and validate Room if present
         if (updatedSchedule.getRoom() != null) {
             Rooms fullRoom = roomsRepository.findById(updatedSchedule.getRoom().getRoomId())
                     .orElseThrow(() -> new RuntimeException("Room not found with ID: "
                             + updatedSchedule.getRoom().getRoomId()));
-
-            int doctorDepartmentId = fullDoctor.getRole().getDepartment().getDepartmentId();
-            int roomDepartmentId = fullRoom.getDepartment().getDepartmentId();
-
-            if (doctorDepartmentId != roomDepartmentId) {
-                throw new NotAllowed("Room does not belong to the doctor's department.");
-            }
-
+            validateRoomDepartment(fullRoom, fullDoctor); // REPLACED inline check
             existing.setRoom(fullRoom);
         } else {
             existing.setRoom(null);
@@ -416,13 +351,12 @@ public class ScheduleService {
         validateNoConflict(existing);
 
         // 9. Save
-        //LOG CREATE
         logsService.log(
                 "Schedule Updated",
                 "updated the schedule information of "
-                + existing.getPatient().getFirstName() + " "
-                + (existing.getPatient().getMiddleName() == null ? " " : existing.getPatient().getMiddleName())
-                + existing.getPatient().getLastName()
+                        + existing.getPatient().getFirstName() + " "
+                        + (existing.getPatient().getMiddleName() == null ? " " : existing.getPatient().getMiddleName())
+                        + existing.getPatient().getLastName()
         );
         scheduleRepository.save(existing);
     }
@@ -443,15 +377,12 @@ public class ScheduleService {
 
             boolean doctorTaken = scheduleRepository.isDoctorBooked(
                     excludeId, existing.getDoctor().getDoctorId(), start, end);
-
             boolean machineTaken = existing.getMachine() != null &&
                     scheduleRepository.isMachineBooked(
                             excludeId, existing.getMachine().getMachineId(), start, end);
-
             boolean roomTaken = existing.getRoom() != null &&
                     scheduleRepository.isRoomBooked(
                             excludeId, existing.getRoom().getRoomId(), start, end);
-
             boolean patientTaken = scheduleRepository.isPatientBooked(
                     excludeId, existing.getPatient().getPatientId(), start, end);
 
@@ -479,6 +410,7 @@ public class ScheduleService {
             } else {
                 Machines fullMachine = machinesRepository.findById(patch.getMachineId())
                         .orElseThrow(() -> new RuntimeException("Machine not found with ID: " + patch.getMachineId()));
+                validateMachineDepartment(fullMachine, doctorForValidation); // ADDED
                 existing.setMachine(fullMachine);
             }
         }
@@ -491,14 +423,7 @@ public class ScheduleService {
             } else {
                 Rooms fullRoom = roomsRepository.findById(patch.getRoomId())
                         .orElseThrow(() -> new RuntimeException("Room not found with ID: " + patch.getRoomId()));
-
-                int doctorDepartmentId = doctorForValidation.getRole().getDepartment().getDepartmentId();
-                int roomDepartmentId = fullRoom.getDepartment().getDepartmentId();
-
-                if (doctorDepartmentId != roomDepartmentId) {
-                    throw new NotAllowed("Room does not belong to the doctor's department.");
-                }
-
+                validateRoomDepartment(fullRoom, doctorForValidation); // REPLACED inline check
                 existing.setRoom(fullRoom);
             }
         }
@@ -529,7 +454,6 @@ public class ScheduleService {
         validateNoConflict(existing);
 
         // 9. Save
-        //LOG CREATE
         logsService.log(
                 "Schedule Updated",
                 "updated the schedule information of "
@@ -542,14 +466,14 @@ public class ScheduleService {
 
     //ARCHIVE
     public void archiveSchedule(int scheduleId){
-        Schedules scheduleToArchive = scheduleRepository.findById(scheduleId).orElseThrow(() -> new NotFound("Schedule not found"));
+        Schedules scheduleToArchive = scheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new NotFound("Schedule not found"));
 
         if (scheduleToArchive.getScheduleStatus().equals(ScheduleStatus.Archived)){
             throw new NoChangesDetected("This schedule is already archived");
         }
         scheduleToArchive.setScheduleStatus(ScheduleStatus.Archived);
 
-        //LOG CREATE
         logsService.log(
                 "Schedule Archived",
                 "archived the " + scheduleToArchive.getProcedureName() + " schedule of "
@@ -563,14 +487,14 @@ public class ScheduleService {
 
     //CANCELLED
     public void cancelSchedule(int scheduleId){
-        Schedules scheduleToCancel = scheduleRepository.findById(scheduleId).orElseThrow(() -> new NotFound("Schedule not found"));
+        Schedules scheduleToCancel = scheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new NotFound("Schedule not found"));
 
         if (scheduleToCancel.getScheduleStatus().equals(ScheduleStatus.Cancelled)){
             throw new NoChangesDetected("This schedule is already cancelled");
         }
 
         scheduleToCancel.setScheduleStatus(ScheduleStatus.Cancelled);
-        //LOG CREATE
         logsService.log(
                 "Schedule Cancelled",
                 "cancelled the " + scheduleToCancel.getProcedureName() + " schedule of "
@@ -584,14 +508,14 @@ public class ScheduleService {
 
     //CONFIRMED
     public void confirmSchedule(int scheduleId){
-        Schedules scheduleToConfirm = scheduleRepository.findById(scheduleId).orElseThrow(() -> new NotFound("Schedule not found"));
+        Schedules scheduleToConfirm = scheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new NotFound("Schedule not found"));
 
         if (scheduleToConfirm.getScheduleStatus().equals(ScheduleStatus.Confirmed)){
             throw new NoChangesDetected("This schedule is already confirmed");
         }
 
         scheduleToConfirm.setScheduleStatus(ScheduleStatus.Confirmed);
-        //LOG CREATE
         logsService.log(
                 "Schedule Confirmed",
                 "confirmed the " + scheduleToConfirm.getProcedureName() + " schedule of "
@@ -605,40 +529,38 @@ public class ScheduleService {
 
     //DONE
     public void doneSchedule(int scheduleId){
-        Schedules scheduleToDone = scheduleRepository.findById(scheduleId).orElseThrow(() -> new NotFound("Schedule not found"));
+        Schedules scheduleToDone = scheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new NotFound("Schedule not found"));
 
         if (scheduleToDone.getScheduleStatus().equals(ScheduleStatus.Done)){
             throw new NoChangesDetected("This schedule is already marked as done");
         }
 
         scheduleToDone.setScheduleStatus(ScheduleStatus.Done);
-
-        //LOG CREATE
         logsService.log(
                 "Marked as Done",
-                "marked the "+ scheduleToDone.getProcedureName() + " schedule of "
+                "marked the " + scheduleToDone.getProcedureName() + " schedule of "
                         + scheduleToDone.getPatient().getFirstName() + " "
                         + (scheduleToDone.getPatient().getMiddleName() == null ? " " : scheduleToDone.getPatient().getMiddleName())
                         + scheduleToDone.getPatient().getLastName()
                         + " as done" + " with the Schedule ID of " + scheduleId
         );
-
         scheduleRepository.save(scheduleToDone);
     }
 
     //RESTORE
     public void restoreSchedule(int scheduleId){
-        Schedules scheduleToRestore = scheduleRepository.findById(scheduleId).orElseThrow(() -> new NotFound("Schedule not found"));
+        Schedules scheduleToRestore = scheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new NotFound("Schedule not found"));
 
         if (scheduleToRestore.getScheduleStatus().equals(ScheduleStatus.Scheduled)){
             throw new NoChangesDetected("This schedule is already marked as scheduled");
         }
 
         scheduleToRestore.setScheduleStatus(ScheduleStatus.Scheduled);
-        //LOG CREATE
         logsService.log(
                 "Marked as Scheduled",
-                "marked the "+ scheduleToRestore.getProcedureName() + " schedule of "
+                "marked the " + scheduleToRestore.getProcedureName() + " schedule of "
                         + scheduleToRestore.getPatient().getFirstName() + " "
                         + (scheduleToRestore.getPatient().getMiddleName() == null ? " " : scheduleToRestore.getPatient().getMiddleName())
                         + scheduleToRestore.getPatient().getLastName()
@@ -647,7 +569,7 @@ public class ScheduleService {
         scheduleRepository.save(scheduleToRestore);
     }
 
-    //PRINT
+    //PRINT — dynamic, works for any department
     public byte[] exportSchedulesToPdf(String department, String filter) {
         Specification<Schedules> spec = Specification
                 .where(ScheduleSpecification.hasDepartment(department))
@@ -660,28 +582,28 @@ public class ScheduleService {
             PdfWriter.getInstance(document, out);
             document.open();
 
-            // Title
             Font titleFont = new Font(Font.FontFamily.HELVETICA, 14, Font.BOLD);
-            Paragraph title = new Paragraph((department == null ? "All Departments" : department) + " Schedules - " + filter.toUpperCase(), titleFont);
+            Paragraph title = new Paragraph(
+                    (department == null ? "All Departments" : department) + " Schedules - " + filter.toUpperCase(),
+                    titleFont
+            );
             title.setAlignment(Element.ALIGN_CENTER);
             document.add(title);
             document.add(new Paragraph(" "));
 
-            // Table with columns
             PdfPTable table = new PdfPTable(7);
             table.setWidthPercentage(100);
             table.setWidths(new float[]{1.5f, 2f, 2f, 2f, 2f, 2f, 1.5f});
 
-            // Headers
             for (String header : new String[]{"Schedule ID", "Patient", "Doctor", "Procedure", "Start", "End", "Status"}) {
-                PdfPCell cell = new PdfPCell(new Phrase(header, new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.WHITE)));
+                PdfPCell cell = new PdfPCell(new Phrase(header,
+                        new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.WHITE)));
                 cell.setBackgroundColor(BaseColor.BLUE);
                 cell.setHorizontalAlignment(Element.ALIGN_CENTER);
                 cell.setPadding(5);
                 table.addCell(cell);
             }
 
-            // Rows
             for (Schedules s : schedules) {
                 table.addCell(String.valueOf(s.getScheduleId()));
                 table.addCell(s.getPatient().getLastName() + ", "

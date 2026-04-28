@@ -1,6 +1,7 @@
 package com.spring.Controller;
 
 import com.spring.Enums.ScheduleStatus;
+import com.spring.Security.DepartmentSecurityHelper;
 import com.spring.Service.ScheduleService;
 import com.spring.dto.CreatePatientWithScheduleResponseDTO;
 import com.spring.dto.SchedulePatchRequest;
@@ -10,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -20,102 +22,81 @@ import java.util.Map;
 @RequestMapping("/api")
 public class ScheduleController {
     private final ScheduleService scheduleService;
+    private final DepartmentSecurityHelper departmentSecurityHelper;
 
-    public ScheduleController(ScheduleService scheduleService){
+    public ScheduleController(ScheduleService scheduleService, DepartmentSecurityHelper departmentSecurityHelper){
         this.scheduleService = scheduleService;
+        this.departmentSecurityHelper = departmentSecurityHelper;
     }
 
-    //CREATE
+    //CREATE — admin only, no department scoping needed
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("createScheduleAndPatient")
-    public ResponseEntity<SuccessResponse> createScheduleAndPatient(@RequestBody CreatePatientWithScheduleResponseDTO schedulePatientDTO){
+    public ResponseEntity<SuccessResponse> createScheduleAndPatient(
+            @RequestBody CreatePatientWithScheduleResponseDTO schedulePatientDTO){
         scheduleService.createScheduleAndPatient(schedulePatientDTO);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Schedule Added"));
     }
 
-    //READ & FILTER
-    @PreAuthorize("hasRole('ADMIN')")
+    //READ & FILTER — single endpoint, all roles, department scoped via helper
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("getSchedules")
     public ResponseEntity<Page<ScheduleResponseDTO>> getSchedules(
             @RequestParam(required = false) ScheduleStatus scheduleStatus,
             @RequestParam(required = false) String name,
+            @RequestParam(required = false) String patientName,
             @RequestParam(required = false) String departmentName,
-            @RequestParam(required = false) String patientName,
-            Pageable pageable){
-        return ResponseEntity.ok(scheduleService.getSchedules(scheduleStatus, name, patientName, departmentName, pageable));
+            Pageable pageable,
+            Authentication authentication) {
+
+        String effectiveDept = departmentSecurityHelper
+                .resolveEffectiveDepartment(departmentName, authentication);
+
+        return ResponseEntity.ok(
+                scheduleService.getSchedules(scheduleStatus, name, patientName, effectiveDept, pageable));
     }
 
-    //READ & FILTER (RADIOLOGY)
-    @PreAuthorize("hasRole('ADMIN')")
-    @GetMapping("getRadiologySched")
-    public ResponseEntity<Page<ScheduleResponseDTO>> getRadiologySched(
-            @RequestParam(required = false) ScheduleStatus scheduleStatus,
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String patientName,
-            Pageable pageable
-    ){
-        return ResponseEntity.ok(scheduleService.getRadiologySched(scheduleStatus, name, patientName, pageable));
-    }
-
-    //READ & FILTER (REHABILITATION)
-    @PreAuthorize("hasRole('ADMIN')")
-    @GetMapping("getRehabSched")
-    public ResponseEntity<Page<ScheduleResponseDTO>> getRehabSched(
-            @RequestParam(required = false) ScheduleStatus scheduleStatus,
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String patientName,
-            Pageable pageable
-    ){
-        return ResponseEntity.ok(scheduleService.getRehabSched(scheduleStatus, name, patientName, pageable));
-    }
+    // DELETED: getRadiologySched()  — replaced by getSchedules() with departmentName param
+    // DELETED: getRehabSched()      — replaced by getSchedules() with departmentName param
 
     //SEARCH
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("searchSchedule/{patientName}")
     public ResponseEntity<Page<ScheduleResponseDTO>> searchSchedule(
             @PathVariable String patientName,
-            Pageable pageable
-    ){
+            Pageable pageable){
         return ResponseEntity.ok(scheduleService.searchSchedule(patientName, pageable));
     }
 
-    //COUNT ALL SCHEDULES
-    @PreAuthorize("hasRole('ADMIN')")
+    //DASHBOARD COUNTS — single endpoint, all roles, department scoped via helper
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("dashboard/counts")
     public ResponseEntity<Map<String, Long>> getDashboardCounts(
-            @RequestParam(required = false) String department,
-            @RequestParam(defaultValue = "overall") String filter
-    ) {
-        return ResponseEntity.ok(scheduleService.getDashboardCounts(department, filter));
+            @RequestParam(required = false) String departmentName,
+            @RequestParam(defaultValue = "overall") String filter,
+            Authentication authentication) {
+
+        String effectiveDept = departmentSecurityHelper
+                .resolveEffectiveDepartment(departmentName, authentication);
+
+        return ResponseEntity.ok(scheduleService.getDashboardCounts(effectiveDept, filter));
     }
 
-    //COUNT MONTHLY
-    @PreAuthorize("hasRole('ADMIN')")
+    //DASHBOARD MONTHLY BREAKDOWN — single endpoint, all roles, department scoped via helper
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("dashboard/monthly-breakdown")
     public ResponseEntity<Map<String, Long>> getMonthlyBreakdown(
-            @RequestParam(required = false) String department
-    ) {
-        return ResponseEntity.ok(scheduleService.getMonthlyBreakdown(department));
+            @RequestParam(required = false) String departmentName,
+            Authentication authentication) {
+
+        String effectiveDept = departmentSecurityHelper
+                .resolveEffectiveDepartment(departmentName, authentication);
+
+        return ResponseEntity.ok(scheduleService.getMonthlyBreakdown(effectiveDept));
     }
 
-    //COUNT ALL SCHEDULES (RADIOLOGY)
-    @PreAuthorize("hasRole('ADMIN')")
-    @GetMapping("dashboard/countRadio")
-    public ResponseEntity<Map<String, Long>> getDashboardCounts(
-            @RequestParam(defaultValue = "overall") String filter
-    ) {
-        return ResponseEntity.ok(scheduleService.getDashboardCountsRadio(filter));
-    }
-
-    //COUNT ALL SCHEDULES (REHABILITATION)
-    @PreAuthorize("hasRole('ADMIN')")
-    @GetMapping("dashboard/countRehab")
-    public ResponseEntity<Map<String, Long>> getDashboardCountsRehab(
-            @RequestParam(defaultValue = "overall") String filter
-    ) {
-        return ResponseEntity.ok(scheduleService.getDashboardCountsRehab(filter));
-    }
-
+    // DELETED: dashboard/countRadio  — replaced by dashboard/counts with departmentName param
+    // DELETED: dashboard/countRehab  — replaced by dashboard/counts with departmentName param
 
     //UPDATE
     @PreAuthorize("hasRole('ADMIN')")
@@ -124,7 +105,7 @@ public class ScheduleController {
             @PathVariable int scheduleId,
             @RequestBody SchedulePatchRequest schedulePatchRequest){
         scheduleService.patchSchedule(scheduleId, schedulePatchRequest);
-        return ResponseEntity.ok().body(new SuccessResponse(200, "Schedule Update"));
+        return ResponseEntity.ok().body(new SuccessResponse(200, "Schedule Updated"));
     }
 
     //ARCHIVE
@@ -132,7 +113,7 @@ public class ScheduleController {
     @PutMapping("archiveSchedule/{scheduleId}")
     public ResponseEntity<SuccessResponse> archiveSchedule(@PathVariable int scheduleId){
         scheduleService.archiveSchedule(scheduleId);
-        return ResponseEntity.ok().body(new SuccessResponse(200,"Schedule Archived"));
+        return ResponseEntity.ok().body(new SuccessResponse(200, "Schedule Archived"));
     }
 
     //CANCELLED
@@ -140,7 +121,7 @@ public class ScheduleController {
     @PutMapping("cancelSchedule/{scheduleId}")
     public ResponseEntity<SuccessResponse> cancelSchedule(@PathVariable int scheduleId){
         scheduleService.cancelSchedule(scheduleId);
-        return ResponseEntity.ok().body(new SuccessResponse(200,"Schedule Cancelled"));
+        return ResponseEntity.ok().body(new SuccessResponse(200, "Schedule Cancelled"));
     }
 
     //CONFIRMED
@@ -148,7 +129,7 @@ public class ScheduleController {
     @PutMapping("confirmSchedule/{scheduleId}")
     public ResponseEntity<SuccessResponse> confirmSchedule(@PathVariable int scheduleId){
         scheduleService.confirmSchedule(scheduleId);
-        return ResponseEntity.ok().body(new SuccessResponse(200,"Schedule Confirmed"));
+        return ResponseEntity.ok().body(new SuccessResponse(200, "Schedule Confirmed"));
     }
 
     //DONE
@@ -156,7 +137,7 @@ public class ScheduleController {
     @PutMapping("doneSchedule/{scheduleId}")
     public ResponseEntity<SuccessResponse> doneSchedule(@PathVariable int scheduleId){
         scheduleService.doneSchedule(scheduleId);
-        return ResponseEntity.ok().body(new SuccessResponse(200,"Schedule Marked as Done"));
+        return ResponseEntity.ok().body(new SuccessResponse(200, "Schedule Marked as Done"));
     }
 
     //RESTORE
@@ -164,17 +145,21 @@ public class ScheduleController {
     @PutMapping("restoreSchedule/{scheduleId}")
     public ResponseEntity<SuccessResponse> restoreSchedule(@PathVariable int scheduleId){
         scheduleService.restoreSchedule(scheduleId);
-        return ResponseEntity.ok().body(new SuccessResponse(200,"Schedule Marked as Scheduled"));
+        return ResponseEntity.ok().body(new SuccessResponse(200, "Schedule Marked as Scheduled"));
     }
 
-    //PRINT
-    @PreAuthorize("hasRole('ADMIN')")
+    //PRINT — department scoped via helper so non-admins can only export their own dept
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/export/pdf")
     public ResponseEntity<byte[]> exportPdf(
-            @RequestParam(required = false) String department,
-            @RequestParam(defaultValue = "overall") String filter
-    ) {
-        byte[] pdf = scheduleService.exportSchedulesToPdf(department, filter);
+            @RequestParam(required = false) String departmentName,
+            @RequestParam(defaultValue = "overall") String filter,
+            Authentication authentication) {
+
+        String effectiveDept = departmentSecurityHelper
+                .resolveEffectiveDepartment(departmentName, authentication);
+
+        byte[] pdf = scheduleService.exportSchedulesToPdf(effectiveDept, filter);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=schedules-" + filter + ".pdf")
