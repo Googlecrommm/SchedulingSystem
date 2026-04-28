@@ -70,7 +70,7 @@ public class PatientService {
                     patientDTO.setFullName(
                             patients.getLastName() + ", "
                                     + (patients.getMiddleName() == null ? "" : patients.getMiddleName())
-                                    + patients.getLastName()
+                                    + patients.getFirstName()
                     );
                     return patientDTO;
                 })

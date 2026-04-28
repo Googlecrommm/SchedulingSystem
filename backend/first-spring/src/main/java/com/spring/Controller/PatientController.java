@@ -43,9 +43,9 @@ public class PatientController {
     }
 
     //SEARCH UNPAGINATED
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
     @GetMapping("SearchName/{name}")
-    public ResponseEntity<List<PatientResponseDTO>> SearchPatient(String name){
+    public ResponseEntity<List<PatientResponseDTO>> SearchPatient(@PathVariable String name){
         return ResponseEntity.ok(patientService.SearchPatient(name));
     }
 
