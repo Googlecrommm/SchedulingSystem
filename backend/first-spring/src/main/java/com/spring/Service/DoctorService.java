@@ -12,7 +12,6 @@ import com.spring.Repositories.DoctorsRepository;
 import com.spring.Repositories.RolesRepository;
 import com.spring.Specifications.DoctorSpecification;
 import com.spring.dto.DoctorsResponseDTO;
-import com.spring.dto.RoleResponseDTO;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -34,7 +33,29 @@ public class DoctorService {
         this.rolesRepository = rolesRepository;
     }
 
-    // ─── Reusable DTO mapping helper ────────────────────────────────────────────
+    // ─── Admin bypasses department check; frontdesk is scoped to their department ─
+    private void validateDoctorBelongsToDepartment(Doctors doctor, Authentication authentication) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (isAdmin) return;
+
+        Users user = (Users) authentication.getPrincipal();
+
+        if (user.getRole() == null || user.getRole().getDepartment() == null) {
+            throw new NotAllowed("You are not assigned to any department.");
+        }
+
+        String userDept = user.getRole().getDepartment().getDepartmentName();
+        String doctorDept = doctor.getRole().getDepartment().getDepartmentName();
+
+        if (!userDept.equalsIgnoreCase(doctorDept)) {
+            throw new NotAllowed(
+                    "You can only manage doctors within your department (" + userDept + ")."
+            );
+        }
+    }
+
+    // ─── Reusable DTO mapping helper ─────────────────────────────────────────────
     private DoctorsResponseDTO mapToDTO(Doctors doctors) {
         DoctorsResponseDTO doctorDTO = modelMapper.map(doctors, DoctorsResponseDTO.class);
         doctorDTO.setFullName(doctors.getLastName() + ", "
@@ -50,7 +71,6 @@ public class DoctorService {
             throw new AlreadyExists("This doctor already exists");
         }
 
-        // Non-admins can only create doctors within their own department
         boolean isAdmin = authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
@@ -61,7 +81,6 @@ public class DoctorService {
                 throw new NotAllowed("You are not assigned to any department.");
             }
 
-            // Re-fetch the role being assigned to the new doctor
             Roles assignedRole = rolesRepository.findById(doctors.getRole().getRoleId())
                     .orElseThrow(() -> new RuntimeException("Role not found"));
 
@@ -78,25 +97,20 @@ public class DoctorService {
         doctorsRepository.save(doctors);
     }
 
-    //READ & FILTER — single method, handles all departments dynamically
-    // departmentName = null → admin sees all departments
-    // departmentName = "Radiology" → scoped to that department only
+    //READ & FILTER
     public Page<DoctorsResponseDTO> getDoctors(String availabilityStatus, String roleName, String departmentName, Pageable pageable) {
         Specification<Doctors> filters = Specification
                 .where(DoctorSpecification.hasStatus(availabilityStatus))
                 .and(DoctorSpecification.hasRole(roleName))
-                .and(DoctorSpecification.hasDepartment(departmentName)); // ADDED
+                .and(DoctorSpecification.hasDepartment(departmentName));
 
         return doctorsRepository.findAll(filters, pageable).map(this::mapToDTO);
     }
 
-    // DELETED: getRadiologist()  — replaced by getDoctors() with departmentName param
-    // DELETED: getTherapist()    — replaced by getDoctors() with departmentName param
-
-    //SEARCH — scoped by department for non-admins
+    //SEARCH
     public Page<DoctorsResponseDTO> searchDoctor(String searchName, String departmentName, Pageable pageable) {
         Specification<Doctors> filters = Specification
-                .where(DoctorSpecification.hasDepartment(departmentName)) // ADDED
+                .where(DoctorSpecification.hasDepartment(departmentName))
                 .and((root, query, cb) -> cb.or(
                         cb.like(cb.lower(root.get("firstName")), "%" + searchName.toLowerCase() + "%"),
                         cb.like(cb.lower(root.get("lastName")), "%" + searchName.toLowerCase() + "%")
@@ -105,18 +119,14 @@ public class DoctorService {
         return doctorsRepository.findAll(filters, pageable).map(this::mapToDTO);
     }
 
-    //DROPDOWN — single method replaces doctorDropdown, ptDropdown, radiologistDropdown
-    // departmentName = null → admin gets all available doctors
-    // departmentName = "Radiology" → gets only available doctors in that department
+    //DROPDOWN
     public List<DoctorsResponseDTO> doctorDropdown(String departmentName) {
         if (departmentName == null) {
-            // Admin — return all available doctors across all departments
             return doctorsRepository.findAllByAvailabilityStatusEquals(DoctorStatus.Available)
                     .stream()
                     .map(this::mapToDTO)
                     .toList();
         }
-        // Department user — return only available doctors in their department
         return doctorsRepository
                 .findAllByAvailabilityStatusEqualsAndRole_Department_DepartmentNameIgnoreCase(
                         DoctorStatus.Available, departmentName)
@@ -125,14 +135,12 @@ public class DoctorService {
                 .toList();
     }
 
-
-    // DELETED: ptDropdown()           — replaced by doctorDropdown() with departmentName param
-    // DELETED: radiologistDropdown()  — replaced by doctorDropdown() with departmentName param
-
-    //UPDATE
-    public void updateDoctor(int doctorId, Doctors doctor) {
+    //UPDATE — admin and frontdesk, department scoped for frontdesk
+    public void updateDoctor(int doctorId, Doctors doctor, Authentication authentication) {
         Doctors doctorToUpdate = doctorsRepository.findById(doctorId)
                 .orElseThrow(() -> new NotFound("Doctor not found"));
+
+        validateDoctorBelongsToDepartment(doctorToUpdate, authentication);
 
         if (doctor.getFirstName() != null && !doctor.getFirstName().isEmpty()) {
             doctorToUpdate.setFirstName(doctor.getFirstName());
@@ -160,10 +168,12 @@ public class DoctorService {
         doctorsRepository.save(doctorToUpdate);
     }
 
-    //MARK AS ON_LEAVE
-    public void markLeave(int doctorId) {
+    //MARK AS ON_LEAVE — admin and frontdesk, department scoped for frontdesk
+    public void markLeave(int doctorId, Authentication authentication) {
         Doctors doctorToLeave = doctorsRepository.findById(doctorId)
                 .orElseThrow(() -> new NotFound("Doctor not found"));
+
+        validateDoctorBelongsToDepartment(doctorToLeave, authentication);
 
         if (doctorToLeave.getAvailabilityStatus().equals(DoctorStatus.On_Leave)) {
             throw new NoChangesDetected("Doctor is already on leave");
@@ -173,10 +183,12 @@ public class DoctorService {
         doctorsRepository.save(doctorToLeave);
     }
 
-    //MARK AS UNAVAILABLE
-    public void markUnavailable(int doctorId) {
+    //MARK AS UNAVAILABLE — admin and frontdesk, department scoped for frontdesk
+    public void markUnavailable(int doctorId, Authentication authentication) {
         Doctors doctorToUnavailable = doctorsRepository.findById(doctorId)
                 .orElseThrow(() -> new NotFound("Doctor not found"));
+
+        validateDoctorBelongsToDepartment(doctorToUnavailable, authentication);
 
         if (doctorToUnavailable.getAvailabilityStatus().equals(DoctorStatus.Unavailable)) {
             throw new NoChangesDetected("Doctor is already unavailable");
@@ -186,10 +198,12 @@ public class DoctorService {
         doctorsRepository.save(doctorToUnavailable);
     }
 
-    //MARK AS AVAILABLE
-    public void markAvailable(int doctorId) {
+    //MARK AS AVAILABLE — admin and frontdesk, department scoped for frontdesk
+    public void markAvailable(int doctorId, Authentication authentication) {
         Doctors doctorToAvailable = doctorsRepository.findById(doctorId)
                 .orElseThrow(() -> new NotFound("Doctor not found"));
+
+        validateDoctorBelongsToDepartment(doctorToAvailable, authentication);
 
         if (doctorToAvailable.getAvailabilityStatus().equals(DoctorStatus.Available)) {
             throw new NoChangesDetected("Doctor is already available");

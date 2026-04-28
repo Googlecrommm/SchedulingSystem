@@ -87,37 +87,44 @@ public class DoctorController {
     // DELETED: therapistDropdown    — replaced by doctorDropdown (scoped automatically)
     // DELETED: radiologistDropdown  — replaced by doctorDropdown (scoped automatically)
 
-    //UPDATE — admin only
-    @PreAuthorize("hasRole('ADMIN')")
+    //UPDATE
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
     @PutMapping("updateDoctor/{doctorId}")
     public ResponseEntity<SuccessResponse> updateDoctor(
             @PathVariable int doctorId,
-            @RequestBody Doctors doctor) {
-        doctorService.updateDoctor(doctorId, doctor);
+            @RequestBody Doctors doctor,
+            Authentication authentication) {
+        doctorService.updateDoctor(doctorId, doctor, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Doctor Updated"));
     }
 
-    //MARK AS ON LEAVE — admin only
-    @PreAuthorize("hasRole('ADMIN')")
+    //MARK AS LEAVE
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
     @PutMapping("leaveDoctor/{doctorId}")
-    public ResponseEntity<SuccessResponse> markLeave(@PathVariable int doctorId) {
-        doctorService.markLeave(doctorId);
+    public ResponseEntity<SuccessResponse> markLeave(
+            @PathVariable int doctorId,
+            Authentication authentication) {
+        doctorService.markLeave(doctorId, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Marked as On Leave"));
     }
 
-    //MARK AS UNAVAILABLE — admin only
-    @PreAuthorize("hasRole('ADMIN')")
+    //MARK AS UNAVAILABLE
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
     @PutMapping("unavailableDoctor/{doctorId}")
-    public ResponseEntity<SuccessResponse> markUnavailable(@PathVariable int doctorId) {
-        doctorService.markUnavailable(doctorId);
+    public ResponseEntity<SuccessResponse> markUnavailable(
+            @PathVariable int doctorId,
+            Authentication authentication) {
+        doctorService.markUnavailable(doctorId, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Marked as Unavailable"));
     }
 
-    //MARK AS AVAILABLE — admin only
-    @PreAuthorize("hasRole('ADMIN')")
+    //MARK AS AVAILABLE
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
     @PutMapping("availableDoctor/{doctorId}")
-    public ResponseEntity<SuccessResponse> markAvailable(@PathVariable int doctorId) {
-        doctorService.markAvailable(doctorId);
+    public ResponseEntity<SuccessResponse> markAvailable(
+            @PathVariable int doctorId,
+            Authentication authentication) {
+        doctorService.markAvailable(doctorId, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Marked as Available"));
     }
 }
