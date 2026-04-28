@@ -47,7 +47,7 @@ public class UsersService {
                 .findAll(filters, pageable)
                 .map(users -> {
                     UserResponseDTO userResponseDTO = modelMapper.map(users, UserResponseDTO.class);
-                    userResponseDTO.setName(users.getLastName() + ", " + users.getFirstName() + " " +
+                    userResponseDTO.setFullName(users.getLastName() + ", " + users.getFirstName() + " " +
                             (users.getMiddleName() == null ? "" : users.getMiddleName()));
                     userResponseDTO.setRoleName(users.getRole().getRoleName());
                     userResponseDTO.setDepartmentName(users.getRole().getDepartment().getDepartmentName());
@@ -61,7 +61,7 @@ public class UsersService {
                 .findByFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(searchName, searchName, pageable)
                 .map(users -> {
                     UserResponseDTO userDTO = modelMapper.map(users, UserResponseDTO.class);
-                    userDTO.setName(users.getLastName() + ", " + users.getFirstName() + " " +
+                    userDTO.setFullName(users.getLastName() + ", " + users.getFirstName() + " " +
                             (users.getMiddleName() == null ? "" : users.getMiddleName()));
                     userDTO.setRoleName(users.getRole().getRoleName());
                     userDTO.setDepartmentName(users.getRole().getDepartment().getDepartmentName());

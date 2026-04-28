@@ -88,10 +88,10 @@ public class ScheduleService {
     // Reusable DTO mapping helper
     private ScheduleResponseDTO mapToDTO(Schedules schedules) {
         ScheduleResponseDTO scheduleDTO = modelMapper.map(schedules, ScheduleResponseDTO.class);
-        scheduleDTO.setName(schedules.getDoctor().getLastName() + ", "
+        scheduleDTO.setDoctorFullName(schedules.getDoctor().getLastName() + ", "
                 + schedules.getDoctor().getFirstName() + " "
                 + (schedules.getDoctor().getMiddleName() == null ? "" : schedules.getDoctor().getMiddleName()));
-        scheduleDTO.setPatientName(schedules.getPatient().getLastName() + ", "
+        scheduleDTO.setPatientFullName(schedules.getPatient().getLastName() + ", "
                 + schedules.getPatient().getFirstName() + " "
                 + (schedules.getPatient().getMiddleName() == null ? "" : schedules.getPatient().getMiddleName()));
         scheduleDTO.setContactNumber(schedules.getPatient().getContactNumber());

@@ -8,8 +8,8 @@ import java.time.LocalDateTime;
 
 public class ScheduleResponseDTO {
     private int scheduleId;
-    private String name;
-    private String patientName;
+    private String doctorFullName;
+    private String patientFullName;
     private String contactNumber;
     private LocalDate birthDate;
     private String address;
@@ -33,20 +33,20 @@ public class ScheduleResponseDTO {
         this.scheduleId = scheduleId;
     }
 
-    public String getName() {
-        return name;
+    public String getDoctorFullName() {
+        return doctorFullName;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setDoctorFullName(String doctorFullName) {
+        this.doctorFullName = doctorFullName;
     }
 
-    public String getPatientName() {
-        return patientName;
+    public String getPatientFullName() {
+        return patientFullName;
     }
 
-    public void setPatientName(String patientName) {
-        this.patientName = patientName;
+    public void setPatientFullName(String patientFullName) {
+        this.patientFullName = patientFullName;
     }
 
     public String getContactNumber() {

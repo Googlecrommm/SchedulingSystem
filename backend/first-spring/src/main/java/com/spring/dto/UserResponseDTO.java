@@ -4,7 +4,7 @@ import com.spring.Enums.AccountStatus;
 
 public class UserResponseDTO {
     private int userId;
-    private String name;
+    private String fullName;
     private String email;
     private String roleName;
     private String departmentName;
@@ -18,12 +18,12 @@ public class UserResponseDTO {
         this.userId = userId;
     }
 
-    public String getName() {
-        return name;
+    public String getFullName() {
+        return fullName;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
     }
 
     public String getEmail() {

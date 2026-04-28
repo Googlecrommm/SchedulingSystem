@@ -8,7 +8,7 @@ import java.time.LocalDate;
 
 public class PatientResponseDTO {
     private int patientId;
-    private String name;
+    private String fullName;
     private String address;
     private String contactNumber;
     private LocalDate birthDate;
@@ -23,12 +23,12 @@ public class PatientResponseDTO {
         this.patientId = patientId;
     }
 
-    public String getName() {
-        return name;
+    public String getFullName() {
+        return fullName;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
     }
 
     public String getAddress() {

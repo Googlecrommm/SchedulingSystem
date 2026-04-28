@@ -36,14 +36,28 @@ public class PatientService {
 
         return patientsRepository.findAll(filters, pageable)
                 .map(patients -> {
-                    return modelMapper.map(patients, PatientResponseDTO.class);
+                    PatientResponseDTO patientDTO = modelMapper.map(patients, PatientResponseDTO.class);
+                    patientDTO.setFullName(
+                            patients.getLastName() + ", "
+                                    + (patients.getMiddleName() == null ? "" : patients.getMiddleName())
+                                    + patients.getLastName()
+                    );
+                    return patientDTO;
                 });
     }
 
     //SEARCH AND PAGINATED
     public Page<PatientResponseDTO> searchPatients(String name, Pageable pageable){
         return patientsRepository.findByFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(name, name, pageable)
-                .map(patients -> modelMapper.map(patients, PatientResponseDTO.class));
+                .map(patients -> {
+                    PatientResponseDTO patientDTO = modelMapper.map(patients, PatientResponseDTO.class);
+                    patientDTO.setFullName(
+                            patients.getLastName() + ", "
+                            + (patients.getMiddleName() == null ? "" : patients.getMiddleName())
+                            + patients.getLastName()
+                    );
+                    return patientDTO;
+                });
     }
 
 
@@ -51,7 +65,15 @@ public class PatientService {
     public List<PatientResponseDTO> SearchPatient(String name){
         return patientsRepository.findByNameContainingAndStatusNot(name, PatientStatus.Archived)
                 .stream()
-                .map(patients -> modelMapper.map(patients, PatientResponseDTO.class))
+                .map(patients -> {
+                    PatientResponseDTO patientDTO = modelMapper.map(patients, PatientResponseDTO.class);
+                    patientDTO.setFullName(
+                            patients.getLastName() + ", "
+                                    + (patients.getMiddleName() == null ? "" : patients.getMiddleName())
+                                    + patients.getLastName()
+                    );
+                    return patientDTO;
+                })
                 .toList();
     }
     //UPDATE
