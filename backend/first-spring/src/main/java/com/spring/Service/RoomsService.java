@@ -3,8 +3,10 @@ package com.spring.Service;
 import com.spring.Enums.SoftDelete;
 import com.spring.Exceptions.AlreadyExists;
 import com.spring.Exceptions.NoChangesDetected;
+import com.spring.Exceptions.NotAllowed;
 import com.spring.Exceptions.NotFound;
 import com.spring.Models.Rooms;
+import com.spring.Models.Users;
 import com.spring.Repositories.DepartmentsRepository;
 import com.spring.Repositories.RoomsRepository;
 import com.spring.Specifications.RoomSpecification;
@@ -13,6 +15,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -23,10 +26,33 @@ public class RoomsService {
     private final ModelMapper modelMapper;
     private final DepartmentsRepository departmentsRepository;
 
-    public RoomsService(RoomsRepository roomsRepository, ModelMapper modelMapper, DepartmentsRepository departmentsRepository) {
+    public RoomsService(RoomsRepository roomsRepository, ModelMapper modelMapper,
+                        DepartmentsRepository departmentsRepository) {
         this.roomsRepository = roomsRepository;
         this.modelMapper = modelMapper;
         this.departmentsRepository = departmentsRepository;
+    }
+
+    // ─── Admin bypasses department check; frontdesk is scoped to their department ─
+    private void validateRoomBelongsToDepartment(Rooms room, Authentication authentication) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (isAdmin) return;
+
+        Users user = (Users) authentication.getPrincipal();
+
+        if (user.getRole() == null || user.getRole().getDepartment() == null) {
+            throw new NotAllowed("You are not assigned to any department.");
+        }
+
+        String userDept = user.getRole().getDepartment().getDepartmentName();
+        String roomDept = room.getDepartment().getDepartmentName();
+
+        if (!userDept.equalsIgnoreCase(roomDept)) {
+            throw new NotAllowed(
+                    "You can only manage rooms within your department (" + userDept + ")."
+            );
+        }
     }
 
     // ─── Reusable DTO mapping helper ────────────────────────────────────────────
@@ -36,15 +62,36 @@ public class RoomsService {
         return roomDTO;
     }
 
-    //CREATE — admin only
-    public void createRoom(Rooms room) {
-        if (roomsRepository.existsByRoomName(room.getRoomName())) {
-            throw new AlreadyExists("Room already exists");
+    //CREATE — admin and frontdesk, frontdesk scoped to their department
+    public void createRoom(Rooms room, Authentication authentication) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (isAdmin) {
+            // Admin must explicitly provide the department
+            if (room.getDepartment() == null || room.getDepartment().getDepartmentId() == 0) {
+                throw new NotAllowed("Department is required.");
+            }
+        } else {
+            // Frontdesk: auto-assign their own department, ignore whatever was sent
+            Users user = (Users) authentication.getPrincipal();
+
+            if (user.getRole() == null || user.getRole().getDepartment() == null) {
+                throw new NotAllowed("You are not assigned to any department.");
+            }
+
+            room.setDepartment(user.getRole().getDepartment());
         }
+
+        if (roomsRepository.existsByRoomNameIgnoreCaseAndDepartment_DepartmentId(
+                room.getRoomName(), room.getDepartment().getDepartmentId())) {
+            throw new AlreadyExists("Room already exists in this department.");
+        }
+
         roomsRepository.save(room);
     }
 
-    //READ & FILTER — departmentName null = admin sees all, non-null = scoped
+    //READ & FILTER
     public Page<RoomResponseDTO> getRooms(SoftDelete roomStatus, String departmentName, Pageable pageable) {
         Specification<Rooms> filters = Specification
                 .where(RoomSpecification.hasStatus(roomStatus))
@@ -53,10 +100,10 @@ public class RoomsService {
         return roomsRepository.findAll(filters, pageable).map(this::mapToDTO);
     }
 
-    //SEARCH — scoped by department for non-admins
+    //SEARCH
     public Page<RoomResponseDTO> searchRoom(String roomName, String departmentName, Pageable pageable) {
         Specification<Rooms> filters = Specification
-                .where(RoomSpecification.hasDepartment(departmentName)) // ADDED
+                .where(RoomSpecification.hasDepartment(departmentName))
                 .and((root, query, cb) ->
                         cb.like(cb.lower(root.get("roomName")),
                                 "%" + roomName.toLowerCase() + "%"));
@@ -64,16 +111,14 @@ public class RoomsService {
         return roomsRepository.findAll(filters, pageable).map(this::mapToDTO);
     }
 
-    //DROPDOWN — admin gets all, department user gets only their department
+    //DROPDOWN
     public List<RoomResponseDTO> roomsDropdown(String departmentName) {
         if (departmentName == null) {
-            // Admin — all active rooms across all departments
             return roomsRepository.findAllByRoomStatusNot(SoftDelete.Archived)
                     .stream()
                     .map(this::mapToDTO)
                     .toList();
         }
-        // Department user — only active rooms in their department
         return roomsRepository
                 .findAllByRoomStatusNotAndDepartment_DepartmentNameIgnoreCase(
                         SoftDelete.Archived, departmentName)
@@ -82,28 +127,31 @@ public class RoomsService {
                 .toList();
     }
 
-    //UPDATE — admin only
-    public void updateRoom(int roomId, Rooms room) {
+    //UPDATE — admin and frontdesk, frontdesk scoped to their department
+    public void updateRoom(int roomId, Rooms room, Authentication authentication) {
         Rooms roomToUpdate = roomsRepository.findById(roomId)
                 .orElseThrow(() -> new NotFound("Room not found"));
 
-        if (roomsRepository.existsByRoomName(room.getRoomName())) {
-            throw new AlreadyExists("Room already exists");
-        }
+        validateRoomBelongsToDepartment(roomToUpdate, authentication);
 
         if (room.getRoomName() != null && !room.getRoomName().isEmpty()) {
+            // Check duplicate against the existing room's department (department never changes on update)
+            if (roomsRepository.existsByRoomNameIgnoreCaseAndDepartment_DepartmentIdAndRoomIdNot(
+                    room.getRoomName(), roomToUpdate.getDepartment().getDepartmentId(), roomId)) {
+                throw new AlreadyExists("Room already exists in this department.");
+            }
             roomToUpdate.setRoomName(room.getRoomName());
         }
 
-        roomToUpdate.setDepartment(roomToUpdate.getDepartment());
-        roomToUpdate.setRoomStatus(roomToUpdate.getRoomStatus());
         roomsRepository.save(roomToUpdate);
     }
 
-    //ARCHIVE — admin only
-    public void archiveRoom(int roomId) {
+    //ARCHIVE — admin and frontdesk, frontdesk scoped to their department
+    public void archiveRoom(int roomId, Authentication authentication) {
         Rooms roomToArchive = roomsRepository.findById(roomId)
                 .orElseThrow(() -> new NotFound("Room not found"));
+
+        validateRoomBelongsToDepartment(roomToArchive, authentication);
 
         if (roomToArchive.getRoomStatus().equals(SoftDelete.Archived)) {
             throw new NoChangesDetected("Room is already archived");
@@ -113,10 +161,12 @@ public class RoomsService {
         roomsRepository.save(roomToArchive);
     }
 
-    //RESTORE — admin only
-    public void restoreRoom(int roomId) {
+    //RESTORE — admin and frontdesk, frontdesk scoped to their department
+    public void restoreRoom(int roomId, Authentication authentication) {
         Rooms roomToRestore = roomsRepository.findById(roomId)
                 .orElseThrow(() -> new NotFound("Room not found"));
+
+        validateRoomBelongsToDepartment(roomToRestore, authentication);
 
         if (roomToRestore.getRoomStatus().equals(SoftDelete.Active)) {
             throw new NoChangesDetected("Room is already active");

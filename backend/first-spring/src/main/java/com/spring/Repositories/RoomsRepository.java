@@ -12,7 +12,10 @@ import java.util.List;
 
 @Repository
 public interface RoomsRepository extends JpaRepository<Rooms, Integer>, JpaSpecificationExecutor<Rooms> {
-    boolean existsByRoomName(String name);
+    boolean existsByRoomNameIgnoreCaseAndDepartment_DepartmentId(String roomName, int departmentId);
+
+    boolean existsByRoomNameIgnoreCaseAndDepartment_DepartmentIdAndRoomIdNot(
+            String roomName, int departmentId, int roomId);
 
     Page<Rooms> findAll(Pageable pageable);
 

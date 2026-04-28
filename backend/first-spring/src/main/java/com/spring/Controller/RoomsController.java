@@ -26,11 +26,13 @@ public class RoomsController {
         this.departmentSecurityHelper = departmentSecurityHelper;
     }
 
-    //CREATE — admin only
-    @PreAuthorize("hasRole('ADMIN')")
+    //CREATE — admin and frontdesk, frontdesk scoped to their department
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("createRoom")
-    public ResponseEntity<SuccessResponse> createRoom(@RequestBody Rooms room) {
-        roomsService.createRoom(room);
+    public ResponseEntity<SuccessResponse> createRoom(
+            @RequestBody Rooms room,
+            Authentication authentication) {
+        roomsService.createRoom(room, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Room Added"));
     }
 
@@ -73,29 +75,34 @@ public class RoomsController {
         return ResponseEntity.ok(roomsService.roomsDropdown(effectiveDept));
     }
 
-    //UPDATE — admin only
-    @PreAuthorize("hasRole('ADMIN')")
+    //UPDATE — admin and frontdesk, frontdesk scoped to their department
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
     @PutMapping("updateRoom/{roomId}")
     public ResponseEntity<SuccessResponse> updateRoom(
             @PathVariable int roomId,
-            @RequestBody Rooms room) {
-        roomsService.updateRoom(roomId, room);
+            @RequestBody Rooms room,
+            Authentication authentication) {
+        roomsService.updateRoom(roomId, room, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Room Updated"));
     }
 
-    //ARCHIVE — admin only
-    @PreAuthorize("hasRole('ADMIN')")
+    //ARCHIVE — admin and frontdesk, frontdesk scoped to their department
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
     @PutMapping("archiveRoom/{roomId}")
-    public ResponseEntity<SuccessResponse> archiveRoom(@PathVariable int roomId) {
-        roomsService.archiveRoom(roomId);
+    public ResponseEntity<SuccessResponse> archiveRoom(
+            @PathVariable int roomId,
+            Authentication authentication) {
+        roomsService.archiveRoom(roomId, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Room Archived"));
     }
 
-    //RESTORE — admin only
-    @PreAuthorize("hasRole('ADMIN')")
+    //RESTORE — admin and frontdesk, frontdesk scoped to their department
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
     @PutMapping("restoreRoom/{roomId}")
-    public ResponseEntity<SuccessResponse> restoreRoom(@PathVariable int roomId) {
-        roomsService.restoreRoom(roomId);
+    public ResponseEntity<SuccessResponse> restoreRoom(
+            @PathVariable int roomId,
+            Authentication authentication) {
+        roomsService.restoreRoom(roomId, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Room Restored"));
     }
 }
