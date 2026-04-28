@@ -3,8 +3,10 @@ package com.spring.Service;
 import com.spring.Enums.SoftDelete;
 import com.spring.Exceptions.AlreadyExists;
 import com.spring.Exceptions.NoChangesDetected;
+import com.spring.Exceptions.NotAllowed;
 import com.spring.Exceptions.NotFound;
 import com.spring.Models.Modalities;
+import com.spring.Models.Users;
 import com.spring.Repositories.ModalitiesRepository;
 import com.spring.Specifications.ModalitySpecification;
 import com.spring.dto.ModalityResponseDTO;
@@ -12,6 +14,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -33,11 +36,50 @@ public class ModalitiesService {
         return modalityDTO;
     }
 
-    //CREATE
-    public Modalities createModality(Modalities modality) {
-        if (modalitiesRepository.existsByModalityName(modality.getModalityName())) {
-            throw new AlreadyExists("This modality already exists");
+    // ─── Admin bypasses department check; frontdesk is scoped to their department ─
+    private void validateModalityBelongsToDepartment(Modalities modality, Authentication authentication) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (isAdmin) return;
+
+        Users user = (Users) authentication.getPrincipal();
+
+        if (user.getRole() == null || user.getRole().getDepartment() == null) {
+            throw new NotAllowed("You are not assigned to any department.");
         }
+
+        String userDept = user.getRole().getDepartment().getDepartmentName();
+        String modalityDept = modality.getDepartment().getDepartmentName();
+
+        if (!userDept.equalsIgnoreCase(modalityDept)) {
+            throw new NotAllowed(
+                    "You can only manage modalities within your department (" + userDept + ")."
+            );
+        }
+    }
+
+    //CREATE — admin must provide department, frontdesk auto-assigned
+    public Modalities createModality(Modalities modality, Authentication authentication) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (isAdmin) {
+            if (modality.getDepartment() == null || modality.getDepartment().getDepartmentId() == 0) {
+                throw new NotAllowed("Department is required.");
+            }
+        } else {
+            Users user = (Users) authentication.getPrincipal();
+            if (user.getRole() == null || user.getRole().getDepartment() == null) {
+                throw new NotAllowed("You are not assigned to any department.");
+            }
+            modality.setDepartment(user.getRole().getDepartment());
+        }
+
+        if (modalitiesRepository.existsByModalityNameIgnoreCaseAndDepartment_DepartmentId(
+                modality.getModalityName(), modality.getDepartment().getDepartmentId())) {
+            throw new AlreadyExists("This modality already exists in this department.");
+        }
+
         return modalitiesRepository.save(modality);
     }
 
@@ -79,16 +121,18 @@ public class ModalitiesService {
                 .toList();
     }
 
-    //UPDATE — admin only
-    public void updateModality(int modalityId, Modalities modality) {
+    //UPDATE
+    public void updateModality(int modalityId, Modalities modality, Authentication authentication) {
         Modalities modalityToUpdate = modalitiesRepository.findById(modalityId)
                 .orElseThrow(() -> new NotFound("Modality not found"));
 
-        if (modalitiesRepository.existsByModalityName(modality.getModalityName())) {
-            throw new AlreadyExists("Modality already exists");
-        }
+        validateModalityBelongsToDepartment(modalityToUpdate, authentication);
 
         if (modality.getModalityName() != null && !modality.getModalityName().isEmpty()) {
+            if (modalitiesRepository.existsByModalityNameIgnoreCaseAndDepartment_DepartmentIdAndModalityIdNot(
+                    modality.getModalityName(), modalityToUpdate.getDepartment().getDepartmentId(), modalityId)) {
+                throw new AlreadyExists("Modality already exists in this department.");
+            }
             modalityToUpdate.setModalityName(modality.getModalityName());
         }
 
@@ -96,14 +140,15 @@ public class ModalitiesService {
             modalityToUpdate.setDepartment(modality.getDepartment());
         }
 
-        modalityToUpdate.setModalityStatus(modalityToUpdate.getModalityStatus());
         modalitiesRepository.save(modalityToUpdate);
     }
 
-    //ARCHIVE — admin only
-    public void archiveModality(int modalityId) {
+    //ARCHIVE
+    public void archiveModality(int modalityId, Authentication authentication) {
         Modalities modalityToArchive = modalitiesRepository.findById(modalityId)
                 .orElseThrow(() -> new NotFound("Modality not found"));
+
+        validateModalityBelongsToDepartment(modalityToArchive, authentication);
 
         if (modalityToArchive.getModalityStatus().equals(SoftDelete.Archived)) {
             throw new NoChangesDetected("This modality is already archived");
@@ -113,10 +158,12 @@ public class ModalitiesService {
         modalitiesRepository.save(modalityToArchive);
     }
 
-    //RESTORE — admin only
-    public void restoreModality(int modalityId) {
+    //RESTORE
+    public void restoreModality(int modalityId, Authentication authentication) {
         Modalities modalityToRestore = modalitiesRepository.findById(modalityId)
                 .orElseThrow(() -> new NotFound("Modality not found"));
+
+        validateModalityBelongsToDepartment(modalityToRestore, authentication);
 
         if (modalityToRestore.getModalityStatus().equals(SoftDelete.Active)) {
             throw new NoChangesDetected("This modality is already active");

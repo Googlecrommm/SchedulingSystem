@@ -14,6 +14,10 @@ import java.util.List;
 public interface ModalitiesRepository extends JpaRepository<Modalities, Integer>, JpaSpecificationExecutor<Modalities> {
     boolean existsByModalityName(String modalityName);
 
+    boolean existsByModalityNameIgnoreCaseAndDepartment_DepartmentId(String modalityName, int departmentId);
+
+    boolean existsByModalityNameIgnoreCaseAndDepartment_DepartmentIdAndModalityIdNot(String modalityName, int departmentId, int modalityId);
+
     Page<Modalities> findAll(Pageable pageable);
 
     Page<Modalities> searchByModalityNameContaining(String searchModality, Pageable pageable);

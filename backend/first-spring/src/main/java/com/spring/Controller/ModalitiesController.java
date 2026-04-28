@@ -25,11 +25,13 @@ public class ModalitiesController {
         this.departmentSecurityHelper = departmentSecurityHelper;
     }
 
-    //CREATE — admin only
-    @PreAuthorize("hasRole('ADMIN')")
+    //CREATE — admin provides department, frontdesk auto-assigned
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
     @PostMapping("createModality")
-    public ResponseEntity<Modalities> createModality(@RequestBody Modalities modality) {
-        return ResponseEntity.ok(modalitiesService.createModality(modality));
+    public ResponseEntity<Modalities> createModality(
+            @RequestBody Modalities modality,
+            Authentication authentication) {
+        return ResponseEntity.ok(modalitiesService.createModality(modality, authentication));
     }
 
     //READ & FILTER — all roles, department scoped via helper
@@ -73,29 +75,34 @@ public class ModalitiesController {
         return ResponseEntity.ok(modalitiesService.modalityDropdown(effectiveDept));
     }
 
-    //UPDATE — admin only
-    @PreAuthorize("hasRole('ADMIN')")
+    //UPDATE
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
     @PutMapping("updateModality/{modalityId}")
     public ResponseEntity<SuccessResponse> updateModality(
             @PathVariable int modalityId,
-            @RequestBody Modalities modality) {
-        modalitiesService.updateModality(modalityId, modality);
+            @RequestBody Modalities modality,
+            Authentication authentication) {
+        modalitiesService.updateModality(modalityId, modality, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Modality Updated"));
     }
 
-    //ARCHIVE — admin only
-    @PreAuthorize("hasRole('ADMIN')")
+    //ARCHIVE
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
     @PutMapping("archiveModality/{modalityId}")
-    public ResponseEntity<SuccessResponse> archiveModality(@PathVariable int modalityId) {
-        modalitiesService.archiveModality(modalityId);
+    public ResponseEntity<SuccessResponse> archiveModality(
+            @PathVariable int modalityId,
+            Authentication authentication) {
+        modalitiesService.archiveModality(modalityId, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Modality Archived"));
     }
 
-    //RESTORE — admin only
-    @PreAuthorize("hasRole('ADMIN')")
+    //RESTORE
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
     @PutMapping("restoreModality/{modalityId}")
-    public ResponseEntity<SuccessResponse> restoreModality(@PathVariable int modalityId) {
-        modalitiesService.restoreModality(modalityId);
+    public ResponseEntity<SuccessResponse> restoreModality(
+            @PathVariable int modalityId,
+            Authentication authentication) {
+        modalitiesService.restoreModality(modalityId, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Modality Restored"));
     }
 }
