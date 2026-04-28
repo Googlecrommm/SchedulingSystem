@@ -25,7 +25,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
-
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -211,8 +210,6 @@ public class ScheduleService {
 
     //READ & FILTER (RADIOLOGY)
     public Page<ScheduleResponseDTO> getRadiologySched(ScheduleStatus scheduleStatus, String name, String patientName, Pageable pageable){
-       
-
         Specification<Schedules> filters = Specification
                 .where(ScheduleSpecification.hasStatus(scheduleStatus))
                 .and(ScheduleSpecification.toDoctor(name))
@@ -230,8 +227,6 @@ public class ScheduleService {
 
     //READ & FILTER (Rehabilitation)
     public Page<ScheduleResponseDTO> getRehabSched(ScheduleStatus scheduleStatus, String name, String patientName,  Pageable pageable){
-       
-
         Specification<Schedules> filters = Specification
                 .where(ScheduleSpecification.hasStatus(scheduleStatus))
                 .and(ScheduleSpecification.toDoctor(name))

@@ -34,11 +34,9 @@ public class RoomsService {
 
     //CREATE
     public void createRoom(Rooms room){
-        Departments defaultDepartment = departmentsRepository.findById(3).orElseThrow(() -> new NotFound("Department not found"));
         if (roomsRepository.existsByRoomName(room.getRoomName())){
             throw new AlreadyExists("Room already exists");
         }
-        room.setDepartment(defaultDepartment);
         roomsRepository.save(room);
     }
 
