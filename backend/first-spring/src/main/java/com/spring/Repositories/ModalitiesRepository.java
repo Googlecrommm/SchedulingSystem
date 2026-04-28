@@ -19,4 +19,8 @@ public interface ModalitiesRepository extends JpaRepository<Modalities, Integer>
     Page<Modalities> searchByModalityNameContaining(String searchModality, Pageable pageable);
 
     List<Modalities> findAllByModalityStatusNot(SoftDelete modalityStatus);
+
+    // ADDED — for department-scoped dropdown (non-admin users)
+    List<Modalities> findAllByModalityStatusNotAndDepartment_DepartmentNameIgnoreCase(
+            SoftDelete modalityStatus, String departmentName);
 }

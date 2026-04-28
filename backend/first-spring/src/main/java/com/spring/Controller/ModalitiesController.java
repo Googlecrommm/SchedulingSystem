@@ -1,6 +1,7 @@
 package com.spring.Controller;
 
 import com.spring.Models.Modalities;
+import com.spring.Security.DepartmentSecurityHelper;
 import com.spring.Service.ModalitiesService;
 import com.spring.dto.ModalityResponseDTO;
 import com.spring.dto.SuccessResponse;
@@ -8,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,68 +18,84 @@ import java.util.List;
 @RequestMapping("/api")
 public class ModalitiesController {
     private final ModalitiesService modalitiesService;
+    private final DepartmentSecurityHelper departmentSecurityHelper;
 
-    public ModalitiesController(ModalitiesService modalitiesService){
+    public ModalitiesController(ModalitiesService modalitiesService, DepartmentSecurityHelper departmentSecurityHelper) {
         this.modalitiesService = modalitiesService;
+        this.departmentSecurityHelper = departmentSecurityHelper;
     }
 
-    //CREATE
+    //CREATE — admin only
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("createModality")
-    public ResponseEntity<Modalities> createModality(@RequestBody Modalities modality){
+    public ResponseEntity<Modalities> createModality(@RequestBody Modalities modality) {
         return ResponseEntity.ok(modalitiesService.createModality(modality));
     }
 
-    //READ ALL
-    @PreAuthorize("hasRole('ADMIN')")
+    //READ & FILTER — all roles, department scoped via helper
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("getModalities")
     public ResponseEntity<Page<ModalityResponseDTO>> getModalities(
             @RequestParam(required = false) String modalityStatus,
             @RequestParam(required = false) String departmentName,
-            Pageable pageable){
-        return ResponseEntity.ok(modalitiesService.getModalities(modalityStatus, departmentName, pageable));
+            Pageable pageable,
+            Authentication authentication) {
+
+        String effectiveDept = departmentSecurityHelper
+                .resolveEffectiveDepartment(departmentName, authentication);
+
+        return ResponseEntity.ok(
+                modalitiesService.getModalities(modalityStatus, effectiveDept, pageable));
     }
 
-    //SEARCH MODALITY
-    @PreAuthorize("hasRole('ADMIN')")
+    //SEARCH — all roles, department scoped via helper
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("searchModality/{searchModality}")
     public ResponseEntity<Page<ModalityResponseDTO>> searchModality(
             @PathVariable String searchModality,
-            Pageable pageable
-    ){
-        return ResponseEntity.ok(modalitiesService.searchModality(searchModality, pageable));
+            Pageable pageable,
+            Authentication authentication) {
+
+        String effectiveDept = departmentSecurityHelper
+                .resolveEffectiveDepartment(null, authentication);
+
+        return ResponseEntity.ok(
+                modalitiesService.searchModality(searchModality, effectiveDept, pageable));
     }
 
-    //MODALITY DROPDOWN
-    @PreAuthorize("hasRole('ADMIN')")
+    //DROPDOWN — all roles, department scoped via helper
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("modalityDropdown")
-    public ResponseEntity<List<ModalityResponseDTO>> modalityDropdown(){
-        return ResponseEntity.ok(modalitiesService.modalityDropdown());
+    public ResponseEntity<List<ModalityResponseDTO>> modalityDropdown(Authentication authentication) {
+        String effectiveDept = departmentSecurityHelper
+                .resolveEffectiveDepartment(null, authentication);
+
+        return ResponseEntity.ok(modalitiesService.modalityDropdown(effectiveDept));
     }
 
-    //UPDATE
+    //UPDATE — admin only
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("updateModality/{modalityId}")
     public ResponseEntity<SuccessResponse> updateModality(
             @PathVariable int modalityId,
-            @RequestBody Modalities modality){
+            @RequestBody Modalities modality) {
         modalitiesService.updateModality(modalityId, modality);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Modality Updated"));
     }
 
-    //ARCHIVE
+    //ARCHIVE — admin only
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("archiveModality/{modalityId}")
-    public ResponseEntity<SuccessResponse> archiveModality(@PathVariable int modalityId){
+    public ResponseEntity<SuccessResponse> archiveModality(@PathVariable int modalityId) {
         modalitiesService.archiveModality(modalityId);
-        return ResponseEntity.ok().body(new SuccessResponse(200,"Modality Updated"));
+        return ResponseEntity.ok().body(new SuccessResponse(200, "Modality Archived"));
     }
 
-    //RESTORE
+    //RESTORE — admin only
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("restoreModality/{modalityId}")
-    public ResponseEntity<SuccessResponse> restoreModality(@PathVariable int modalityId){
+    public ResponseEntity<SuccessResponse> restoreModality(@PathVariable int modalityId) {
         modalitiesService.restoreModality(modalityId);
-        return ResponseEntity.ok().body(new SuccessResponse(200, "Modality Update"));
+        return ResponseEntity.ok().body(new SuccessResponse(200, "Modality Restored"));
     }
 }
