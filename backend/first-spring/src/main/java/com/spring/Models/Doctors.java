@@ -28,9 +28,17 @@ public class Doctors {
 
     @NotBlank
     @Size(max = 100)
-    @Column(name = "name", nullable = false, length = 100)
-    private String name;
+    @Column(name = "firstName", nullable = false, length = 100)
+    private String firstName;
 
+    @Size(max = 100)
+    @Column(name = "middleName", nullable = true, length = 100)
+    private String middleName;
+
+    @NotBlank
+    @Size(max = 100)
+    @Column(name = "lastName", nullable = false, length = 100)
+    private String lastName;
     public Doctors(){}
 
     public int getDoctorId() {
@@ -65,11 +73,27 @@ public class Doctors {
         this.availabilityStatus = availabilityStatus;
     }
 
-    public String getName() {
-        return name;
+    public String getFirstName() {
+        return firstName;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getMiddleName() {
+        return middleName;
+    }
+
+    public void setMiddleName(String middleName) {
+        this.middleName = middleName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
     }
 }

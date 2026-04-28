@@ -36,10 +36,13 @@ public class JwtService {
     }
 
     public String generateToken(Users user){
+        String fullName = user.getLastName() + ", " + user.getFirstName() + " "
+                + (user.getMiddleName() == null ? "" : user.getMiddleName());
+
         return Jwts.builder()
                 .setSubject(user.getUsername())
                 .claim("role", user.getAuthorities())
-                .claim("name", user.getName())
+                .claim("name", fullName)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSigningKey())

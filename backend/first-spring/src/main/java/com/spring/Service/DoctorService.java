@@ -28,8 +28,8 @@ public class DoctorService {
 
     //CREATE
     public void addDoctor(Doctors doctors){
-        if (doctorsRepository.existsByName(doctors.getName())){
-            throw new AlreadyExists("This doctor already exist");
+        if (doctorsRepository.existsByFirstNameAndLastName(doctors.getFirstName(), doctors.getLastName())){
+            throw new AlreadyExists("This doctor already exists");
         }
         doctorsRepository.save(doctors);
     }
@@ -44,6 +44,9 @@ public class DoctorService {
         return doctorsRepository.findAll(filters, pageable)
                 .map(doctors -> {
                     DoctorsResponseDTO doctorDTO = modelMapper.map(doctors, DoctorsResponseDTO.class);
+                    doctorDTO.setFullName(doctors.getLastName() + ", "
+                                    + (doctors.getMiddleName() == null ? "" : doctors.getMiddleName())
+                                    + doctors.getFirstName());
                     doctorDTO.setRoleName(doctors.getRole().getRoleName());
                     return doctorDTO;
                 });
@@ -58,6 +61,9 @@ public class DoctorService {
         return doctorsRepository.findAll(filters, pageable)
                 .map(doctors -> {
                     DoctorsResponseDTO doctorDTO = modelMapper.map(doctors, DoctorsResponseDTO.class);
+                    doctorDTO.setFullName(doctors.getLastName() + ", "
+                            + (doctors.getMiddleName() == null ? "" : doctors.getMiddleName())
+                            + doctors.getFirstName());
                     doctorDTO.setRoleName(doctors.getRole().getRoleName());
                     return doctorDTO;
                 });
@@ -72,6 +78,9 @@ public class DoctorService {
         return doctorsRepository.findAll(filters, pageable)
                 .map(doctors -> {
                     DoctorsResponseDTO doctorDTO = modelMapper.map(doctors, DoctorsResponseDTO.class);
+                    doctorDTO.setFullName(doctors.getLastName() + ", "
+                            + (doctors.getMiddleName() == null ? "" : doctors.getMiddleName())
+                            + doctors.getFirstName());
                     doctorDTO.setRoleName(doctors.getRole().getRoleName());
                     return doctorDTO;
                 });
@@ -79,9 +88,12 @@ public class DoctorService {
 
     //SEARCH
     public Page<DoctorsResponseDTO> searchDoctor(String searchName, Pageable pageable){
-        return doctorsRepository.searchByNameContaining(searchName, pageable)
+        return doctorsRepository.findByFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(searchName, searchName, pageable)
                 .map(doctors -> {
                     DoctorsResponseDTO doctorDTO = modelMapper.map(doctors, DoctorsResponseDTO.class);
+                    doctorDTO.setFullName(doctors.getLastName() + ", "
+                            + (doctors.getMiddleName() == null ? "" : doctors.getMiddleName())
+                            + doctors.getFirstName());
                     doctorDTO.setRoleName(doctors.getRole().getRoleName());
                     return doctorDTO;
                 });
@@ -93,6 +105,9 @@ public class DoctorService {
                 .stream()
                 .map(doctors -> {
                     DoctorsResponseDTO doctorDTO = modelMapper.map(doctors, DoctorsResponseDTO.class);
+                    doctorDTO.setFullName(doctors.getLastName() + ", "
+                            + (doctors.getMiddleName() == null ? "" : doctors.getMiddleName())
+                            + doctors.getFirstName());
                     doctorDTO.setRoleName(doctors.getRole().getRoleName());
                     return doctorDTO;
                 })
@@ -105,6 +120,9 @@ public class DoctorService {
                 .stream()
                 .map(doctors -> {
                     DoctorsResponseDTO doctorDTO = modelMapper.map(doctors, DoctorsResponseDTO.class);
+                    doctorDTO.setFullName(doctors.getLastName() + ", "
+                            + (doctors.getMiddleName() == null ? "" : doctors.getMiddleName())
+                            + doctors.getFirstName());
                     doctorDTO.setRoleName(doctors.getRole().getRoleName());
                     return doctorDTO;
                 })
@@ -117,6 +135,9 @@ public class DoctorService {
                 .stream()
                 .map(doctors -> {
                     DoctorsResponseDTO doctorDTO = modelMapper.map(doctors, DoctorsResponseDTO.class);
+                    doctorDTO.setFullName(doctors.getLastName() + ", "
+                            + (doctors.getMiddleName() == null ? "" : doctors.getMiddleName())
+                            + doctors.getFirstName());
                     doctorDTO.setRoleName(doctors.getRole().getRoleName());
                     return doctorDTO;
                 })
@@ -127,21 +148,30 @@ public class DoctorService {
     public void updateDoctor(int doctorId, Doctors doctor){
         Doctors doctorToUpdate = doctorsRepository.findById(doctorId).orElseThrow(() -> new NotFound("Doctor not found"));
 
-        if (doctorsRepository.existsByName(doctor.getName())){
-            throw new AlreadyExists("Doctor already exists");
+        if (doctor.getFirstName() != null && !doctor.getFirstName().isEmpty()){
+            doctorToUpdate.setFirstName(doctor.getFirstName());
         }
 
-        if(doctor.getName() != null && !doctor.getName().isEmpty()){
-            doctorToUpdate.setName(doctor.getName());
+        if (doctor.getMiddleName() != null){
+            doctorToUpdate.setMiddleName(doctor.getMiddleName());
+        }
+
+        if (doctor.getLastName() != null && !doctor.getLastName().isEmpty()){
+            if (doctorsRepository.existsByFirstNameAndLastNameAndDoctorIdNot(
+                    doctor.getFirstName() != null ? doctor.getFirstName() : doctorToUpdate.getFirstName(),
+                    doctor.getLastName(),
+                    doctorId)){
+                throw new AlreadyExists("Doctor already exists");
+            }
+            doctorToUpdate.setLastName(doctor.getLastName());
         }
 
         if (doctor.getRole() != null){
             doctorToUpdate.setRole(doctor.getRole());
         }
 
-        doctor.setAvailabilityStatus(doctorToUpdate.getAvailabilityStatus());
+        doctorToUpdate.setAvailabilityStatus(doctorToUpdate.getAvailabilityStatus());
         doctorsRepository.save(doctorToUpdate);
-
     }
 
     //MARK AS ON_LEAVE

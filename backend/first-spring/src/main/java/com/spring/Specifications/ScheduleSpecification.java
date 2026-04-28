@@ -19,7 +19,11 @@ public class ScheduleSpecification {
     public static Specification<Schedules> toDoctor(String name){
         return (root, query, criteriaBuilder) -> {
             if (name == null) return null;
-            return criteriaBuilder.equal(root.get("doctor").get("name"), name);
+            String pattern = "%" + name.toLowerCase() + "%";
+            return criteriaBuilder.or(
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("doctor").get("firstName")), pattern),
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("doctor").get("lastName")), pattern)
+            );
         };
     }
 
@@ -33,9 +37,10 @@ public class ScheduleSpecification {
     public static Specification<Schedules> searchPatient(String patientName){
         return (root, query, criteriaBuilder) -> {
             if (patientName == null) return null;
-            return criteriaBuilder.like(
-                    criteriaBuilder.lower(root.get("patient").get("name")),
-                    "%" + patientName.toLowerCase() + "%"
+            String pattern = "%" + patientName.toLowerCase() + "%";
+            return criteriaBuilder.or(
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("patient").get("firstName")), pattern),
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("patient").get("lastName")), pattern)
             );
         };
     }

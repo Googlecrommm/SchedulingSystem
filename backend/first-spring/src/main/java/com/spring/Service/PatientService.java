@@ -42,31 +42,38 @@ public class PatientService {
 
     //SEARCH AND PAGINATED
     public Page<PatientResponseDTO> searchPatients(String name, Pageable pageable){
-        return patientsRepository.searchByNameContaining(name, pageable)
-                .map(patients -> {
-                    return modelMapper.map(patients, PatientResponseDTO.class);
-                });
+        return patientsRepository.findByFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(name, name, pageable)
+                .map(patients -> modelMapper.map(patients, PatientResponseDTO.class));
     }
+
 
     //SEARCH UNPAGINATED
     public List<PatientResponseDTO> SearchPatient(String name){
-        return patientsRepository.searchByNameContainingAndStatusNot(name, PatientStatus.Archived)
+        return patientsRepository.findByNameContainingAndStatusNot(name, PatientStatus.Archived)
                 .stream()
-                .map(patients -> {
-                    return modelMapper.map(patients, PatientResponseDTO.class);
-                })
+                .map(patients -> modelMapper.map(patients, PatientResponseDTO.class))
                 .toList();
     }
-
     //UPDATE
     public void updatePatient(int patientId, Patients patient){
         Patients patientToUpdate = patientsRepository.findById(patientId).orElseThrow(() -> new NotFound("Patient not found"));
 
-        if (patient.getName() != null && !patient.getName().isEmpty()){
-            if (patientsRepository.existsByNameAndPatientIdNot(patient.getName(), patientId)){
+        if (patient.getFirstName() != null && !patient.getFirstName().isEmpty()){
+            patientToUpdate.setFirstName(patient.getFirstName());
+        }
+
+        if (patient.getMiddleName() != null){
+            patientToUpdate.setMiddleName(patient.getMiddleName());
+        }
+
+        if (patient.getLastName() != null && !patient.getLastName().isEmpty()){
+            if (patientsRepository.existsByFirstNameAndLastNameAndPatientIdNot(
+                    patient.getFirstName() != null ? patient.getFirstName() : patientToUpdate.getFirstName(),
+                    patient.getLastName(),
+                    patientId)){
                 throw new AlreadyExists("Patient already exists");
             }
-            patientToUpdate.setName(patient.getName());
+            patientToUpdate.setLastName(patient.getLastName());
         }
 
         if (patient.getAddress() != null && !patient.getAddress().isEmpty()){
@@ -93,13 +100,12 @@ public class PatientService {
 
         patientToUpdate.setStatus(patientToUpdate.getStatus());
 
-        //LOG CREATE
-        logsService.log(
-                "Patient Information Updated",
-                "updated the information of " + patientToUpdate.getName()
-        );
-        patientsRepository.save(patientToUpdate);
+        String fullName = patientToUpdate.getLastName() + ", "
+                + patientToUpdate.getFirstName() + " "
+                + (patientToUpdate.getMiddleName() == null ? "" : patientToUpdate.getMiddleName());
 
+        logsService.log("Patient Information Updated", "updated the information of " + fullName);
+        patientsRepository.save(patientToUpdate);
     }
 
     //ARCHIVE
@@ -110,12 +116,12 @@ public class PatientService {
             throw new NoChangesDetected("Patient is already archived");
         }
 
+        String fullName = patientToArchive.getLastName() + ", "
+                + patientToArchive.getFirstName() + " "
+                + (patientToArchive.getMiddleName() == null ? "" : patientToArchive.getMiddleName());
+
         patientToArchive.setStatus(PatientStatus.Archived);
-        //LOG CREATE
-        logsService.log(
-                "Patient Archived",
-                "archived patient " + patientToArchive.getName()
-        );
+        logsService.log("Patient Archived", "archived patient " + fullName);
         patientsRepository.save(patientToArchive);
     }
 
@@ -127,12 +133,12 @@ public class PatientService {
             throw new NoChangesDetected("Patient is already active");
         }
 
+        String fullName = patientToArchive.getLastName() + ", "
+                + patientToArchive.getFirstName() + " "
+                + (patientToArchive.getMiddleName() == null ? "" : patientToArchive.getMiddleName());
+
         patientToArchive.setStatus(PatientStatus.Active);
-        //LOG CREATE
-        logsService.log(
-                "Patient Restored",
-                "restored patient " + patientToArchive.getName()
-        );
+        logsService.log("Patient Restored", "restored patient " + fullName);
         patientsRepository.save(patientToArchive);
     }
 }

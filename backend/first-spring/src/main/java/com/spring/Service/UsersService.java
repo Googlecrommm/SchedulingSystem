@@ -47,6 +47,8 @@ public class UsersService {
                 .findAll(filters, pageable)
                 .map(users -> {
                     UserResponseDTO userResponseDTO = modelMapper.map(users, UserResponseDTO.class);
+                    userResponseDTO.setName(users.getLastName() + ", " + users.getFirstName() + " " +
+                            (users.getMiddleName() == null ? "" : users.getMiddleName()));
                     userResponseDTO.setRoleName(users.getRole().getRoleName());
                     userResponseDTO.setDepartmentName(users.getRole().getDepartment().getDepartmentName());
                     return userResponseDTO;
@@ -56,9 +58,11 @@ public class UsersService {
     //SEARCH ROLE BY NAME
     public Page<UserResponseDTO> searchUser(String searchName, Pageable pageable){
         return usersRepository
-                .searchAllByNameContaining(searchName, pageable)
+                .findByFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(searchName, searchName, pageable)
                 .map(users -> {
                     UserResponseDTO userDTO = modelMapper.map(users, UserResponseDTO.class);
+                    userDTO.setName(users.getLastName() + ", " + users.getFirstName() + " " +
+                            (users.getMiddleName() == null ? "" : users.getMiddleName()));
                     userDTO.setRoleName(users.getRole().getRoleName());
                     userDTO.setDepartmentName(users.getRole().getDepartment().getDepartmentName());
                     return userDTO;
@@ -78,9 +82,20 @@ public class UsersService {
     //UPDATE
     public void updateUser(int userId, Users user) throws UsernameNotFoundException {
         Users userToUpdate = usersRepository.findById(userId).orElseThrow(() -> new UsernameNotFoundException("User doesn't exists"));
+        String name = userToUpdate.getLastName() + ", " + userToUpdate.getFirstName() + " " +
+                (userToUpdate.getMiddleName() == null ? "": userToUpdate.getMiddleName());
 
-        if (user.getName() != null && !user.getName().isEmpty()){
-            userToUpdate.setName(user.getName());
+
+        if (user.getFirstName() != null && !user.getFirstName().isEmpty()){
+            userToUpdate.setFirstName(user.getFirstName());
+        }
+
+        if (user.getMiddleName() != null && !user.getMiddleName().isEmpty()){
+            userToUpdate.setMiddleName(user.getMiddleName());
+        }
+
+        if (user.getLastName() != null && !user.getLastName().isEmpty()){
+            userToUpdate.setLastName(user.getLastName());
         }
 
         if (user.getEmail() != null && !user.getEmail().isEmpty()){
@@ -102,7 +117,7 @@ public class UsersService {
         //LOG CREATE
         logsService.log(
                 "User Information Updated",
-                "updated the information of " + userToUpdate.getName()
+                "updated the information of " + name
         );
         usersRepository.save(userToUpdate);
     }
@@ -110,7 +125,8 @@ public class UsersService {
     //DISABLE ACCOUNT
     public void disableAccount(int userId){
         Users userToDisable = usersRepository.findById(userId).orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
+        String name = userToDisable.getLastName() + ", " + userToDisable.getFirstName() + " " +
+                (userToDisable.getMiddleName() == null ? "": userToDisable.getMiddleName());
         if(userToDisable.getRole().getRoleName().equals("Admin")){
             throw new NotAllowed("Admin can't be disabled");
         }
@@ -124,7 +140,7 @@ public class UsersService {
         //LOG CREATE
         logsService.log(
                 "User Account Disabled",
-                "disabled the account of " + userToDisable.getName()
+                "disabled the account of " + name
         );
         usersRepository.save(userToDisable);
     }
@@ -132,7 +148,8 @@ public class UsersService {
     //ACTIVE ACCOUNT
     public void activateAccount(int userId){
         Users userToActivate = usersRepository.findById(userId).orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
+        String name = userToActivate.getLastName() + ", " + userToActivate.getFirstName() + " " +
+                (userToActivate.getMiddleName() == null ? "": userToActivate.getMiddleName());
         if(userToActivate.getAccountStatus().equals(AccountStatus.Active)){
             throw new NoChangesDetected("This account is already active");
         }
@@ -141,7 +158,7 @@ public class UsersService {
         //LOG CREATE
         logsService.log(
                 "User Account Activated",
-                "activated the account of " + userToActivate.getName()
+                "activated the account of " + name
         );
         usersRepository.save(userToActivate);
     }

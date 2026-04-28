@@ -14,11 +14,12 @@ import java.util.List;
 
 @Repository
 public interface DoctorsRepository extends JpaRepository<Doctors, Integer>, JpaSpecificationExecutor<Doctors> {
-    boolean existsByName(String name);
+    boolean existsByFirstNameAndLastName(String firstName, String lastName);
+    boolean existsByFirstNameAndLastNameAndDoctorIdNot(String firstName, String lastName, int doctorId);
 
     Page<Doctors> findAll(Pageable pageable);
 
-    Page<Doctors> searchByNameContaining(String searchName, Pageable pageable);
+    Page<Doctors> findByFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(String firstName, String lastName, Pageable pageable);
 
     List<Doctors> findAllByAvailabilityStatusEquals(DoctorStatus availabilityStatus);
 

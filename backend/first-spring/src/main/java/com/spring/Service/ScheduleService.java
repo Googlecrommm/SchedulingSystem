@@ -88,8 +88,12 @@ public class ScheduleService {
     // Reusable DTO mapping helper
     private ScheduleResponseDTO mapToDTO(Schedules schedules) {
         ScheduleResponseDTO scheduleDTO = modelMapper.map(schedules, ScheduleResponseDTO.class);
-        scheduleDTO.setName(schedules.getDoctor().getName());
-        scheduleDTO.setPatientName(schedules.getPatient().getName());
+        scheduleDTO.setName(schedules.getDoctor().getLastName() + ", "
+                + schedules.getDoctor().getFirstName() + " "
+                + (schedules.getDoctor().getMiddleName() == null ? "" : schedules.getDoctor().getMiddleName()));
+        scheduleDTO.setPatientName(schedules.getPatient().getLastName() + ", "
+                + schedules.getPatient().getFirstName() + " "
+                + (schedules.getPatient().getMiddleName() == null ? "" : schedules.getPatient().getMiddleName()));
         scheduleDTO.setContactNumber(schedules.getPatient().getContactNumber());
         scheduleDTO.setBirthDate(schedules.getPatient().getBirthDate());
         scheduleDTO.setSex(schedules.getPatient().getSex());
@@ -177,7 +181,11 @@ public class ScheduleService {
         //LOG CREATE
         logsService.log(
                 "Schedule Added",
-                "added new schedule for " + schedule.getPatient().getName() +"'s " + schedule.getProcedureName() +
+                "added new schedule for "
+                        + schedule.getPatient().getFirstName() + " "
+                        + (schedule.getPatient().getMiddleName() == null ? " " : schedule.getPatient().getMiddleName())
+                        + schedule.getPatient().getLastName()
+                        +"'s " + schedule.getProcedureName() +
                         " at " + schedule.getStartDateTime()
         );
         scheduleRepository.save(schedule);
@@ -185,15 +193,12 @@ public class ScheduleService {
 
     //READ & FILTER (ADMIN)
     public Page<ScheduleResponseDTO> getSchedules(ScheduleStatus scheduleStatus, String name, String patientName, String departmentName, Pageable pageable){
-        
-
 
         Specification<Schedules> filters = Specification
                 .where(ScheduleSpecification.hasStatus(scheduleStatus))
                 .and(ScheduleSpecification.toDoctor(name))
                 .and(ScheduleSpecification.searchPatient(patientName))
                 .and(ScheduleSpecification.hasDepartment(departmentName));
-
 
         Pageable sortedPageable = PageRequest.of(
                 pageable.getPageNumber(),
@@ -243,13 +248,13 @@ public class ScheduleService {
 
     //SEARCH
     public Page<ScheduleResponseDTO> searchSchedule(String patientName, Pageable pageable){
-        return scheduleRepository.searchByPatient_NameContainingIgnoreCase(patientName, pageable)
+        return scheduleRepository.searchByPatientName(patientName, pageable)
                 .map(this::mapToDTO);
     }
 
     //SEARCH
     public Page<ScheduleResponseDTO> searchRadioSched(String patientName, Pageable pageable){
-        return scheduleRepository.searchByPatient_NameContainingIgnoreCase(patientName, pageable)
+        return scheduleRepository.searchByPatientName(patientName, pageable)
                 .map(this::mapToDTO);
     }
 
@@ -419,7 +424,10 @@ public class ScheduleService {
         //LOG CREATE
         logsService.log(
                 "Schedule Updated",
-                "updated the schedule information of " + existing.getPatient().getName()
+                "updated the schedule information of "
+                + existing.getPatient().getFirstName() + " "
+                + (existing.getPatient().getMiddleName() == null ? " " : existing.getPatient().getMiddleName())
+                + existing.getPatient().getLastName()
         );
         scheduleRepository.save(existing);
     }
@@ -529,7 +537,10 @@ public class ScheduleService {
         //LOG CREATE
         logsService.log(
                 "Schedule Updated",
-                "updated the schedule information of " + existing.getPatient().getName()
+                "updated the schedule information of "
+                        + existing.getPatient().getFirstName() + " "
+                        + (existing.getPatient().getMiddleName() == null ? " " : existing.getPatient().getMiddleName())
+                        + existing.getPatient().getLastName()
         );
         scheduleRepository.save(existing);
     }
@@ -546,8 +557,11 @@ public class ScheduleService {
         //LOG CREATE
         logsService.log(
                 "Schedule Archived",
-                "archived the "+ scheduleToArchive.getProcedureName() +" schedule of " + scheduleToArchive.getPatient().getName() +
-                        " with the Schedule ID of " + scheduleId
+                "archived the " + scheduleToArchive.getProcedureName() + " schedule of "
+                        + scheduleToArchive.getPatient().getFirstName() + " "
+                        + (scheduleToArchive.getPatient().getMiddleName() == null ? " " : scheduleToArchive.getPatient().getMiddleName())
+                        + scheduleToArchive.getPatient().getLastName()
+                        + " with the Schedule ID of " + scheduleId
         );
         scheduleRepository.save(scheduleToArchive);
     }
@@ -564,8 +578,11 @@ public class ScheduleService {
         //LOG CREATE
         logsService.log(
                 "Schedule Cancelled",
-                "cancelled the "+ scheduleToCancel.getProcedureName() +" schedule of " + scheduleToCancel.getPatient().getName() +
-                        " with the Schedule ID of " + scheduleId
+                "cancelled the " + scheduleToCancel.getProcedureName() + " schedule of "
+                        + scheduleToCancel.getPatient().getFirstName() + " "
+                        + (scheduleToCancel.getPatient().getMiddleName() == null ? " " : scheduleToCancel.getPatient().getMiddleName())
+                        + scheduleToCancel.getPatient().getLastName()
+                        + " with the Schedule ID of " + scheduleId
         );
         scheduleRepository.save(scheduleToCancel);
     }
@@ -582,8 +599,11 @@ public class ScheduleService {
         //LOG CREATE
         logsService.log(
                 "Schedule Confirmed",
-                "confirmed the "+ scheduleToConfirm.getProcedureName() +" schedule of " + scheduleToConfirm.getPatient().getName() +
-                        " with the Schedule ID of " + scheduleId
+                "confirmed the " + scheduleToConfirm.getProcedureName() + " schedule of "
+                        + scheduleToConfirm.getPatient().getFirstName() + " "
+                        + (scheduleToConfirm.getPatient().getMiddleName() == null ? " " : scheduleToConfirm.getPatient().getMiddleName())
+                        + scheduleToConfirm.getPatient().getLastName()
+                        + " with the Schedule ID of " + scheduleId
         );
         scheduleRepository.save(scheduleToConfirm);
     }
@@ -601,8 +621,11 @@ public class ScheduleService {
         //LOG CREATE
         logsService.log(
                 "Marked as Done",
-                "marked the "+ scheduleToDone.getProcedureName() + " schedule of " + scheduleToDone.getPatient().getName() +
-                        " as done" + " with the Schedule ID of " + scheduleId
+                "marked the "+ scheduleToDone.getProcedureName() + " schedule of "
+                        + scheduleToDone.getPatient().getFirstName() + " "
+                        + (scheduleToDone.getPatient().getMiddleName() == null ? " " : scheduleToDone.getPatient().getMiddleName())
+                        + scheduleToDone.getPatient().getLastName()
+                        + " as done" + " with the Schedule ID of " + scheduleId
         );
 
         scheduleRepository.save(scheduleToDone);
@@ -620,8 +643,11 @@ public class ScheduleService {
         //LOG CREATE
         logsService.log(
                 "Marked as Scheduled",
-                "marked the "+ scheduleToRestore.getProcedureName() + " schedule of " + scheduleToRestore.getPatient().getName() +
-                        " as scheduled" + " with the Schedule ID of " + scheduleId
+                "marked the "+ scheduleToRestore.getProcedureName() + " schedule of "
+                        + scheduleToRestore.getPatient().getFirstName() + " "
+                        + (scheduleToRestore.getPatient().getMiddleName() == null ? " " : scheduleToRestore.getPatient().getMiddleName())
+                        + scheduleToRestore.getPatient().getLastName()
+                        + " as scheduled" + " with the Schedule ID of " + scheduleId
         );
         scheduleRepository.save(scheduleToRestore);
     }
@@ -663,8 +689,12 @@ public class ScheduleService {
             // Rows
             for (Schedules s : schedules) {
                 table.addCell(String.valueOf(s.getScheduleId()));
-                table.addCell(s.getPatient().getName());
-                table.addCell(s.getDoctor().getName());
+                table.addCell(s.getPatient().getLastName() + ", "
+                        + s.getPatient().getFirstName() + " "
+                        + (s.getPatient().getMiddleName() == null ? "" : s.getPatient().getMiddleName()));
+                table.addCell(s.getDoctor().getLastName() + ", "
+                        + s.getDoctor().getFirstName() + " "
+                        + (s.getDoctor().getMiddleName() == null ? "" : s.getDoctor().getMiddleName()));
                 table.addCell(s.getProcedureName());
                 table.addCell(s.getStartDateTime().format(formatter));
                 table.addCell(s.getEndDateTime().format(formatter));

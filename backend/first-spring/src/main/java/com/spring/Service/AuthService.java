@@ -51,13 +51,16 @@ public class AuthService {
             throw new NotAllowed("This account is disabled");
         }
 
+        String fullName = getUser.getLastName() + ", " + getUser.getFirstName() + " "
+                + (getUser.getMiddleName() == null ? "" : getUser.getMiddleName());
+
         String departmentName = getUser.getRole().getDepartment() != null
                 ? getUser.getRole().getDepartment().getDepartmentName()
                 : null;
 
         return new AuthResponseDTO(
                 jwtService.generateToken(getUser),
-                getUser.getName(),
+                fullName,
                 getUser.getRole().getRoleName(),
                 departmentName
         );

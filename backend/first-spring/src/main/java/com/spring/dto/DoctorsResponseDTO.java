@@ -4,7 +4,7 @@ import com.spring.Enums.DoctorStatus;
 
 public class DoctorsResponseDTO {
     private int doctorId;
-    private String name;
+    private String fullName;
     private DoctorStatus availabilityStatus;
     private String roleName;
 
@@ -16,12 +16,12 @@ public class DoctorsResponseDTO {
         this.doctorId = doctorId;
     }
 
-    public String getName() {
-        return name;
+    public String getFullName() {
+        return fullName;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
     }
 
     public DoctorStatus getAvailabilityStatus() {

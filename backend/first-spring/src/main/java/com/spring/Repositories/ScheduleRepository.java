@@ -16,7 +16,12 @@ import java.time.LocalDateTime;
 public interface ScheduleRepository extends JpaRepository<Schedules, Integer>, JpaSpecificationExecutor<Schedules> {
 
     Page<Schedules> findAll(Pageable pageable);
-    Page<Schedules> searchByPatient_NameContainingIgnoreCase(String patientName, Pageable pageable);
+    @Query("""
+    SELECT s FROM Schedules s
+    WHERE LOWER(s.patient.firstName) LIKE LOWER(CONCAT('%', :patientName, '%'))
+    OR LOWER(s.patient.lastName) LIKE LOWER(CONCAT('%', :patientName, '%'))
+""")
+    Page<Schedules> searchByPatientName(@Param("patientName") String patientName, Pageable pageable);
 
     @Query("""
     SELECT COUNT(s) FROM Schedules s

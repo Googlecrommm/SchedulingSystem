@@ -28,9 +28,19 @@ public class Users implements UserDetails {
     @Enumerated(EnumType.STRING)
     private AccountStatus accountStatus = AccountStatus.Active;
 
+    @NotBlank
     @Size(max = 100)
-    @Column(name = "name", nullable = false, length = 100)
-    private String name;
+    @Column(name = "firstName", nullable = false, length = 100)
+    private String firstName;
+
+    @Size(max = 100)
+    @Column(name = "middleName", nullable = true, length = 100)
+    private String middleName;
+
+    @NotBlank
+    @Size(max = 100)
+    @Column(name = "lastName", nullable = false, length = 100)
+    private String lastName;
 
     @NotBlank
     @Size(max = 150)
@@ -94,12 +104,28 @@ public class Users implements UserDetails {
         this.accountStatus = accountStatus;
     }
 
-    public String getName() {
-        return name;
+    public String getFirstName() {
+        return firstName;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getMiddleName() {
+        return middleName;
+    }
+
+    public void setMiddleName(String middleName) {
+        this.middleName = middleName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
     }
 
     public String getEmail() {

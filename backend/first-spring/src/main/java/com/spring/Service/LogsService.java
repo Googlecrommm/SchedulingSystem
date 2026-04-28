@@ -35,10 +35,13 @@ public class LogsService {
         Users currentUser = usersRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        String fullName = currentUser.getLastName() + ", " + currentUser.getFirstName() + " "
+                + (currentUser.getMiddleName() == null ? "" : currentUser.getMiddleName());
+
         Logs log = new Logs();
         log.setUser(currentUser);
         log.setLogHeader(logHeader);
-        log.setDescription(currentUser.getName() + " " + description);
+        log.setDescription(fullName + " " + description);
         log.setCreatedAt(LocalDateTime.now());
 
         logsRepository.save(log);
@@ -52,7 +55,9 @@ public class LogsService {
         return logsRepository.findAll(filters, pageable)
                 .map(logs -> {
                     LogResponseDTO logDTO = modelMapper.map(logs, LogResponseDTO.class);
-                    logDTO.setName(logs.getUser().getName());
+                    String fullName = logs.getUser().getLastName() + ", " + logs.getUser().getFirstName() + " "
+                            + (logs.getUser().getMiddleName() == null ? "" : logs.getUser().getMiddleName());
+                    logDTO.setName(fullName);
                     return logDTO;
                 });
     }
