@@ -29,12 +29,12 @@ public class ScheduleController {
         this.departmentSecurityHelper = departmentSecurityHelper;
     }
 
-    //CREATE — admin only, no department scoping needed
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('FRONTDESK')")
     @PostMapping("createScheduleAndPatient")
     public ResponseEntity<SuccessResponse> createScheduleAndPatient(
-            @RequestBody CreatePatientWithScheduleResponseDTO schedulePatientDTO){
-        scheduleService.createScheduleAndPatient(schedulePatientDTO);
+            @RequestBody CreatePatientWithScheduleResponseDTO schedulePatientDTO,
+            Authentication authentication){
+        scheduleService.createScheduleAndPatient(schedulePatientDTO, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Schedule Added"));
     }
 

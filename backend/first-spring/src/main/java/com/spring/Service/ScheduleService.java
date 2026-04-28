@@ -15,6 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.PdfPCell;
@@ -129,7 +130,8 @@ public class ScheduleService {
 
     //CREATE
     @Transactional
-    public void createScheduleAndPatient(CreatePatientWithScheduleResponseDTO request) {
+    public void createScheduleAndPatient(CreatePatientWithScheduleResponseDTO request,
+                                         Authentication authentication) {
 
         // 1. Returning patient OR new patient
         Patients savedPatient;
