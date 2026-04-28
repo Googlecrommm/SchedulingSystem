@@ -67,10 +67,6 @@ public class DoctorService {
 
     //CREATE
     public void addDoctor(Doctors doctors, Authentication authentication) {
-        if (doctorsRepository.existsByFirstNameAndLastName(doctors.getFirstName(), doctors.getLastName())) {
-            throw new AlreadyExists("This doctor already exists");
-        }
-
         boolean isAdmin = authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
@@ -81,8 +77,12 @@ public class DoctorService {
                 throw new NotAllowed("You are not assigned to any department.");
             }
 
+            if (doctors.getRole() == null || doctors.getRole().getRoleId() == 0) {
+                throw new NotAllowed("A role is required.");
+            }
+
             Roles assignedRole = rolesRepository.findById(doctors.getRole().getRoleId())
-                    .orElseThrow(() -> new RuntimeException("Role not found"));
+                    .orElseThrow(() -> new NotFound("Role not found"));
 
             String userDept = user.getRole().getDepartment().getDepartmentName();
             String assignedRoleDept = assignedRole.getDepartment().getDepartmentName();
@@ -92,6 +92,10 @@ public class DoctorService {
                         "You can only add doctors under your department (" + userDept + ")."
                 );
             }
+        }
+
+        if (doctorsRepository.existsByFirstNameAndLastName(doctors.getFirstName(), doctors.getLastName())) {
+            throw new AlreadyExists("This doctor already exists");
         }
 
         doctorsRepository.save(doctors);
@@ -135,7 +139,7 @@ public class DoctorService {
                 .toList();
     }
 
-    //UPDATE — admin and frontdesk, department scoped for frontdesk
+    //UPDATE
     public void updateDoctor(int doctorId, Doctors doctor, Authentication authentication) {
         Doctors doctorToUpdate = doctorsRepository.findById(doctorId)
                 .orElseThrow(() -> new NotFound("Doctor not found"));
@@ -160,11 +164,28 @@ public class DoctorService {
             doctorToUpdate.setLastName(doctor.getLastName());
         }
 
-        if (doctor.getRole() != null) {
+        if (doctor.getRole() != null && doctor.getRole().getRoleId() != 0) {
+            boolean isAdmin = authentication.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+            if (!isAdmin) {
+                // Frontdesk can only reassign to a role within their own department
+                Users user = (Users) authentication.getPrincipal();
+                Roles newRole = rolesRepository.findById(doctor.getRole().getRoleId())
+                        .orElseThrow(() -> new NotFound("Role not found"));
+
+                String userDept = user.getRole().getDepartment().getDepartmentName();
+                String newRoleDept = newRole.getDepartment().getDepartmentName();
+
+                if (!userDept.equalsIgnoreCase(newRoleDept)) {
+                    throw new NotAllowed(
+                            "You can only assign roles within your department (" + userDept + ")."
+                    );
+                }
+            }
             doctorToUpdate.setRole(doctor.getRole());
         }
 
-        doctorToUpdate.setAvailabilityStatus(doctorToUpdate.getAvailabilityStatus());
         doctorsRepository.save(doctorToUpdate);
     }
 
