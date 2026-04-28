@@ -3,10 +3,7 @@ package com.spring.Service;
 import com.spring.Enums.SoftDelete;
 import com.spring.Exceptions.AlreadyExists;
 import com.spring.Exceptions.NoChangesDetected;
-import com.spring.Exceptions.NotAllowed;
 import com.spring.Exceptions.NotFound;
-import com.spring.Models.Departments;
-import com.spring.Models.Roles;
 import com.spring.Models.Rooms;
 import com.spring.Repositories.DepartmentsRepository;
 import com.spring.Repositories.RoomsRepository;
@@ -32,59 +29,69 @@ public class RoomsService {
         this.departmentsRepository = departmentsRepository;
     }
 
-    //CREATE
-    public void createRoom(Rooms room){
-        if (roomsRepository.existsByRoomName(room.getRoomName())){
+    // ─── Reusable DTO mapping helper ────────────────────────────────────────────
+    private RoomResponseDTO mapToDTO(Rooms rooms) {
+        RoomResponseDTO roomDTO = modelMapper.map(rooms, RoomResponseDTO.class);
+        roomDTO.setDepartmentName(rooms.getDepartment().getDepartmentName());
+        return roomDTO;
+    }
+
+    //CREATE — admin only
+    public void createRoom(Rooms room) {
+        if (roomsRepository.existsByRoomName(room.getRoomName())) {
             throw new AlreadyExists("Room already exists");
         }
         roomsRepository.save(room);
     }
 
-    //READ AND FILTER
-    public Page<RoomResponseDTO> getRooms(SoftDelete roomStatus, String departmentName, Pageable pageable){
+    //READ & FILTER — departmentName null = admin sees all, non-null = scoped
+    public Page<RoomResponseDTO> getRooms(SoftDelete roomStatus, String departmentName, Pageable pageable) {
         Specification<Rooms> filters = Specification
                 .where(RoomSpecification.hasStatus(roomStatus))
                 .and(RoomSpecification.hasDepartment(departmentName));
 
-        return roomsRepository.findAll(filters, pageable)
-                .map(rooms -> {
-                    RoomResponseDTO roomDTO = modelMapper.map(rooms, RoomResponseDTO.class);
-                    roomDTO.setDepartmentName(rooms.getDepartment().getDepartmentName());
-                    return roomDTO;
-                });
+        return roomsRepository.findAll(filters, pageable).map(this::mapToDTO);
     }
 
-    //SEARCH
-    public Page<RoomResponseDTO> searchRoom(String roomName, Pageable pageable){
-        return roomsRepository.searchByRoomNameContaining(roomName, pageable)
-                .map(rooms -> {
-                    RoomResponseDTO roomDTO = modelMapper.map(rooms, RoomResponseDTO.class);
-                    roomDTO.setDepartmentName(rooms.getDepartment().getDepartmentName());
-                    return roomDTO;
-                });
+    //SEARCH — scoped by department for non-admins
+    public Page<RoomResponseDTO> searchRoom(String roomName, String departmentName, Pageable pageable) {
+        Specification<Rooms> filters = Specification
+                .where(RoomSpecification.hasDepartment(departmentName)) // ADDED
+                .and((root, query, cb) ->
+                        cb.like(cb.lower(root.get("roomName")),
+                                "%" + roomName.toLowerCase() + "%"));
+
+        return roomsRepository.findAll(filters, pageable).map(this::mapToDTO);
     }
 
-    //DROPDOWN
-    public List<RoomResponseDTO> roomsDropdown(){
-        return roomsRepository.findAllByRoomStatusNot(SoftDelete.Archived)
+    //DROPDOWN — admin gets all, department user gets only their department
+    public List<RoomResponseDTO> roomsDropdown(String departmentName) {
+        if (departmentName == null) {
+            // Admin — all active rooms across all departments
+            return roomsRepository.findAllByRoomStatusNot(SoftDelete.Archived)
+                    .stream()
+                    .map(this::mapToDTO)
+                    .toList();
+        }
+        // Department user — only active rooms in their department
+        return roomsRepository
+                .findAllByRoomStatusNotAndDepartment_DepartmentNameIgnoreCase(
+                        SoftDelete.Archived, departmentName)
                 .stream()
-                .map(rooms -> {
-                    RoomResponseDTO roomDTO = modelMapper.map(rooms, RoomResponseDTO.class);
-                    roomDTO.setDepartmentName(rooms.getDepartment().getDepartmentName());
-                    return roomDTO;
-                })
+                .map(this::mapToDTO)
                 .toList();
     }
 
-    //UPDATE
-    public void updateRoom(int roomId, Rooms room){
-        Rooms roomToUpdate = roomsRepository.findById(roomId).orElseThrow(() -> new NotFound("Room not found"));
+    //UPDATE — admin only
+    public void updateRoom(int roomId, Rooms room) {
+        Rooms roomToUpdate = roomsRepository.findById(roomId)
+                .orElseThrow(() -> new NotFound("Room not found"));
 
-        if (roomsRepository.existsByRoomName(room.getRoomName())){
+        if (roomsRepository.existsByRoomName(room.getRoomName())) {
             throw new AlreadyExists("Room already exists");
         }
 
-        if (room.getRoomName() != null && !room.getRoomName().isEmpty()){
+        if (room.getRoomName() != null && !room.getRoomName().isEmpty()) {
             roomToUpdate.setRoomName(room.getRoomName());
         }
 
@@ -93,11 +100,12 @@ public class RoomsService {
         roomsRepository.save(roomToUpdate);
     }
 
-    //ARCHIVE
-    public void archiveRoom(int roomId){
-        Rooms roomToArchive = roomsRepository.findById(roomId).orElseThrow(() -> new NotFound("Room not found"));
+    //ARCHIVE — admin only
+    public void archiveRoom(int roomId) {
+        Rooms roomToArchive = roomsRepository.findById(roomId)
+                .orElseThrow(() -> new NotFound("Room not found"));
 
-        if (roomToArchive.getRoomStatus().equals(SoftDelete.Archived)){
+        if (roomToArchive.getRoomStatus().equals(SoftDelete.Archived)) {
             throw new NoChangesDetected("Room is already archived");
         }
 
@@ -105,17 +113,16 @@ public class RoomsService {
         roomsRepository.save(roomToArchive);
     }
 
-    //RESTORE
-    public void restoreRoom(int roomId){
-        Rooms roomToRestore = roomsRepository.findById(roomId).orElseThrow(() -> new NotFound("Room not found"));
+    //RESTORE — admin only
+    public void restoreRoom(int roomId) {
+        Rooms roomToRestore = roomsRepository.findById(roomId)
+                .orElseThrow(() -> new NotFound("Room not found"));
 
-        if (roomToRestore.getRoomStatus().equals(SoftDelete.Active)){
+        if (roomToRestore.getRoomStatus().equals(SoftDelete.Active)) {
             throw new NoChangesDetected("Room is already active");
         }
 
         roomToRestore.setRoomStatus(SoftDelete.Active);
         roomsRepository.save(roomToRestore);
     }
-
-
 }

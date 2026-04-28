@@ -1,6 +1,8 @@
 package com.spring.Controller;
+
 import com.spring.Enums.SoftDelete;
 import com.spring.Models.Rooms;
+import com.spring.Security.DepartmentSecurityHelper;
 import com.spring.Service.RoomsService;
 import com.spring.dto.RoomResponseDTO;
 import com.spring.dto.SuccessResponse;
@@ -8,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,75 +19,83 @@ import java.util.List;
 @RequestMapping("/api")
 public class RoomsController {
     private final RoomsService roomsService;
+    private final DepartmentSecurityHelper departmentSecurityHelper;
 
-    public RoomsController(RoomsService roomsService) {
+    public RoomsController(RoomsService roomsService, DepartmentSecurityHelper departmentSecurityHelper) {
         this.roomsService = roomsService;
+        this.departmentSecurityHelper = departmentSecurityHelper;
     }
 
-    //CREATE
+    //CREATE — admin only
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("createRoom")
-    public ResponseEntity<SuccessResponse> createRoom(@RequestBody Rooms room){
+    public ResponseEntity<SuccessResponse> createRoom(@RequestBody Rooms room) {
         roomsService.createRoom(room);
-        return ResponseEntity.ok().body(new SuccessResponse(200,"Room added"));
+        return ResponseEntity.ok().body(new SuccessResponse(200, "Room Added"));
     }
 
-    //READ & FILTER
-    @PreAuthorize("hasRole('ADMIN')")
+    //READ & FILTER — all roles, department scoped via helper
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("getRooms")
     public ResponseEntity<Page<RoomResponseDTO>> getRooms(
             @RequestParam(required = false) SoftDelete roomStatus,
             @RequestParam(required = false) String departmentName,
-            Pageable pageable
-    ){
-        return ResponseEntity.ok(roomsService.getRooms(roomStatus, departmentName, pageable));
+            Pageable pageable,
+            Authentication authentication) {
+
+        String effectiveDept = departmentSecurityHelper
+                .resolveEffectiveDepartment(departmentName, authentication);
+
+        return ResponseEntity.ok(roomsService.getRooms(roomStatus, effectiveDept, pageable));
     }
 
-    //SEARCH
-    @PreAuthorize("hasRole('ADMIN')")
+    //SEARCH — all roles, department scoped via helper
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("searchRoom/{roomName}")
     public ResponseEntity<Page<RoomResponseDTO>> searchRoom(
             @PathVariable String roomName,
-            Pageable pageable
-    ){
-        return ResponseEntity.ok(roomsService.searchRoom(roomName, pageable));
+            Pageable pageable,
+            Authentication authentication) {
+
+        String effectiveDept = departmentSecurityHelper
+                .resolveEffectiveDepartment(null, authentication);
+
+        return ResponseEntity.ok(roomsService.searchRoom(roomName, effectiveDept, pageable));
     }
 
-    //DROPDOWN
-    @PreAuthorize("hasRole('ADMIN')")
+    //DROPDOWN — all roles, department scoped via helper
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("roomDropdown")
-    public ResponseEntity<List<RoomResponseDTO>> roomDropdown(){
-        return ResponseEntity.ok(roomsService.roomsDropdown());
+    public ResponseEntity<List<RoomResponseDTO>> roomDropdown(Authentication authentication) {
+        String effectiveDept = departmentSecurityHelper
+                .resolveEffectiveDepartment(null, authentication);
+
+        return ResponseEntity.ok(roomsService.roomsDropdown(effectiveDept));
     }
 
-    //UPDATE
+    //UPDATE — admin only
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("updateRoom/{roomId}")
     public ResponseEntity<SuccessResponse> updateRoom(
             @PathVariable int roomId,
-            @RequestBody Rooms room
-    ){
+            @RequestBody Rooms room) {
         roomsService.updateRoom(roomId, room);
-        return ResponseEntity.ok().body(new SuccessResponse(200, "Room updated"));
+        return ResponseEntity.ok().body(new SuccessResponse(200, "Room Updated"));
     }
 
-    //ARCHIVE
+    //ARCHIVE — admin only
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("archiveRoom/{roomId}")
-    public ResponseEntity<SuccessResponse> archiveRoom(
-            @PathVariable int roomId
-    ){
+    public ResponseEntity<SuccessResponse> archiveRoom(@PathVariable int roomId) {
         roomsService.archiveRoom(roomId);
-        return ResponseEntity.ok().body(new SuccessResponse(200, "Room archived"));
+        return ResponseEntity.ok().body(new SuccessResponse(200, "Room Archived"));
     }
 
-    //RESTORE
+    //RESTORE — admin only
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("restoreRoom/{roomId}")
-    public ResponseEntity<SuccessResponse> restoreRoom(
-            @PathVariable int roomId
-    ){
+    public ResponseEntity<SuccessResponse> restoreRoom(@PathVariable int roomId) {
         roomsService.restoreRoom(roomId);
-        return ResponseEntity.ok().body(new SuccessResponse(200, "Room restored"));
+        return ResponseEntity.ok().body(new SuccessResponse(200, "Room Restored"));
     }
 }
