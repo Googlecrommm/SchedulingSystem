@@ -26,11 +26,13 @@ public class DoctorController {
         this.departmentSecurityHelper = departmentSecurityHelper;
     }
 
-    //CREATE — admin only
-    @PreAuthorize("hasRole('ADMIN')")
+    //CREATE
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("createDoctor")
-    public ResponseEntity<SuccessResponse> createDoctor(@Valid @RequestBody Doctors doctor) {
-        doctorService.addDoctor(doctor);
+    public ResponseEntity<SuccessResponse> createDoctor(
+            @Valid @RequestBody Doctors doctor,
+            Authentication authentication) {
+        doctorService.addDoctor(doctor, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Doctor Added"));
     }
 

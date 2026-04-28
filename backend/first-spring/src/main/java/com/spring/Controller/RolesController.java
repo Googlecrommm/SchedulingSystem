@@ -2,6 +2,7 @@ package com.spring.Controller;
 
 import com.spring.Exceptions.AlreadyExists;
 import com.spring.Models.Roles;
+import com.spring.Security.DepartmentSecurityHelper;
 import com.spring.Service.RolesService;
 import com.spring.dto.RoleResponseDTO;
 import com.spring.dto.SuccessResponse;
@@ -10,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,13 +21,15 @@ import java.util.List;
 public class RolesController {
 
     private final RolesService rolesService;
+    private final DepartmentSecurityHelper departmentSecurityHelper;
 
-    public RolesController(RolesService rolesService){
+    public RolesController(RolesService rolesService, DepartmentSecurityHelper departmentSecurityHelper){
         this.rolesService = rolesService;
+        this.departmentSecurityHelper = departmentSecurityHelper;
     }
 
     //CREATE ROLE
-//    @PreAuthorize("hasRole('ADMIN')")
+//  @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/createRole")
     public ResponseEntity<SuccessResponse> addRole(@Valid @RequestBody Roles role) throws AlreadyExists {
         rolesService.addRole(role);
@@ -44,11 +48,20 @@ public class RolesController {
     }
 
     // READ ALL (DROPDOWN)
-    @PreAuthorize("hasRole('ADMIN')")
-    @GetMapping("/roleDropdown")
-    public ResponseEntity<List<RoleResponseDTO>> roleDropdown(){
-        return ResponseEntity
-                .ok(rolesService.roleDropdown());
+    // RolesController.java
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("roleDropdown")
+    public ResponseEntity<List<RoleResponseDTO>> roleDropdown(Authentication authentication) {
+        String effectiveDept = departmentSecurityHelper.resolveEffectiveDepartment(null, authentication);
+        return ResponseEntity.ok(rolesService.roleDropdown(effectiveDept));
+    }
+
+    //DOCTORS (DROPDOWN)
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("doctorRoleDropdown")
+    public ResponseEntity<List<RoleResponseDTO>> doctorRoleDropdown(Authentication authentication) {
+        String effectiveDept = departmentSecurityHelper.resolveEffectiveDepartment(null, authentication);
+        return ResponseEntity.ok(rolesService.doctorRoleDropdown(effectiveDept));
     }
 
     // SEARCH BY ROLE NAME

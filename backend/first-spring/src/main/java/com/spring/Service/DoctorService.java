@@ -3,15 +3,21 @@ package com.spring.Service;
 import com.spring.Enums.DoctorStatus;
 import com.spring.Exceptions.AlreadyExists;
 import com.spring.Exceptions.NoChangesDetected;
+import com.spring.Exceptions.NotAllowed;
 import com.spring.Exceptions.NotFound;
 import com.spring.Models.Doctors;
+import com.spring.Models.Roles;
+import com.spring.Models.Users;
 import com.spring.Repositories.DoctorsRepository;
+import com.spring.Repositories.RolesRepository;
 import com.spring.Specifications.DoctorSpecification;
 import com.spring.dto.DoctorsResponseDTO;
+import com.spring.dto.RoleResponseDTO;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,10 +26,12 @@ import java.util.List;
 public class DoctorService {
     private final DoctorsRepository doctorsRepository;
     private final ModelMapper modelMapper;
+    private final RolesRepository rolesRepository;
 
-    public DoctorService(DoctorsRepository doctorsRepository, ModelMapper modelMapper) {
+    public DoctorService(DoctorsRepository doctorsRepository, ModelMapper modelMapper, RolesRepository rolesRepository) {
         this.doctorsRepository = doctorsRepository;
         this.modelMapper = modelMapper;
+        this.rolesRepository = rolesRepository;
     }
 
     // ─── Reusable DTO mapping helper ────────────────────────────────────────────
@@ -37,10 +45,36 @@ public class DoctorService {
     }
 
     //CREATE
-    public void addDoctor(Doctors doctors) {
+    public void addDoctor(Doctors doctors, Authentication authentication) {
         if (doctorsRepository.existsByFirstNameAndLastName(doctors.getFirstName(), doctors.getLastName())) {
             throw new AlreadyExists("This doctor already exists");
         }
+
+        // Non-admins can only create doctors within their own department
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!isAdmin) {
+            Users user = (Users) authentication.getPrincipal();
+
+            if (user.getRole() == null || user.getRole().getDepartment() == null) {
+                throw new NotAllowed("You are not assigned to any department.");
+            }
+
+            // Re-fetch the role being assigned to the new doctor
+            Roles assignedRole = rolesRepository.findById(doctors.getRole().getRoleId())
+                    .orElseThrow(() -> new RuntimeException("Role not found"));
+
+            String userDept = user.getRole().getDepartment().getDepartmentName();
+            String assignedRoleDept = assignedRole.getDepartment().getDepartmentName();
+
+            if (!userDept.equalsIgnoreCase(assignedRoleDept)) {
+                throw new NotAllowed(
+                        "You can only add doctors under your department (" + userDept + ")."
+                );
+            }
+        }
+
         doctorsRepository.save(doctors);
     }
 
@@ -90,6 +124,7 @@ public class DoctorService {
                 .map(this::mapToDTO)
                 .toList();
     }
+
 
     // DELETED: ptDropdown()           — replaced by doctorDropdown() with departmentName param
     // DELETED: radiologistDropdown()  — replaced by doctorDropdown() with departmentName param

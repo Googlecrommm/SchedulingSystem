@@ -24,4 +24,14 @@ public class RoleSpecification {
             return criteriaBuilder.notEqual(root.get("roleName"), "Admin");
         };
     }
+
+    // RoleSpecification.java
+    public static Specification<Roles> excludeSystemRoles() {
+        return (root, query, criteriaBuilder) ->
+                root.get("roleName").in(
+                        criteriaBuilder.literal("frontdesk"),
+                        criteriaBuilder.literal("admin")
+                        // add more here as needed
+                ).not();
+    }
 }

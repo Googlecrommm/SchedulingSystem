@@ -54,9 +54,30 @@ public class RolesService {
     }
 
     //READ ALL (DROPDOWN)
-    public List<RoleResponseDTO> roleDropdown(){
-        return rolesRepository.findAllByRoleStatusNotAndRoleNameNotAndDepartment_DepartmentNameNot(SoftDelete.Archived, "Admin", "ICTD")
-                .stream()
+    // RolesService.java
+    public List<RoleResponseDTO> roleDropdown(String departmentName) {
+        Specification<Roles> filters = Specification
+                .where(RoleSpecification.excludeRole())          // excludes Admin
+                .and(RoleSpecification.hasStatus("Active"))      // only active roles
+                .and(RoleSpecification.hasDepartment(departmentName)); // null = all, set = scoped
+
+        return rolesRepository.findAll(filters).stream()
+                .map(roles -> {
+                    RoleResponseDTO roleDTO = modelMapper.map(roles, RoleResponseDTO.class);
+                    roleDTO.setDepartmentName(roles.getDepartment().getDepartmentName());
+                    return roleDTO;
+                })
+                .toList();
+    }
+
+    public List<RoleResponseDTO> doctorRoleDropdown(String departmentName) {
+        Specification<Roles> filters = Specification
+                .where(RoleSpecification.excludeRole())       // excludes Admin
+                .and(RoleSpecification.excludeSystemRoles())  // excludes Frontdesk + other login roles
+                .and(RoleSpecification.hasStatus("Active"))
+                .and(RoleSpecification.hasDepartment(departmentName));
+
+        return rolesRepository.findAll(filters).stream()
                 .map(roles -> {
                     RoleResponseDTO roleDTO = modelMapper.map(roles, RoleResponseDTO.class);
                     roleDTO.setDepartmentName(roles.getDepartment().getDepartmentName());
