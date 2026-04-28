@@ -19,4 +19,8 @@ public interface MachinesRepository extends JpaRepository<Machines, Integer>, Jp
     Page<Machines> searchByMachineNameContaining(String machineName, Pageable pageable);
 
     List<Machines> findAllByMachineStatus(MachineStatus machineStatus);
+
+    // ADDED — for department-scoped dropdown (non-admin users)
+    List<Machines> findAllByMachineStatusAndModality_Department_DepartmentNameIgnoreCase(
+            MachineStatus machineStatus, String departmentName);
 }
