@@ -260,7 +260,7 @@ function ModalityDropdown({ value, onChange, modalities }) {
 
 function getActions(status) {
   switch (status?.toLowerCase()) {
-    case "confirmed": return [{ label: "View", icon: Eye }, { label: "Done", icon: UserCheck }];
+    case "confirmed": return [{ label: "View", icon: Eye }, { label: "Cancel", icon: UserX }, { label: "Done", icon: UserCheck }];
     case "cancelled": return [{ label: "View", icon: Eye }];
     case "archived":  return [{ label: "View", icon: Eye }, { label: "Unarchive", icon: RefreshCw }];
     case "done":      return [{ label: "View", icon: Eye }];

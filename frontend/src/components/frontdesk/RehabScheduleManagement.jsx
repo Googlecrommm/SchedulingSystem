@@ -33,7 +33,7 @@ const TABS = [
   { label: "Done",      icon: CheckCircle   },
 ];
 
-const COLUMNS = ["Full Name", "Date", "Time", "Therapist", "Status", "Action"];
+const COLUMNS = ["Full Name", "Date", "Time", "Room", "Therapist", "Status", "Action"];
 
 const BLANK_PATIENT = {
   therapist:     "",
@@ -106,7 +106,7 @@ function formatTimeAMPM(hhmm) {
 
 function getActions(status) {
   switch (status?.toLowerCase()) {
-    case "confirmed": return [{ label: "View", icon: Eye }, { label: "Edit", icon: Pencil }, { label: "Done", icon: UserCheck }];
+    case "confirmed": return [{ label: "View", icon: Eye }, { label: "Edit", icon: Pencil }, { label: "Cancel", icon: UserX }, { label: "Done", icon: UserCheck }];
     case "cancelled": return [{ label: "View", icon: Eye }];
     case "archived":  return [{ label: "View", icon: Eye }, { label: "Unarchive", icon: RefreshCw }];
     case "done":      return [{ label: "View", icon: Eye }];
@@ -1072,6 +1072,7 @@ export default function RehabScheduleManagement() {
                 ? `${formatTime(s.startDateTime)} - ${formatTime(s.endDateTime)}`
                 : "—"}
             </td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.roomName ?? "—"}</td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.name ?? "—"}</td>
             <td className={`px-6 py-4 text-center text-sm font-semibold ${scheduleStatusColor(s.scheduleStatus)}`}>
               {s.scheduleStatus
