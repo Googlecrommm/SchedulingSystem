@@ -18,6 +18,7 @@ export const adminNavItems = [
   { label: "Schedules",       icon: Calendar,        path: "/admin/schedules" },
   { label: "Patients",        icon: UserRoundPlus,        path: "/admin/patient-management" },
   { label: "User Management", icon: Users,            path: "/admin/user-management" },
+  { label: "Departments",     icon: Building2,        path: "/admin/department-management" },
   { label: "Role",            icon: UserCog,          path: "/admin/role-management" },
   { label: "Machine",         icon: Cpu,              path: "/admin/machine-management" },
   { label: "Modality",        icon: Layers,          path: "/admin/modality-management"  }, 

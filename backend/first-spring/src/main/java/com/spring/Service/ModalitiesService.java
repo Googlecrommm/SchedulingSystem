@@ -5,8 +5,10 @@ import com.spring.Exceptions.AlreadyExists;
 import com.spring.Exceptions.NoChangesDetected;
 import com.spring.Exceptions.NotAllowed;
 import com.spring.Exceptions.NotFound;
+import com.spring.Models.Departments;
 import com.spring.Models.Modalities;
 import com.spring.Models.Users;
+import com.spring.Repositories.DepartmentsRepository;
 import com.spring.Repositories.ModalitiesRepository;
 import com.spring.Specifications.ModalitySpecification;
 import com.spring.dto.ModalityResponseDTO;
@@ -23,10 +25,12 @@ import java.util.List;
 public class ModalitiesService {
     private final ModalitiesRepository modalitiesRepository;
     private final ModelMapper modelMapper;
+    private final DepartmentsRepository departmentsRepository;
 
-    public ModalitiesService(ModalitiesRepository modalitiesRepository, ModelMapper modelMapper) {
+    public ModalitiesService(ModalitiesRepository modalitiesRepository, ModelMapper modelMapper, DepartmentsRepository departmentsRepository) {
         this.modalitiesRepository = modalitiesRepository;
         this.modelMapper = modelMapper;
+        this.departmentsRepository = departmentsRepository;
     }
 
     // ─── Reusable DTO mapping helper ────────────────────────────────────────────
@@ -72,9 +76,11 @@ public class ModalitiesService {
             if (user.getRole() == null || user.getRole().getDepartment() == null) {
                 throw new NotAllowed("You are not assigned to any department.");
             }
-            modality.setDepartment(user.getRole().getDepartment());
+            int deptId = user.getRole().getDepartment().getDepartmentId();
+            Departments department = departmentsRepository.findById(deptId)
+                    .orElseThrow(() -> new RuntimeException("Department not found"));
+            modality.setDepartment(department);
         }
-
         if (modalitiesRepository.existsByModalityNameIgnoreCaseAndDepartment_DepartmentId(
                 modality.getModalityName(), modality.getDepartment().getDepartmentId())) {
             throw new AlreadyExists("This modality already exists in this department.");
