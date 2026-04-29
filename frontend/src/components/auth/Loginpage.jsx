@@ -12,6 +12,35 @@ const loginSchema = Yup.object({
   password: Yup.string().required("Password is required"),
 });
 
+// ── Role → landing page ───────────────────────────────────────────────────────
+// Matches getUser.getRole().getRoleName() from AuthService.java.
+// The backend returns the exact roleName string stored in your DB.
+// Add any new role names your backend returns inside the switch below.
+function getRedirectPath(roleName) {
+  if (!roleName) return "/";
+
+  switch (roleName.trim().toLowerCase()) {
+    case "admin":
+    case "administrator":
+      return "/admin/dashboard";
+
+    // All frontdesk-type roles → unified frontdesk dashboard.
+    // Backend JWT scopes API data to the user's department automatically.
+    case "frontdesk":
+    case "front desk":
+    case "radiology":
+    case "rehabilitation":
+    case "rehab":
+      return "/frontdesk/dashboard";
+
+    default:
+      // Safety net: unknown role goes back to login, never a white screen.
+      // Check your browser console for the actual roleName and add it above.
+      console.warn("Unrecognised roleName — add it to getRedirectPath():", roleName);
+      return "/";
+  }
+}
+
 function FieldError({ message }) {
   if (!message) return null;
   return (
@@ -23,31 +52,30 @@ function FieldError({ message }) {
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const [serverError, setServerError] = useState(null);
+  const [serverError,  setServerError]  = useState(null);
   const navigate = useNavigate();
 
   const formik = useFormik({
-    initialValues: {
-      username: "",
-      password: "",
-    },
+    initialValues: { username: "", password: "" },
     validationSchema: loginSchema,
     onSubmit: async (values, { setSubmitting }) => {
       setServerError(null);
       try {
         const response = await axios.post(
           "http://localhost:8080/auth/login",
-          {
-            email: values.username,
-            password: values.password,
-          }
+          { email: values.username, password: values.password }
         );
 
-        console.log("Login success:", response.data);
-        localStorage.setItem("token",    response.data.token);
-        localStorage.setItem("userName", response.data.name);
-        localStorage.setItem("userRole", response.data.role);
-        navigate("/admin/user-management");
+        // AuthResponseDTO: { token, name, role (= roleName), departmentName }
+        const { token, name, role, departmentName } = response.data;
+
+        // Persist everything the rest of the app needs from localStorage
+        localStorage.setItem("token",         token          ?? "");
+        localStorage.setItem("userName",       name           ?? "");
+        localStorage.setItem("userRole",       role           ?? "");
+        localStorage.setItem("departmentName", departmentName ?? "");
+
+        navigate(getRedirectPath(role), { replace: true });
       } catch (error) {
         setServerError(
           error.response?.data?.message ||
@@ -73,18 +101,18 @@ export default function LoginPage() {
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center font-body overflow-hidden">
 
-    
+      {/* Background */}
       <div
         className="absolute inset-0 bg-cover bg-center blur-md scale-110"
         style={{ backgroundImage: `url(${hospitalBg})` }}
       />
       <div className="absolute inset-0 bg-black/40" />
 
-   
+      {/* Card */}
       <div className="relative z-10 w-full max-w-md mx-4">
         <div className="bg-[#f0f0f0] rounded-2xl shadow-card px-10 py-12">
 
-         
+          {/* Logo */}
           <div className="flex justify-center mb-8">
             <img
               src={DGMCLogo}
@@ -95,7 +123,7 @@ export default function LoginPage() {
 
           <form onSubmit={formik.handleSubmit} noValidate className="space-y-5">
 
-         
+            {/* Email */}
             <div>
               <label
                 htmlFor="username"
@@ -116,12 +144,10 @@ export default function LoginPage() {
                   {...formik.getFieldProps("username")}
                 />
               </div>
-              <FieldError
-                message={formik.touched.username && formik.errors.username}
-              />
+              <FieldError message={formik.touched.username && formik.errors.username} />
             </div>
 
-          
+            {/* Password */}
             <div>
               <label
                 htmlFor="password"
@@ -150,19 +176,17 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                 </button>
               </div>
-              <FieldError
-                message={formik.touched.password && formik.errors.password}
-              />
+              <FieldError message={formik.touched.password && formik.errors.password} />
             </div>
 
-          
+            {/* Server error */}
             {serverError && (
               <div className="bg-red-50 border border-red-300 text-red-600 text-sm rounded-lg px-4 py-3">
                 {serverError}
               </div>
             )}
 
-           
+            {/* Submit */}
             <button
               type="submit"
               disabled={formik.isSubmitting}

@@ -17,51 +17,69 @@ import {
   readonlyInputClass,
 } from "../ui";
 
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
 const TABS = [
   { label: "All",      icon: UserRoundPlus },
   { label: "Archived", icon: Archive       },
 ];
 
-const activeActions  = [{ label: "View", icon: Eye }, { label: "Edit", icon: Pencil }, { label: "Archive", icon: Archive, danger: true }];
-const archiveActions = [{ label: "View", icon: Eye }, { label: "Unarchive", icon: RefreshCw }];
+// No create endpoint exists in PatientController — Add button is intentionally absent.
+const activeActions  = [
+  { label: "Edit",      icon: Pencil                  },
+  { label: "Archive",   icon: Archive,  danger: true  },
+];
+const archiveActions = [
+  { label: "Unarchive", icon: RefreshCw               },
+];
 
+// Must match the backend Sex enum names exactly.
 const SEX_OPTIONS = ["Male", "Female"];
 
 const PAGE_SIZE = 10;
 
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
 
 function getAuthHeader() {
   const token = localStorage.getItem("token");
   return { Authorization: `Bearer ${token}` };
 }
 
-
+// Maps PatientResponseDTO → flat local object.
+// DTO fields: patientId, name, address, contactNumber, birthDate, sex (Sex enum), patientStatus
 function mapPatient(p) {
   return {
     id:        p.patientId,
-    name:      p.name          ?? "",
-    address:   p.address       ?? "",
-    contact:   p.contactNumber ?? "",
-    birthdate: p.birthDate     ?? "",
-    sex:       p.sex           ?? "",
-    archived:  p.patientStatus === "Archived",
+    name:      p.name            ?? "",
+    address:   p.address         ?? "",
+    contact:   p.contactNumber   ?? "",   // DTO: contactNumber
+    birthdate: p.birthDate       ?? "",   // DTO: birthDate (LocalDate → "YYYY-MM-DD")
+    sex:       p.sex             ?? "",   // DTO: sex (Sex enum → string)
+    archived:  p.patientStatus === "Archived",  // DTO: patientStatus
   };
 }
 
+// Formats ISO date string "YYYY-MM-DD" for display.
 function formatBirthdate(iso) {
   if (!iso) return "—";
   const date = new Date(iso.includes("T") ? iso : iso + "T00:00:00");
-  return date.toLocaleDateString("en-CA", {
-    month: "2-digit",
-    day:   "2-digit",
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day:   "numeric",
     year:  "numeric",
   });
 }
 
+// ─── VALIDATION ───────────────────────────────────────────────────────────────
+// Mirrors PatientService validation rules:
+//   - name: not blank, max 100
+//   - contactNumber: not blank, exactly 11 digits (service rejects < 11)
+//   - address, birthDate, sex: required / not null
 
 const patientSchema = Yup.object({
-  name:      Yup.string().required("Full name is required"),
+  name:      Yup.string()
+    .required("Full name is required")
+    .max(100, "Name must be at most 100 characters"),
   address:   Yup.string().required("Address is required"),
   contact:   Yup.string()
     .required("Contact number is required")
@@ -70,10 +88,14 @@ const patientSchema = Yup.object({
   sex:       Yup.string().required("Sex is required"),
 });
 
+// ─── EDIT FORM ────────────────────────────────────────────────────────────────
+// No create form — PatientController has no POST endpoint.
+// Edit sends: { name, address, contactNumber, birthDate, sex }
+// matching Patients model setters used in PatientService.updatePatient().
 
 function PatientForm({
   initialValues = { name: "", address: "", contact: "", birthdate: "", sex: "" },
-  submitLabel   = "Submit",
+  submitLabel   = "Save Changes",
   onSubmit,
   onClose,
 }) {
@@ -85,6 +107,7 @@ function PatientForm({
         await onSubmit(values);
         onClose();
       } catch {
+        // errors handled by caller
       } finally {
         setSubmitting(false);
       }
@@ -162,6 +185,7 @@ function PatientForm({
   );
 }
 
+// ─── VIEW MODAL ───────────────────────────────────────────────────────────────
 
 function ViewPatientModal({ patient, onClose }) {
   const ro = readonlyInputClass;
@@ -202,6 +226,7 @@ function ViewPatientModal({ patient, onClose }) {
   );
 }
 
+// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function PatientManagement() {
   const [activeTab,     setActiveTab]     = useState("All");
@@ -214,6 +239,7 @@ export default function PatientManagement() {
   const [page,          setPage]          = useState(1);
   const [totalPages,    setTotalPages]    = useState(1);
 
+  // Reset to page 1 whenever tab or search changes
   useEffect(() => {
     setPage(1);
   }, [activeTab, searchQuery]);
@@ -222,6 +248,11 @@ export default function PatientManagement() {
     fetchPatients();
   }, [activeTab, searchQuery, page]);
 
+  // ─── FETCH ──────────────────────────────────────────────────────────────────
+  // GET /api/getPatients?patientStatus=Active|Archived&page=N&size=10&sort=name,asc
+  // GET /api/searchPatient/{name}?page=N&size=10
+  // Response: Page<PatientResponseDTO>
+  // DTO: { patientId, name, address, contactNumber, birthDate, sex, patientStatus }
 
   const fetchPatients = useCallback(async () => {
     setLoading(true);
@@ -231,9 +262,11 @@ export default function PatientManagement() {
         : `/api/getPatients`;
 
       const params = {
-        page: page - 1,
+        page: page - 1,   // backend is 0-indexed (Spring Pageable)
         size: PAGE_SIZE,
         sort: "name,asc",
+        // Only pass patientStatus on the base fetch, not on search.
+        // Search endpoint (searchByNameContaining) searches across all statuses.
         ...(searchQuery.trim() ? {} : {
           patientStatus: activeTab === "Archived" ? "Archived" : "Active",
         }),
@@ -254,17 +287,21 @@ export default function PatientManagement() {
     }
   }, [activeTab, searchQuery, page]);
 
-  const filtered = searchQuery.trim()
+  // When searching, the backend returns all statuses — filter client-side by tab.
+  const displayed = searchQuery.trim()
     ? patients.filter((p) => activeTab === "Archived" ? p.archived : !p.archived)
     : patients;
 
+  // ─── ACTIONS ─────────────────────────────────────────────────────────────────
+
   function handleAction(action, patient) {
-    if (action === "View")      return setViewPatient(patient);
     if (action === "Edit")      return setEditPatient(patient);
     if (action === "Archive")   return setConfirmAction({ type: "archive",   patient });
     if (action === "Unarchive") return setConfirmAction({ type: "unarchive", patient });
   }
 
+  // PUT /api/archivePatient/{patientId}
+  // PUT /api/restorePatient/{patientId}
   async function applyConfirm() {
     const { type, patient } = confirmAction;
     try {
@@ -288,20 +325,23 @@ export default function PatientManagement() {
   return (
     <AdminLayout
       pageTitle="Patient Management"
-      pageSubtitle="All Patients"
       searchValue={searchQuery}
       onSearchChange={setSearchQuery}
       searchPlaceholder="Search Patient"
     >
+      {/* No addLabel/onAdd — no create endpoint in PatientController */}
       <TabBar
         tabs={TABS}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          setSearchQuery("");  // clear search when switching tabs
+        }}
       />
 
       <DataTable
         columns={["Full Name", "Contact", "Birthdate", "Address", "Sex", "Action"]}
-        rows={filtered}
+        rows={displayed}
         loading={loading}
         emptyIcon={UserRoundPlus}
         emptyText={activeTab === "Archived" ? "No archived patients" : "No patients found"}
@@ -311,11 +351,21 @@ export default function PatientManagement() {
         onNext={() => setPage((p) => Math.min(p + 1, totalPages))}
         renderRow={(patient) => (
           <tr key={patient.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-            <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">{patient.name    || "—"}</td>
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{patient.contact            || "—"}</td>
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{formatBirthdate(patient.birthdate)}</td>
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{patient.address             || "—"}</td>
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{patient.sex                 || "—"}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">
+              {patient.name || "—"}
+            </td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">
+              {patient.contact || "—"}
+            </td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">
+              {formatBirthdate(patient.birthdate)}
+            </td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">
+              {patient.address || "—"}
+            </td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">
+              {patient.sex || "—"}
+            </td>
             <td className="px-6 py-4 text-center">
               <ActionDropdown
                 items={activeTab === "Archived" ? archiveActions : activeActions}
@@ -326,6 +376,7 @@ export default function PatientManagement() {
         )}
       />
 
+      {/* ── VIEW MODAL ─────────────────────────────────────────────────────── */}
       {viewPatient && (
         <ViewPatientModal
           patient={viewPatient}
@@ -333,6 +384,11 @@ export default function PatientManagement() {
         />
       )}
 
+      {/* ── EDIT MODAL ─────────────────────────────────────────────────────── */}
+      {/* PUT /api/updatePatient/{patientId}
+          Body (Patients model fields): { name, address, contactNumber, birthDate, sex }
+          - sex must match Sex enum name: "Male" | "Female"
+          - birthDate: "YYYY-MM-DD" string (Spring deserializes LocalDate from ISO) */}
       {editPatient && (
         <Modal title="Edit Patient Information" onClose={() => setEditPatient(null)} scrollable>
           <PatientForm
@@ -350,9 +406,9 @@ export default function PatientManagement() {
                 {
                   name:          values.name,
                   address:       values.address,
-                  contactNumber: values.contact,
-                  birthDate:     values.birthdate,
-                  sex:           values.sex,
+                  contactNumber: values.contact,   // Patients model field: contactNumber
+                  birthDate:     values.birthdate, // Patients model field: birthDate (LocalDate)
+                  sex:           values.sex,       // Patients model field: sex (Sex enum)
                 },
                 { headers: getAuthHeader() }
               );
@@ -363,6 +419,7 @@ export default function PatientManagement() {
         </Modal>
       )}
 
+      {/* ── CONFIRM DIALOG ─────────────────────────────────────────────────── */}
       {confirmAction && (
         <ConfirmDialog
           title={confirmAction.type === "archive" ? "Archive Patient?" : "Unarchive Patient?"}

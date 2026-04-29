@@ -24,12 +24,12 @@ function getAuthHeader() {
   return { Authorization: `Bearer ${token}` };
 }
 
-// Normalizes the raw MachineStatus enum for display.
-// The backend stores "Under_Maintenance"; we surface it as "Under Maintenance".
 function formatStatus(status) {
   if (status === "Under_Maintenance") return "Under Maintenance";
   return status;
 }
+
+const PAGE_SIZE = 10;
 
 const TABS = [
   { label: "All",      icon: Cpu     },
@@ -43,8 +43,6 @@ function getMachineActions(machine) {
     ];
   }
 
-  // The enum value from the backend is "Under_Maintenance";
-  // we compare against that but always display "Under Maintenance" as the label.
   const statusAction =
     machine.machineStatus === "Available"
       ? { label: "Under Maintenance", icon: Wrench      }
@@ -72,9 +70,6 @@ const editMachineSchema = Yup.object({
 });
 
 // ─── CREATE FORM ─────────────────────────────────────────────────────────────
-// Fetches modalities from GET /api/modalityDropdown on mount.
-// Each modality is expected to have { modalityId, modalityName }.
-// Update the endpoint path if yours differs (e.g. /api/getModalityDropdown).
 
 function CreateMachineForm({ submitLabel = "Submit", onSubmit, onClose }) {
   const [modalities,      setModalities]      = useState([]);
@@ -114,7 +109,6 @@ function CreateMachineForm({ submitLabel = "Submit", onSubmit, onClose }) {
   return (
     <form onSubmit={formik.handleSubmit} noValidate className="space-y-4">
 
-      {/* Machine Name */}
       <FormField label="Machine Name" error={formik.touched.name && formik.errors.name}>
         <input
           type="text"
@@ -123,7 +117,6 @@ function CreateMachineForm({ submitLabel = "Submit", onSubmit, onClose }) {
         />
       </FormField>
 
-      {/* Modality Dropdown */}
       <FormField
         label="Modality"
         error={formik.touched.modalityId && formik.errors.modalityId}
@@ -158,7 +151,6 @@ function CreateMachineForm({ submitLabel = "Submit", onSubmit, onClose }) {
 }
 
 // ─── EDIT FORM ───────────────────────────────────────────────────────────────
-// Rename only — modality is not changed after a machine is created.
 
 function EditMachineForm({ initialName = "", submitLabel = "Save Changes", onSubmit, onClose }) {
   const formik = useFormik({
@@ -202,22 +194,29 @@ export default function MachineManagement() {
   const [confirmAction, setConfirmAction] = useState(null);
   const [machines,      setMachines]      = useState([]);
   const [loading,       setLoading]       = useState(false);
-  const [serverResults, setServerResults] = useState(null);
+
+  // ─── PAGINATION STATE ──────────────────────────────────────────────────────
+  // `page` is 1-based for display; we send (page - 1) to the server (0-based).
+  const [page,       setPage]       = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   // ─── FETCH MACHINES ────────────────────────────────────────────────────────
-  const fetchMachines = useCallback(async () => {
+  const fetchMachines = useCallback(async (targetPage = 1) => {
     setLoading(true);
     try {
       const params = {
-        page: 0,
-        size: 1000,
+        page: targetPage - 1,   // Spring Data is 0-based
+        size: PAGE_SIZE,
         ...(activeTab === "Archived" && { machineStatus: "Archived" }),
       };
       const res = await axios.get("/api/getMachines", {
         headers: getAuthHeader(),
         params,
       });
-      setMachines(res.data.content ?? []);
+      const data = res.data;
+      setMachines(data.content ?? []);
+      setTotalPages(data.totalPages ?? 1);
+      setPage(targetPage);
     } catch (err) {
       console.error("Failed to fetch machines:", err);
     } finally {
@@ -225,36 +224,73 @@ export default function MachineManagement() {
     }
   }, [activeTab]);
 
+  // Reset to page 1 whenever the tab changes
   useEffect(() => {
-    fetchMachines();
-  }, [fetchMachines]);
+    setSearchQuery("");
+    fetchMachines(1);
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── DEBOUNCED SERVER SEARCH ───────────────────────────────────────────────
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setServerResults(null);
+  // Search uses its own pagination state so it doesn't clobber the main one.
+  const [searchPage,       setSearchPage]       = useState(1);
+  const [searchTotalPages, setSearchTotalPages] = useState(1);
+  const [searchResults,    setSearchResults]    = useState(null);
+
+  const runSearch = useCallback(async (query, targetPage = 1) => {
+    if (!query.trim()) {
+      setSearchResults(null);
       return;
     }
-    const timeout = setTimeout(async () => {
-      try {
-        const res = await axios.get(
-          "/api/searchMachine/" + encodeURIComponent(searchQuery.trim()),
-          { headers: getAuthHeader(), params: { page: 0, size: 1000 } }
-        );
-        setServerResults(res.data.content ?? []);
-      } catch (err) {
-        console.error("Search failed, using local filter:", err);
-        setServerResults(null);
-      }
-    }, 400);
-    return () => clearTimeout(timeout);
-  }, [searchQuery]);
+    setLoading(true);
+    try {
+      const res = await axios.get(
+        "/api/searchMachine/" + encodeURIComponent(query.trim()),
+        {
+          headers: getAuthHeader(),
+          params: { page: targetPage - 1, size: PAGE_SIZE },
+        }
+      );
+      const data = res.data;
+      setSearchResults(data.content ?? []);
+      setSearchTotalPages(data.totalPages ?? 1);
+      setSearchPage(targetPage);
+    } catch (err) {
+      console.error("Search failed, falling back to local data:", err);
+      setSearchResults(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const filtered = (serverResults ?? machines).filter((m) =>
+  // Debounce: fire search 400 ms after the user stops typing; clear on empty
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults(null);
+      setSearchPage(1);
+      setSearchTotalPages(1);
+      return;
+    }
+    const timeout = setTimeout(() => runSearch(searchQuery, 1), 400);
+    return () => clearTimeout(timeout);
+  }, [searchQuery, runSearch]);
+
+  // ─── DERIVED DISPLAY VALUES ────────────────────────────────────────────────
+  const isSearching   = searchResults !== null;
+  const displayRows   = (isSearching ? searchResults : machines).filter((m) =>
     activeTab === "Archived"
       ? m.machineStatus === "Archived"
       : m.machineStatus !== "Archived"
   );
+  const displayPage   = isSearching ? searchPage       : page;
+  const displayTotal  = isSearching ? searchTotalPages : totalPages;
+
+  function handlePageChange(newPage) {
+    if (isSearching) {
+      runSearch(searchQuery, newPage);
+    } else {
+      fetchMachines(newPage);
+    }
+  }
 
   // ─── ACTION HANDLER ────────────────────────────────────────────────────────
   function handleAction(action, machine) {
@@ -278,7 +314,8 @@ export default function MachineManagement() {
       } else if (type === "available") {
         await axios.put("/api/activateMachine/" + machine.machineId, {}, { headers: getAuthHeader() });
       }
-      await fetchMachines();
+      // After a status change, refresh the current page rather than jumping to 1
+      await fetchMachines(page);
     } catch (err) {
       console.error("Failed to apply action (" + type + "):", err);
     } finally {
@@ -286,8 +323,8 @@ export default function MachineManagement() {
     }
   }
 
-  const machineName  = confirmAction ? confirmAction.machine.machineName : "";
-  const confirmMeta  = confirmAction && {
+  const machineName = confirmAction ? confirmAction.machine.machineName : "";
+  const confirmMeta = confirmAction && {
     archive: {
       title: "Archive Machine?",
       msg:   '"' + machineName + '" will be archived.',
@@ -328,7 +365,7 @@ export default function MachineManagement() {
         onTabChange={(tab) => {
           setActiveTab(tab);
           setSearchQuery("");
-          setServerResults(null);
+          setSearchResults(null);
         }}
         addLabel="Add Machine"
         onAdd={() => setShowCreate(true)}
@@ -336,10 +373,14 @@ export default function MachineManagement() {
 
       <DataTable
         columns={["Machine Name", "Modality", "Status", "Action"]}
-        rows={filtered}
+        rows={displayRows}
         loading={loading}
         emptyIcon={Cpu}
         emptyText={activeTab === "Archived" ? "No archived machines" : "No machines found"}
+        page={displayPage}
+        totalPages={displayTotal}
+        onPrev={() => handlePageChange(displayPage - 1)}
+        onNext={() => handlePageChange(displayPage + 1)}
         renderRow={(machine) => (
           <tr
             key={machine.machineId}
@@ -364,7 +405,7 @@ export default function MachineManagement() {
         )}
       />
 
-      {/* CREATE MODAL — includes modality dropdown */}
+      {/* CREATE MODAL */}
       {showCreate && (
         <Modal title="Add Machine" onClose={() => setShowCreate(false)}>
           <CreateMachineForm
@@ -378,7 +419,8 @@ export default function MachineManagement() {
                 },
                 { headers: getAuthHeader() }
               );
-              await fetchMachines();
+              // New machine goes to page 1 so the user can see it
+              await fetchMachines(1);
               setShowCreate(false);
             }}
             onClose={() => setShowCreate(false)}
@@ -386,7 +428,7 @@ export default function MachineManagement() {
         </Modal>
       )}
 
-      {/* EDIT MODAL — rename only, modality unchanged */}
+      {/* EDIT MODAL */}
       {editMachine && (
         <Modal title="Edit Machine" onClose={() => setEditMachine(null)}>
           <EditMachineForm
@@ -398,7 +440,8 @@ export default function MachineManagement() {
                 { machineName: values.name },
                 { headers: getAuthHeader() }
               );
-              await fetchMachines();
+              // Stay on the same page after an edit
+              await fetchMachines(page);
               setEditMachine(null);
             }}
             onClose={() => setEditMachine(null)}

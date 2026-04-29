@@ -2,28 +2,57 @@ import axios from "../../config/axiosInstance";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
-  UserCheck, UserX, Clock, AlertCircle, ChevronDown, LayoutDashboard, Calendar, Cpu, Cross, FileDown,
+  UserCheck, UserX, Clock, AlertCircle, FileDown, ChevronDown,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from "recharts";
+import { AdminLayout, scheduleStatusColor } from "../ui";
+import { useFrontdeskNav, useDeptMeta } from "./frontdeskUtils";
 
-import {
-  AdminLayout,
-  scheduleStatusColor,
-} from "../ui";
-
-
-const radiologyNavItems = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/radiology/dashboard" },
-  { label: "Schedules", icon: Calendar,        path: "/radiology/schedules" },
-  { label: "Machine",   icon: Cpu,             path: "/radiology/machine"   },
-  { label: "Medical Professionals", icon: Cross,         path: "/radiology/professionals" },
-];
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const TIME_FRAMES = ["Daily", "Weekly", "Monthly", "Yearly", "Overall"];
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function getAuthHeader() {
+  const token = localStorage.getItem("token");
+  return { Authorization: `Bearer ${token}` };
+}
+
+function parseDT(raw) {
+  if (!raw) return null;
+  if (Array.isArray(raw)) {
+    const [y, mo, d, h = 0, mi = 0] = raw;
+    return new Date(y, mo - 1, d, h, mi);
+  }
+  const str = String(raw).replace(" ", "T").split(".")[0];
+  const dt  = new Date(str);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
+function toDateStr(raw) {
+  const d = parseDT(raw);
+  if (!d) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function isStatus(s, status) {
+  return (s.scheduleStatus ?? "").toLowerCase() === status.toLowerCase();
+}
+
+function countByDate(schedules, dateStr) {
+  const day = schedules.filter((s) => toDateStr(s.startDateTime) === dateStr);
+  return {
+    confirmed: day.filter((s) => isStatus(s, "Confirmed")).length,
+    cancelled: day.filter((s) => isStatus(s, "Cancelled")).length,
+    scheduled: day.filter((s) => isStatus(s, "Scheduled")).length,
+  };
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 
 function ModalityDropdown({ value, onChange, options }) {
   const [open, setOpen] = useState(false);
@@ -74,7 +103,6 @@ function ModalityDropdown({ value, onChange, options }) {
   );
 }
 
-
 function LoadingSkeleton() {
   return (
     <div className="animate-pulse">
@@ -93,7 +121,6 @@ function LoadingSkeleton() {
     </div>
   );
 }
-
 
 function ErrorMessage({ message, onRetry }) {
   return (
@@ -115,8 +142,12 @@ function ErrorMessage({ message, onRetry }) {
   );
 }
 
+// ── Main page ─────────────────────────────────────────────────────────────────
 
-export default function RadiologyDashboard() {
+export default function FrontdeskDashboard() {
+  const navItems = useFrontdeskNav();
+  const { deptName, userRole } = useDeptMeta();
+
   const [activeTimeFrame, setActiveTimeFrame] = useState("Daily");
   const [modalityFilter,  setModalityFilter]  = useState("all");
   const [modalities,      setModalities]      = useState([]);
@@ -131,14 +162,11 @@ export default function RadiologyDashboard() {
 
   useEffect(() => { fetchDropdowns(); }, []);
 
-  // Re-fetch after dropdowns load so filter resolves correctly
   useEffect(() => {
     if (modalities.length > 0 || modalityFilter === "all") fetchDashboardData();
   }, [activeTimeFrame, modalityFilter, modalities]);
 
-  // Build a Set of machineNames belonging to the selected modality.
-  // e.g. "MRI" → Set { "MRI Machine 1", "MRI Machine 2" }
-  // Schedules are then matched via machineName which exists on ScheduleResponseDTO.
+  // Build allowed machine names set when modality filter is active
   const allowedMachineNames = useMemo(() => {
     if (modalityFilter === "all" || machines.length === 0) return null;
     return new Set(
@@ -148,105 +176,55 @@ export default function RadiologyDashboard() {
     );
   }, [modalityFilter, machines]);
 
-  function getAuthHeader() {
-    const token = localStorage.getItem("token");
-    return { Authorization: `Bearer ${token}` };
+  async function fetchDropdowns() {
+    try {
+      const headers = getAuthHeader();
+      const [modalityRes, machineRes] = await Promise.all([
+        axios.get("/api/modalityDropdown", { headers }),
+        axios.get("/api/machineDropdown",  { headers }),
+      ]);
+      const modalityData = Array.isArray(modalityRes.data) ? modalityRes.data : modalityRes.data?.content ?? [];
+      const machineData  = Array.isArray(machineRes.data)  ? machineRes.data  : machineRes.data?.content  ?? [];
+      setModalities(modalityData.map((m) => m.modalityName ?? m));
+      setMachines(machineData.filter((m) => m.machineStatus !== "Archived"));
+    } catch (err) {
+      console.error("Failed to fetch dropdown data:", err);
+    }
   }
 
   async function fetchDashboardData() {
     setLoading(true);
     setError(null);
     try {
-      const headers  = getAuthHeader();
-      const filter   = activeTimeFrame.toLowerCase();
-      const modName  = modalityFilter === "all" ? undefined : modalityFilter;
+      const headers = getAuthHeader();
+      const filter  = activeTimeFrame.toLowerCase();
 
-      // Fetch counts and all statuses separately (backend hasStatus defaults to Scheduled when null)
+      // Single generic endpoint — backend scopes by dept from JWT
       const TRACKED = ["Scheduled", "Confirmed", "Cancelled", "Done"];
       const [countsRes, ...statusResults] = await Promise.all([
-        axios.get("/api/dashboard/countRadio", { headers, params: { filter } }),
+        axios.get("/api/dashboard/count", { headers, params: { filter } }),
         ...TRACKED.map((status) =>
-          axios.get("/api/getRadiologySched", {
+          axios.get("/api/getSchedules", {
             headers,
             params: { page: 0, size: 2000, scheduleStatus: status },
           })
         ),
       ]);
 
-      const counts = countsRes.data;
-      // Merge and apply modality filter via machineName lookup
       const allSched = statusResults
         .flatMap((res) => res.data?.content ?? [])
         .filter((s) => allowedMachineNames ? allowedMachineNames.has(s.machineName) : true);
 
-      // ── Helpers ────────────────────────────────────────────────────────────
-      function parseDT(raw) {
-        if (!raw) return null;
-        if (Array.isArray(raw)) {
-          const [y, mo, d, h = 0, mi = 0] = raw;
-          return new Date(y, mo - 1, d, h, mi);
-        }
-        const str = String(raw).replace(" ", "T").split(".")[0];
-        const dt  = new Date(str);
-        return isNaN(dt.getTime()) ? null : dt;
-      }
-
-      function toDateStr(raw) {
-        const d = parseDT(raw);
-        if (!d) return "";
-        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-      }
-
-      function isStatus(s, status) {
-        return (s.scheduleStatus ?? "").toLowerCase() === status.toLowerCase();
-      }
-
-      function countByDate(schedules, dateStr) {
-        const day = schedules.filter((s) => toDateStr(s.startDateTime) === dateStr);
-        return {
-          confirmed: day.filter((s) => isStatus(s, "Confirmed")).length,
-          cancelled: day.filter((s) => isStatus(s, "Cancelled")).length,
-          scheduled: day.filter((s) => isStatus(s, "Scheduled")).length,
-        };
-      }
-
-      // ── Filter allSched to the active time window (mirrors chart bucketing) ──
+      // ── Build chart series ──────────────────────────────────────────────────
       const now = new Date();
-      function getWindowSched() {
-        if (activeTimeFrame === "Daily") {
-          const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
-          const todayEnd   = new Date(now); todayEnd.setHours(23, 59, 59, 999);
-          return allSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d >= todayStart && d <= todayEnd; });
-        }
-        if (activeTimeFrame === "Weekly") {
-          const dow = now.getDay();
-          const monday = new Date(now); monday.setDate(now.getDate() - ((dow + 6) % 7)); monday.setHours(0,0,0,0);
-          const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23,59,59,999);
-          return allSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d >= monday && d <= sunday; });
-        }
-        if (activeTimeFrame === "Monthly") {
-          const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-          const lastDay  = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-          return allSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d >= firstDay && d <= lastDay; });
-        }
-        if (activeTimeFrame === "Yearly") {
-          const firstDay = new Date(now.getFullYear(), 0, 1);
-          const lastDay  = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
-          return allSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d >= firstDay && d <= lastDay; });
-        }
-        return allSched; // Overall
-      }
-
-      // ── Build chart series ─────────────────────────────────────────────────
-      let series   = [];
+      let series     = [];
       let rangeLabel = "";
 
       if (activeTimeFrame === "Daily") {
-        // Today's schedules grouped by hour (6 AM – 10 PM)
-        const todayIso = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+        const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
         const todaySched = allSched.filter((s) => {
           const d = parseDT(s.startDateTime);
-          return d && `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` === todayIso;
+          return d && `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` === todayIso;
         });
         for (let h = 6; h <= 22; h++) {
           const hourSched = todaySched.filter((s) => {
@@ -269,7 +247,7 @@ export default function RadiologyDashboard() {
         const monday = new Date(now); monday.setDate(now.getDate() - ((dow + 6) % 7));
         for (let i = 0; i < 7; i++) {
           const d   = new Date(monday); d.setDate(monday.getDate() + i);
-          const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+          const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
           series.push({ label: d.toLocaleDateString("en-CA", { weekday: "short" }), ...countByDate(allSched, iso) });
         }
         const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
@@ -286,7 +264,7 @@ export default function RadiologyDashboard() {
           if (wEnd > lastDay) wEnd.setTime(lastDay.getTime());
           const wSched = allSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d >= wStart && d <= wEnd; });
           series.push({
-            label: `Week ${weekNum}`,
+            label:     `Week ${weekNum}`,
             confirmed: wSched.filter((s) => isStatus(s, "Confirmed")).length,
             cancelled: wSched.filter((s) => isStatus(s, "Cancelled")).length,
             scheduled: wSched.filter((s) => isStatus(s, "Scheduled")).length,
@@ -301,7 +279,7 @@ export default function RadiologyDashboard() {
         for (let m = 0; m < 12; m++) {
           const mSched = allSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d.getFullYear() === year && d.getMonth() === m; });
           series.push({
-            label: MONTHS[m],
+            label:     MONTHS[m],
             confirmed: mSched.filter((s) => isStatus(s, "Confirmed")).length,
             cancelled: mSched.filter((s) => isStatus(s, "Cancelled")).length,
             scheduled: mSched.filter((s) => isStatus(s, "Scheduled")).length,
@@ -319,7 +297,6 @@ export default function RadiologyDashboard() {
         rangeLabel = "All Time";
       }
 
-      // Stat boxes always match the chart by summing from series
       const totals = series.reduce(
         (acc, pt) => ({
           confirmed: acc.confirmed + (pt.confirmed ?? 0),
@@ -329,9 +306,9 @@ export default function RadiologyDashboard() {
         { confirmed: 0, cancelled: 0, scheduled: 0 }
       );
       setStats(totals);
-
       setChartData(series);
       setChartDate(rangeLabel);
+
       const sorted = [...allSched].sort((a, b) => {
         const da = parseDT(a.startDateTime), db = parseDT(b.startDateTime);
         return (db?.getTime() ?? 0) - (da?.getTime() ?? 0);
@@ -344,47 +321,20 @@ export default function RadiologyDashboard() {
     }
   }
 
-  async function fetchDropdowns() {
-    try {
-      const headers = getAuthHeader();
-      const [modalityRes, machineRes] = await Promise.all([
-        axios.get("/api/modalityDropdown", { headers }),
-        axios.get("/api/machineDropdown",  { headers }),
-      ]);
-      const modalityData = Array.isArray(modalityRes.data) ? modalityRes.data : modalityRes.data?.content ?? [];
-      const machineData  = Array.isArray(machineRes.data)  ? machineRes.data  : machineRes.data?.content  ?? [];
-      setModalities(modalityData.map((m) => m.modalityName ?? m));
-      setMachines(machineData.filter((m) => m.machineStatus !== "Archived"));
-    } catch (err) {
-      console.error("Failed to fetch dropdown data:", err);
-    }
-  }
-
-  
-  function formatDateTime(iso) {
-    if (!iso) return "—";
-    return new Date(iso.replace(" ", "T")).toLocaleString("en-CA", {
-      month: "2-digit", day: "2-digit", year: "numeric",
-      hour: "numeric", minute: "2-digit", hour12: true,
-    });
-  }
-
   async function handleDownloadPdf() {
     setPdfLoading(true);
     try {
-      const headers = getAuthHeader();
-      const filter  = activeTimeFrame.toLowerCase();
-
+      const headers  = getAuthHeader();
+      const filter   = activeTimeFrame.toLowerCase();
       const response = await axios.get("/api/export/pdf", {
         headers,
-        params: { filter, department: "Radiology" },
+        params: { filter },   // backend uses JWT dept — no hardcoded dept param
         responseType: "blob",
       });
-
       const url     = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
       const link    = document.createElement("a");
       link.href     = url;
-      link.download = `radiology-schedules-${filter}.pdf`;
+      link.download = `${deptName.toLowerCase()}-schedules-${filter}.pdf`;
       link.click();
       window.URL.revokeObjectURL(url);
     } catch (err) {
@@ -402,20 +352,21 @@ export default function RadiologyDashboard() {
 
   return (
     <AdminLayout
-      navItems={radiologyNavItems}
+      navItems={navItems}
       pageTitle={
         <span className="flex items-center gap-3">
-          Radiology Dashboard
-          <ModalityDropdown
-            value={modalityFilter}
-            onChange={setModalityFilter}
-            options={modalities}
-          />
+          {deptName} Dashboard
+          {modalities.length > 0 && (
+            <ModalityDropdown
+              value={modalityFilter}
+              onChange={setModalityFilter}
+              options={modalities}
+            />
+          )}
         </span>
       }
-      pageSubtitle="Overview And Analysis"
-      userName="Radiology"
-      userRole="Radiology Frontdesk"
+      pageSubtitle="Overview & Analytics"
+      userRole={userRole}
     >
       {error && <ErrorMessage message={error} onRetry={fetchDashboardData} />}
 
@@ -423,7 +374,7 @@ export default function RadiologyDashboard() {
         <LoadingSkeleton />
       ) : (
         <>
-         
+          {/* Stat cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
             {statsCards.map(({ icon: Icon, label, value, color }) => (
               <div
@@ -439,12 +390,10 @@ export default function RadiologyDashboard() {
             ))}
           </div>
 
-      
+          {/* Chart */}
           <div className="bg-white rounded-2xl shadow-card p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-primary font-montserrat">
-                Status Chart
-              </h2>
+              <h2 className="text-lg font-bold text-primary font-montserrat">Status Chart</h2>
               <button
                 onClick={handleDownloadPdf}
                 disabled={pdfLoading}
@@ -474,7 +423,7 @@ export default function RadiologyDashboard() {
               {[
                 { color: "bg-green-500", label: "Confirmed" },
                 { color: "bg-accent",    label: "Cancelled" },
-                { color: "bg-yellow-500",label: "Scheduled"   },
+                { color: "bg-yellow-500",label: "Scheduled" },
               ].map(({ color, label }) => (
                 <div key={label} className="flex items-center gap-2">
                   <div className={`w-3 h-3 ${color} rounded-sm`} />
@@ -514,12 +463,12 @@ export default function RadiologyDashboard() {
             </div>
           </div>
 
-          
+          {/* Recent schedules */}
           <div className="bg-white rounded-2xl shadow-card overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-bold text-primary font-montserrat">Recent Schedules</h3>
               <Link
-                to="/radiology/schedules"
+                to="/frontdesk/schedules"
                 className="text-sm font-semibold text-primary hover:text-primary-light transition-colors"
               >
                 See all
@@ -542,7 +491,9 @@ export default function RadiologyDashboard() {
                       <tr key={s.scheduleId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                         <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">{s.patientName}</td>
                         <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">
-                          {s.startDateTime ? new Date(s.startDateTime.replace(" ", "T")).toLocaleDateString("en-CA", { month: "2-digit", day: "2-digit", year: "numeric" }) : "—"}
+                          {s.startDateTime
+                            ? new Date(s.startDateTime.replace(" ", "T")).toLocaleDateString("en-CA", { month: "2-digit", day: "2-digit", year: "numeric" })
+                            : "—"}
                         </td>
                         <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">
                           {s.startDateTime && s.endDateTime

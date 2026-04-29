@@ -1,9 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  Cross,
-  CheckCircle,
-  Clock,
-  XCircle,
+  Cross, CheckCircle, Clock, XCircle,
 } from "lucide-react";
 import axios from "../../config/axiosInstance";
 
@@ -12,57 +9,18 @@ import {
   TabBar,
   DataTable,
   ActionDropdown,
-  frontdeskNavItems,
   ConfirmDialog,
 } from "../ui";
+import { useFrontdeskNav, useDeptMeta } from "./frontdeskUtils";
 
-
-
-function getAuthHeader() {
-  const token = localStorage.getItem("token");
-  return { Authorization: `Bearer ${token}` };
-}
-
-
-function formatStatus(status) {
-  if (status === "On_Leave")    return "On Leave";
-  if (status === "Unavailable") return "Unavailable";
-  if (status === "Available")   return "Available";
-  return status ?? "—";
-}
-
-
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { label: "All",         icon: Cross,        tabStatus: null          },
-  { label: "Available",   icon: CheckCircle,  tabStatus: "Available"   },
-  { label: "Unavailable", icon: XCircle,      tabStatus: "Unavailable" },
-  { label: "On Leave",    icon: Clock,        tabStatus: "On_Leave"    },
+  { label: "All",         icon: Cross,       tabStatus: null          },
+  { label: "Available",   icon: CheckCircle, tabStatus: "Available"   },
+  { label: "Unavailable", icon: XCircle,     tabStatus: "Unavailable" },
+  { label: "On Leave",    icon: Clock,       tabStatus: "On_Leave"    },
 ];
-
-
-function getDoctorActions(doctor) {
-  const s = doctor.availabilityStatus;
-
-  if (s === "Available") {
-    return [
-      { label: "On Leave",    icon: Clock   },
-      { label: "Unavailable", icon: XCircle },
-    ];
-  }
-  if (s === "On_Leave") {
-    return [
-      { label: "Available",   icon: CheckCircle },
-      { label: "Unavailable", icon: XCircle     },
-    ];
-  }
-  if (s === "Unavailable") {
-    return [
-      { label: "Available", icon: CheckCircle },
-    ];
-  }
-  return [];
-}
 
 const confirmMeta = {
   leave: {
@@ -85,8 +43,46 @@ const confirmMeta = {
   },
 };
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-export default function RehabProfessionalManagement() {
+function getAuthHeader() {
+  const token = localStorage.getItem("token");
+  return { Authorization: `Bearer ${token}` };
+}
+
+function formatStatus(status) {
+  if (status === "On_Leave")    return "On Leave";
+  if (status === "Unavailable") return "Unavailable";
+  if (status === "Available")   return "Available";
+  return status ?? "—";
+}
+
+function getDoctorActions(doctor) {
+  const s = doctor.availabilityStatus;
+  if (s === "Available") {
+    return [
+      { label: "On Leave",    icon: Clock   },
+      { label: "Unavailable", icon: XCircle },
+    ];
+  }
+  if (s === "On_Leave") {
+    return [
+      { label: "Available",   icon: CheckCircle },
+      { label: "Unavailable", icon: XCircle     },
+    ];
+  }
+  if (s === "Unavailable") {
+    return [{ label: "Available", icon: CheckCircle }];
+  }
+  return [];
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
+export default function FrontdeskProfessionalManagement() {
+  const navItems           = useFrontdeskNav();
+  const { deptName, userRole } = useDeptMeta();
+
   const [activeTab,     setActiveTab]     = useState("All");
   const [searchQuery,   setSearchQuery]   = useState("");
   const [confirmAction, setConfirmAction] = useState(null);
@@ -96,24 +92,24 @@ export default function RehabProfessionalManagement() {
   const [totalPages,    setTotalPages]    = useState(1);
   const [serverResults, setServerResults] = useState(null);
 
- 
   useEffect(() => {
     setPage(1);
     setSearchQuery("");
     setServerResults(null);
   }, [activeTab]);
 
- 
   const activeTabStatus = TABS.find((t) => t.label === activeTab)?.tabStatus ?? null;
 
+  // ── Fetch professionals — single generic endpoint, scoped by JWT dept ────
   const fetchProfessionals = useCallback(async () => {
     setLoading(true);
     try {
       const params = {
-        page: page - 1, 
+        page: page - 1,
+        size: 10,
         ...(activeTabStatus && { availabilityStatus: activeTabStatus }),
       };
-      const res = await axios.get("/api/getTherapist", {
+      const res = await axios.get("/api/getDoctors", {
         headers: getAuthHeader(),
         params,
       });
@@ -130,11 +126,9 @@ export default function RehabProfessionalManagement() {
     fetchProfessionals();
   }, [fetchProfessionals]);
 
+  // ── Debounced server search ───────────────────────────────────────────────
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setServerResults(null);
-      return;
-    }
+    if (!searchQuery.trim()) { setServerResults(null); return; }
     const timeout = setTimeout(async () => {
       try {
         const res = await axios.get(
@@ -143,7 +137,7 @@ export default function RehabProfessionalManagement() {
         );
         setServerResults(res.data.content ?? []);
       } catch (err) {
-        console.error("Search failed, using local filter:", err);
+        console.error("Search failed:", err);
         setServerResults(null);
       }
     }, 400);
@@ -152,7 +146,7 @@ export default function RehabProfessionalManagement() {
 
   const displayed = serverResults ?? professionals;
 
-  
+  // ── Actions ───────────────────────────────────────────────────────────────
   function handleAction(action, professional) {
     if (action === "On Leave")    return setConfirmAction({ type: "leave",       professional });
     if (action === "Unavailable") return setConfirmAction({ type: "unavailable", professional });
@@ -162,16 +156,15 @@ export default function RehabProfessionalManagement() {
   async function applyConfirm() {
     const { type, professional } = confirmAction;
     try {
-      if (type === "leave") {
-        await axios.put("/api/leaveDoctor/" + professional.doctorId, {}, { headers: getAuthHeader() });
-      } else if (type === "unavailable") {
-        await axios.put("/api/unavailableDoctor/" + professional.doctorId, {}, { headers: getAuthHeader() });
-      } else if (type === "available") {
-        await axios.put("/api/availableDoctor/" + professional.doctorId, {}, { headers: getAuthHeader() });
-      }
+      const endpointMap = {
+        leave:       `/api/leaveDoctor/${professional.doctorId}`,
+        unavailable: `/api/unavailableDoctor/${professional.doctorId}`,
+        available:   `/api/availableDoctor/${professional.doctorId}`,
+      };
+      await axios.put(endpointMap[type], {}, { headers: getAuthHeader() });
       await fetchProfessionals();
     } catch (err) {
-      console.error("Failed to apply action (" + type + "):", err);
+      console.error("Failed to apply action:", err);
     } finally {
       setConfirmAction(null);
     }
@@ -179,23 +172,20 @@ export default function RehabProfessionalManagement() {
 
   const meta = confirmAction && confirmMeta[confirmAction.type];
 
-
   return (
     <AdminLayout
-      navItems={frontdeskNavItems}
-      pageTitle="Medical Professionals Management"
-      pageSubtitle="Rehabilitation"
-      userName="Rehab"
-      userRole="Rehabilitation Frontdesk"
+      navItems={navItems}
+      pageTitle="Medical Professionals"
+      pageSubtitle={deptName}
+      userRole={userRole}
       searchValue={searchQuery}
       onSearchChange={setSearchQuery}
-      searchPlaceholder="Search Therapist"
+      searchPlaceholder="Search Medical Professional"
     >
       <TabBar
         tabs={TABS}
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        
       />
 
       <DataTable
@@ -203,7 +193,7 @@ export default function RehabProfessionalManagement() {
         rows={displayed}
         loading={loading}
         emptyIcon={Cross}
-        emptyText="No professionals found"
+        emptyText="No medical professionals found"
         page={page}
         totalPages={totalPages}
         onPrev={() => setPage((p) => Math.max(p - 1, 1))}
@@ -214,15 +204,15 @@ export default function RehabProfessionalManagement() {
             className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
           >
             <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">
-              {professional.name}
+              {professional.fullName}
             </td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">
               {professional.roleName ?? "—"}
             </td>
             <td className="px-6 py-4 text-center">
               {(() => {
-                const s = professional.availabilityStatus;
-                const label = formatStatus(s);
+                const s          = professional.availabilityStatus;
+                const label      = formatStatus(s);
                 const colorClass =
                   s === "Unavailable" ? "text-red-500 font-bold"
                   : s === "On_Leave"  ? "text-yellow-400 font-bold"
@@ -243,7 +233,7 @@ export default function RehabProfessionalManagement() {
       {confirmAction && meta && (
         <ConfirmDialog
           title={meta.title}
-          message={meta.msg(confirmAction.professional.name)}
+          message={meta.msg(confirmAction.professional.fullName)}
           confirmLabel={meta.label}
           danger={meta.danger}
           onConfirm={applyConfirm}

@@ -1,8 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import {
-  Cpu, CheckCircle, Wrench,
-  LayoutDashboard, Calendar, Cross,
-} from "lucide-react";
+import { Cpu, CheckCircle, Wrench } from "lucide-react";
 import axios from "../../config/axiosInstance";
 
 import {
@@ -12,32 +9,7 @@ import {
   StatusBadge,
   ConfirmDialog,
 } from "../ui";
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const radiologyNavItems = [
-  { label: "Dashboard",            icon: LayoutDashboard, path: "/radiology/dashboard"     },
-  { label: "Schedules",            icon: Calendar,        path: "/radiology/schedules"      },
-  { label: "Machine",              icon: Cpu,             path: "/radiology/machine"        },
-  { label: "Medical Professionals",icon: Cross,           path: "/radiology/professionals"  },
-];
-
-const COLUMNS = ["Machine Name", "Status", "Action"];
-
-const confirmMeta = {
-  maintenance: {
-    title: "Set Under Maintenance?",
-    msg:   (n) => `"${n}" will be marked as under maintenance.`,
-    label: "Confirm",
-    danger: false,
-  },
-  available: {
-    title: "Mark as Available?",
-    msg:   (n) => `"${n}" will be marked as available.`,
-    label: "Confirm",
-    danger: false,
-  },
-};
+import { useFrontdeskNav, useDeptMeta } from "./frontdeskUtils";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -46,13 +18,17 @@ function getAuthHeader() {
   return { Authorization: `Bearer ${token}` };
 }
 
+function formatStatus(status) {
+  if (status === "Under_Maintenance") return "Under Maintenance";
+  return status;
+}
+
 function getMachineActions(machine) {
-  if (machine.status === "Available")         return [{ label: "Under Maintenance", icon: Wrench       }];
-  if (machine.status === "Under Maintenance") return [{ label: "Available",         icon: CheckCircle  }];
+  if (machine.status === "Available")         return [{ label: "Under Maintenance", icon: Wrench      }];
+  if (machine.status === "Under Maintenance") return [{ label: "Available",         icon: CheckCircle }];
   return [];
 }
 
-// ── Debounce hook ─────────────────────────────────────────────────────────────
 function useDebounce(value, delay = 400) {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -62,8 +38,27 @@ function useDebounce(value, delay = 400) {
   return debounced;
 }
 
+const confirmMeta = {
+  maintenance: {
+    title:  "Set Under Maintenance?",
+    msg:    (n) => `"${n}" will be marked as under maintenance.`,
+    label:  "Confirm",
+    danger: false,
+  },
+  available: {
+    title:  "Mark as Available?",
+    msg:    (n) => `"${n}" will be marked as available.`,
+    label:  "Confirm",
+    danger: false,
+  },
+};
+
 // ── Main page ─────────────────────────────────────────────────────────────────
-export default function RadioMachineManagement() {
+
+export default function FrontdeskMachineManagement() {
+  const navItems           = useFrontdeskNav();
+  const { deptName, userRole } = useDeptMeta();
+
   const [machines,      setMachines]      = useState([]);
   const [loading,       setLoading]       = useState(false);
   const [searchQuery,   setSearchQuery]   = useState("");
@@ -71,23 +66,12 @@ export default function RadioMachineManagement() {
   const [page,          setPage]          = useState(0);
   const [totalPages,    setTotalPages]    = useState(1);
 
-  // FIX: Debounced search — fires server-side request after user stops typing,
-  // instead of filtering a size:1000 local array on every keystroke.
   const debouncedSearch = useDebounce(searchQuery, 400);
 
-  // Reset to page 0 when search changes
-  useEffect(() => {
-    setPage(0);
-  }, [debouncedSearch]);
+  useEffect(() => { setPage(0); }, [debouncedSearch]);
+  useEffect(() => { fetchMachines(); }, [debouncedSearch, page]);
 
-  useEffect(() => {
-    fetchMachines();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, page]);
-
-  // FIX: Proper server-side pagination instead of size:1000.
-  // The backend filters out Archived machines via machineStatus param.
-  // Search is passed as machineName query param (adjust name to match your API).
+  // Generic endpoint — backend filters by dept from JWT
   const fetchMachines = useCallback(async () => {
     setLoading(true);
     try {
@@ -101,8 +85,6 @@ export default function RadioMachineManagement() {
         },
       });
 
-      // Exclude archived machines — frontdesk only sees Active / Under Maintenance.
-      // If your backend already filters these out via a param, remove this filter.
       const content = (res.data?.content ?? []).filter(
         (m) => m.machineStatus !== "Archived"
       );
@@ -110,8 +92,8 @@ export default function RadioMachineManagement() {
       setMachines(content.map((m) => ({
         id:     m.machineId,
         name:   m.machineName,
-        // Normalize enum values with underscores to display strings
-        status: m.machineStatus === "Under_Maintenance" ? "Under Maintenance" : m.machineStatus,
+        modality: m.modalityName ?? "—",
+        status: formatStatus(m.machineStatus),
       })));
       setTotalPages(res.data?.totalPages ?? 1);
     } catch (err) {
@@ -119,12 +101,8 @@ export default function RadioMachineManagement() {
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, page]);
 
-  // FIX: applyConfirm now only closes the dialog on success.
-  // Previously setConfirmAction(null) was in `finally`, so the dialog always
-  // closed even when the request failed — giving the user no feedback.
   async function applyConfirm() {
     const { type, machine } = confirmAction;
     try {
@@ -134,10 +112,9 @@ export default function RadioMachineManagement() {
       };
       await axios.put(endpointMap[type], {}, { headers: getAuthHeader() });
       await fetchMachines();
-      setConfirmAction(null); // only close on success
+      setConfirmAction(null);
     } catch (err) {
       console.error("Failed to update machine status:", err);
-      // Dialog stays open — user can retry or cancel manually
     }
   }
 
@@ -148,20 +125,17 @@ export default function RadioMachineManagement() {
 
   const meta = confirmAction && confirmMeta[confirmAction.type];
 
-  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <AdminLayout
-      navItems={radiologyNavItems}
+      navItems={navItems}
       pageTitle="Machine Management"
-      pageSubtitle="Radiology Machines"
-      userName="Radiology"
-      userRole="Radiology Frontdesk"
+      pageSubtitle={deptName}
+      userRole={userRole}
       searchValue={searchQuery}
       onSearchChange={setSearchQuery}
       searchPlaceholder="Search Machines"
     >
-
-      {/* Tab bar — single static tab, kept for layout consistency */}
+      {/* Static single tab for layout consistency */}
       <div className="flex items-center border-b border-gray-200 mb-4">
         <div className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium text-primary
           border-b-2 border-primary -mb-px">
@@ -171,7 +145,7 @@ export default function RadioMachineManagement() {
       </div>
 
       <DataTable
-        columns={COLUMNS}
+        columns={["Machine Name", "Modality", "Status", "Action"]}
         rows={machines}
         loading={loading}
         emptyIcon={Cpu}
@@ -183,6 +157,7 @@ export default function RadioMachineManagement() {
         renderRow={(machine) => (
           <tr key={machine.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
             <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">{machine.name}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">{machine.modality}</td>
             <td className="px-6 py-4 text-center">
               <StatusBadge status={machine.status} />
             </td>
