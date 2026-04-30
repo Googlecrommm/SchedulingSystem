@@ -1,5 +1,6 @@
 package com.spring.Controller;
 
+import com.spring.Enums.MachineStatus;
 import com.spring.Enums.SoftDelete;
 import com.spring.Models.Rooms;
 import com.spring.Security.DepartmentSecurityHelper;
@@ -40,7 +41,7 @@ public class RoomsController {
     @PreAuthorize("isAuthenticated()")
     @GetMapping("getRooms")
     public ResponseEntity<Page<RoomResponseDTO>> getRooms(
-            @RequestParam(required = false) SoftDelete roomStatus,
+            @RequestParam(required = false) MachineStatus roomStatus,
             @RequestParam(required = false) String departmentName,
             Pageable pageable,
             Authentication authentication) {
@@ -95,6 +96,18 @@ public class RoomsController {
         roomsService.archiveRoom(roomId, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Room Archived"));
     }
+
+    //MARK AS UNDER MAINTENANCE
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
+    @PutMapping("markMaintenance/{roomId}")
+    public ResponseEntity<SuccessResponse> markAsMaintentance(
+            @PathVariable int roomId,
+            Authentication authentication
+    ){
+        roomsService.markAsMaintenance(roomId, authentication);
+        return ResponseEntity.ok().body(new SuccessResponse(200, "Room marked as under maintenance"));
+    }
+
 
     //RESTORE — admin and frontdesk, frontdesk scoped to their department
     @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")

@@ -1,11 +1,11 @@
 package com.spring.dto;
 
-import com.spring.Enums.SoftDelete;
+import com.spring.Enums.MachineStatus;
 
 public class RoomResponseDTO {
     private int roomId;
     private String roomName;
-    private SoftDelete roomStatus;
+    private MachineStatus roomStatus;
     private String departmentName;
 
     public int getRoomId() {
@@ -24,11 +24,11 @@ public class RoomResponseDTO {
         this.roomName = roomName;
     }
 
-    public SoftDelete getRoomStatus() {
+    public MachineStatus getRoomStatus() {
         return roomStatus;
     }
 
-    public void setRoomStatus(SoftDelete roomStatus) {
+    public void setRoomStatus(MachineStatus roomStatus) {
         this.roomStatus = roomStatus;
     }
 

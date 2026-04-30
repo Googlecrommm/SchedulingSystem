@@ -1,5 +1,6 @@
 package com.spring.Models;
 
+import com.spring.Enums.MachineStatus;
 import com.spring.Enums.SoftDelete;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -28,7 +29,7 @@ public class Rooms {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "roomStatus", nullable = false)
-    private SoftDelete roomStatus = SoftDelete.Active;
+    private MachineStatus roomStatus = MachineStatus.Available;
 
     public Rooms(){}
 
@@ -64,13 +65,11 @@ public class Rooms {
         this.roomName = roomName;
     }
 
-    public SoftDelete getRoomStatus() {
+    public MachineStatus getRoomStatus() {
         return roomStatus;
     }
 
-    public void setRoomStatus(SoftDelete roomStatus) {
+    public void setRoomStatus(MachineStatus roomStatus) {
         this.roomStatus = roomStatus;
     }
-
-
 }

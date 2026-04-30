@@ -1,5 +1,6 @@
 package com.spring.Repositories;
 
+import com.spring.Enums.MachineStatus;
 import com.spring.Enums.SoftDelete;
 import com.spring.Models.Rooms;
 import org.springframework.data.domain.Page;
@@ -21,9 +22,9 @@ public interface RoomsRepository extends JpaRepository<Rooms, Integer>, JpaSpeci
 
     Page<Rooms> searchByRoomNameContaining(String roomName, Pageable pageable);
 
-    List<Rooms> findAllByRoomStatusNot(SoftDelete roomStatus);
+    List<Rooms> findAllByRoomStatusNot(MachineStatus roomStatus);
 
     // ADDED — for department-scoped dropdown (non-admin users)
     List<Rooms> findAllByRoomStatusNotAndDepartment_DepartmentNameIgnoreCase(
-            SoftDelete roomStatus, String departmentName);
+            MachineStatus roomStatus, String departmentName);
 }

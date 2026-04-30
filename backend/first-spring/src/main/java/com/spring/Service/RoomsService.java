@@ -1,6 +1,6 @@
 package com.spring.Service;
 
-import com.spring.Enums.SoftDelete;
+import com.spring.Enums.MachineStatus;
 import com.spring.Exceptions.AlreadyExists;
 import com.spring.Exceptions.NoChangesDetected;
 import com.spring.Exceptions.NotAllowed;
@@ -92,7 +92,7 @@ public class RoomsService {
     }
 
     //READ & FILTER
-    public Page<RoomResponseDTO> getRooms(SoftDelete roomStatus, String departmentName, Pageable pageable) {
+    public Page<RoomResponseDTO> getRooms(MachineStatus roomStatus, String departmentName, Pageable pageable) {
         Specification<Rooms> filters = Specification
                 .where(RoomSpecification.hasStatus(roomStatus))
                 .and(RoomSpecification.hasDepartment(departmentName));
@@ -114,14 +114,14 @@ public class RoomsService {
     //DROPDOWN
     public List<RoomResponseDTO> roomsDropdown(String departmentName) {
         if (departmentName == null) {
-            return roomsRepository.findAllByRoomStatusNot(SoftDelete.Archived)
+            return roomsRepository.findAllByRoomStatusNot(MachineStatus.Under_Maintenance)
                     .stream()
                     .map(this::mapToDTO)
                     .toList();
         }
         return roomsRepository
                 .findAllByRoomStatusNotAndDepartment_DepartmentNameIgnoreCase(
-                        SoftDelete.Archived, departmentName)
+                        MachineStatus.Under_Maintenance, departmentName)
                 .stream()
                 .map(this::mapToDTO)
                 .toList();
@@ -153,12 +153,27 @@ public class RoomsService {
 
         validateRoomBelongsToDepartment(roomToArchive, authentication);
 
-        if (roomToArchive.getRoomStatus().equals(SoftDelete.Archived)) {
+        if (roomToArchive.getRoomStatus().equals(MachineStatus.Archived)) {
             throw new NoChangesDetected("Room is already archived");
         }
 
-        roomToArchive.setRoomStatus(SoftDelete.Archived);
+        roomToArchive.setRoomStatus(MachineStatus.Archived);
         roomsRepository.save(roomToArchive);
+    }
+
+    //MARK AS MAINTENANCE
+    public void markAsMaintenance(int roomId, Authentication authentication){
+        Rooms roomToMaintenance = roomsRepository.findById(roomId)
+                .orElseThrow(() -> new NotFound("Room not found"));
+
+        validateRoomBelongsToDepartment(roomToMaintenance, authentication);
+
+        if (roomToMaintenance.getRoomStatus().equals(MachineStatus.Under_Maintenance)){
+            throw new NoChangesDetected("Room is already under maintenance");
+        }
+
+        roomToMaintenance.setRoomStatus(MachineStatus.Under_Maintenance);
+        roomsRepository.save(roomToMaintenance);
     }
 
     //RESTORE — admin and frontdesk, frontdesk scoped to their department
@@ -168,11 +183,11 @@ public class RoomsService {
 
         validateRoomBelongsToDepartment(roomToRestore, authentication);
 
-        if (roomToRestore.getRoomStatus().equals(SoftDelete.Active)) {
-            throw new NoChangesDetected("Room is already active");
+        if (roomToRestore.getRoomStatus().equals(MachineStatus.Available)) {
+            throw new NoChangesDetected("Room is already available");
         }
 
-        roomToRestore.setRoomStatus(SoftDelete.Active);
+        roomToRestore.setRoomStatus(MachineStatus.Available);
         roomsRepository.save(roomToRestore);
     }
 }
