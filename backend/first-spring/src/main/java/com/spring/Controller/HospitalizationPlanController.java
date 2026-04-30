@@ -53,7 +53,7 @@ public class HospitalizationPlanController {
     }
 
     //DROPDOWN
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
     @GetMapping("plansDropdown")
     public ResponseEntity<List<HospitalizationPlanResponseDTO>> plansDropdown(){
         return ResponseEntity.ok(planService.plansDropdown());

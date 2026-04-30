@@ -53,7 +53,7 @@ public class HospitalizationTypeController {
     }
 
     //DROPDOWN
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FRONTDESK')")
     @GetMapping("typesDropdown")
     public ResponseEntity<List<HospitalizationTypeResponseDTO>> typesDropdown(){
         return ResponseEntity.ok(typeService.typeDropdown());
