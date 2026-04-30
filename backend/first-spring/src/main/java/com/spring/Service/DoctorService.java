@@ -62,6 +62,7 @@ public class DoctorService {
                 + (doctors.getMiddleName() == null ? "" : doctors.getMiddleName())
                 + doctors.getFirstName());
         doctorDTO.setRoleName(doctors.getRole().getRoleName());
+        doctorDTO.setDepartmentName(doctors.getRole().getDepartment().getDepartmentName());
         return doctorDTO;
     }
 

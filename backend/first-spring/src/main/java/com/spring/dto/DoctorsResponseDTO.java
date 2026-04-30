@@ -7,6 +7,7 @@ public class DoctorsResponseDTO {
     private String fullName;
     private DoctorStatus availabilityStatus;
     private String roleName;
+    private String departmentName;
 
     public int getDoctorId() {
         return doctorId;
@@ -38,5 +39,13 @@ public class DoctorsResponseDTO {
 
     public void setRoleName(String roleName) {
         this.roleName = roleName;
+    }
+
+    public String getDepartmentName() {
+        return departmentName;
+    }
+
+    public void setDepartmentName(String departmentName) {
+        this.departmentName = departmentName;
     }
 }
