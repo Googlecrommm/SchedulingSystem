@@ -103,8 +103,9 @@ public class ScheduleController {
     @PatchMapping("updateSchedule/{scheduleId}")
     public ResponseEntity<SuccessResponse> updateSchedule(
             @PathVariable int scheduleId,
-            @RequestBody SchedulePatchRequest schedulePatchRequest){
-        scheduleService.patchSchedule(scheduleId, schedulePatchRequest);
+            @RequestBody SchedulePatchRequest schedulePatchRequest,
+            Authentication authentication) {
+        scheduleService.patchSchedule(scheduleId, schedulePatchRequest, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Schedule Updated"));
     }
 

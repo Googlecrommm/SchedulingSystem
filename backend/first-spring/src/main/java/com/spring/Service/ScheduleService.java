@@ -365,11 +365,20 @@ public class ScheduleService {
 
     //PATCH (partial update — only updates fields that are provided)
     @Transactional
-    public void patchSchedule(int scheduleId, SchedulePatchRequest patch) {
+    public void patchSchedule(int scheduleId, SchedulePatchRequest patch, Authentication authentication) {
 
-        // 1. Find existing schedule
         Schedules existing = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new RuntimeException("Schedule not found with ID: " + scheduleId));
+
+        // ─── Capture old values BEFORE any mutation ──────────────────────────────
+        LocalDateTime oldStart = existing.getStartDateTime();
+        LocalDateTime oldEnd = existing.getEndDateTime();
+        String oldProcedure = existing.getProcedureName();
+        String oldDoctor = existing.getDoctor().getLastName() + ", " + existing.getDoctor().getFirstName();
+        String oldMachine = existing.getMachine() == null ? "None" : existing.getMachine().getMachineName();
+        String oldRoom = existing.getRoom() == null ? "None" : existing.getRoom().getRoomName();
+        String oldStatus = existing.getScheduleStatus().name();
+        String oldRemarks = existing.getRemarks();
 
         // 2. Prevent restoring archived schedule if slot is already taken
         if (existing.getScheduleStatus() == ScheduleStatus.Archived) {
@@ -377,21 +386,13 @@ public class ScheduleService {
             LocalDateTime start = patch.getStartDateTime() != null ? patch.getStartDateTime() : existing.getStartDateTime();
             LocalDateTime end = patch.getEndDateTime() != null ? patch.getEndDateTime() : existing.getEndDateTime();
 
-            boolean doctorTaken = scheduleRepository.isDoctorBooked(
-                    excludeId, existing.getDoctor().getDoctorId(), start, end);
-            boolean machineTaken = existing.getMachine() != null &&
-                    scheduleRepository.isMachineBooked(
-                            excludeId, existing.getMachine().getMachineId(), start, end);
-            boolean roomTaken = existing.getRoom() != null &&
-                    scheduleRepository.isRoomBooked(
-                            excludeId, existing.getRoom().getRoomId(), start, end);
-            boolean patientTaken = scheduleRepository.isPatientBooked(
-                    excludeId, existing.getPatient().getPatientId(), start, end);
+            boolean doctorTaken = scheduleRepository.isDoctorBooked(excludeId, existing.getDoctor().getDoctorId(), start, end);
+            boolean machineTaken = existing.getMachine() != null && scheduleRepository.isMachineBooked(excludeId, existing.getMachine().getMachineId(), start, end);
+            boolean roomTaken = existing.getRoom() != null && scheduleRepository.isRoomBooked(excludeId, existing.getRoom().getRoomId(), start, end);
+            boolean patientTaken = scheduleRepository.isPatientBooked(excludeId, existing.getPatient().getPatientId(), start, end);
 
             if (doctorTaken || machineTaken || roomTaken || patientTaken) {
-                throw new NotAllowed(
-                        "Cannot restore this archived schedule — its time slot has already been taken."
-                );
+                throw new NotAllowed("Cannot restore this archived schedule — its time slot has already been taken.");
             }
         }
 
@@ -405,47 +406,35 @@ public class ScheduleService {
         }
 
         // 4. Update Machine only if provided
-        //    Send machineId = -1 to explicitly clear the machine
         if (patch.getMachineId() != null) {
             if (patch.getMachineId() == -1) {
                 existing.setMachine(null);
             } else {
                 Machines fullMachine = machinesRepository.findById(patch.getMachineId())
                         .orElseThrow(() -> new RuntimeException("Machine not found with ID: " + patch.getMachineId()));
-                validateMachineDepartment(fullMachine, doctorForValidation); // ADDED
+                validateMachineDepartment(fullMachine, doctorForValidation);
                 existing.setMachine(fullMachine);
             }
         }
 
         // 5. Update Room only if provided
-        //    Send roomId = -1 to explicitly clear the room
         if (patch.getRoomId() != null) {
             if (patch.getRoomId() == -1) {
                 existing.setRoom(null);
             } else {
                 Rooms fullRoom = roomsRepository.findById(patch.getRoomId())
                         .orElseThrow(() -> new RuntimeException("Room not found with ID: " + patch.getRoomId()));
-                validateRoomDepartment(fullRoom, doctorForValidation); // REPLACED inline check
+                validateRoomDepartment(fullRoom, doctorForValidation);
                 existing.setRoom(fullRoom);
             }
         }
 
         // 6. Update simple fields only if provided
-        if (patch.getScheduleStatus() != null) {
-            existing.setScheduleStatus(patch.getScheduleStatus());
-        }
-        if (patch.getProcedureName() != null) {
-            existing.setProcedureName(patch.getProcedureName());
-        }
-        if (patch.getRemarks() != null) {
-            existing.setRemarks(patch.getRemarks());
-        }
-        if (patch.getStartDateTime() != null) {
-            existing.setStartDateTime(patch.getStartDateTime());
-        }
-        if (patch.getEndDateTime() != null) {
-            existing.setEndDateTime(patch.getEndDateTime());
-        }
+        if (patch.getScheduleStatus() != null) existing.setScheduleStatus(patch.getScheduleStatus());
+        if (patch.getProcedureName() != null) existing.setProcedureName(patch.getProcedureName());
+        if (patch.getRemarks() != null) existing.setRemarks(patch.getRemarks());
+        if (patch.getStartDateTime() != null) existing.setStartDateTime(patch.getStartDateTime());
+        if (patch.getEndDateTime() != null) existing.setEndDateTime(patch.getEndDateTime());
 
         // 7. Validate start before end
         if (!existing.getStartDateTime().isBefore(existing.getEndDateTime())) {
@@ -455,14 +444,60 @@ public class ScheduleService {
         // 8. Validate no conflict
         validateNoConflict(existing);
 
-        // 9. Save
-        logsService.log(
-                "Schedule Updated",
-                "updated the schedule information of "
-                        + existing.getPatient().getFirstName() + " "
-                        + (existing.getPatient().getMiddleName() == null ? " " : existing.getPatient().getMiddleName())
-                        + existing.getPatient().getLastName()
-        );
+        // ─── Build change description by comparing old values vs patch values ────
+        String patientName = existing.getPatient().getFirstName() + " "
+                + (existing.getPatient().getMiddleName() == null ? "" : existing.getPatient().getMiddleName() + " ")
+                + existing.getPatient().getLastName();
+
+        StringBuilder changes = new StringBuilder();
+
+        if (patch.getStartDateTime() != null && !patch.getStartDateTime().equals(oldStart)) {
+            changes.append("start time from ").append(oldStart.format(formatter))
+                    .append(" to ").append(patch.getStartDateTime().format(formatter)).append("; ");
+        }
+        if (patch.getEndDateTime() != null && !patch.getEndDateTime().equals(oldEnd)) {
+            changes.append("end time from ").append(oldEnd.format(formatter))
+                    .append(" to ").append(patch.getEndDateTime().format(formatter)).append("; ");
+        }
+        if (patch.getProcedureName() != null && !patch.getProcedureName().equals(oldProcedure)) {
+            changes.append("procedure from '").append(oldProcedure)
+                    .append("' to '").append(patch.getProcedureName()).append("'; ");
+        }
+        if (patch.getDoctorId() != null) {
+            String newDoctor = existing.getDoctor().getLastName() + ", " + existing.getDoctor().getFirstName();
+            if (!newDoctor.equals(oldDoctor)) {
+                changes.append("doctor from '").append(oldDoctor)
+                        .append("' to '").append(newDoctor).append("'; ");
+            }
+        }
+        if (patch.getMachineId() != null) {
+            String newMachine = existing.getMachine() == null ? "None" : existing.getMachine().getMachineName();
+            if (!newMachine.equals(oldMachine)) {
+                changes.append("machine from '").append(oldMachine)
+                        .append("' to '").append(newMachine).append("'; ");
+            }
+        }
+        if (patch.getRoomId() != null) {
+            String newRoom = existing.getRoom() == null ? "None" : existing.getRoom().getRoomName();
+            if (!newRoom.equals(oldRoom)) {
+                changes.append("room from '").append(oldRoom)
+                        .append("' to '").append(newRoom).append("'; ");
+            }
+        }
+        if (patch.getScheduleStatus() != null && !patch.getScheduleStatus().name().equals(oldStatus)) {
+            changes.append("status from '").append(oldStatus)
+                    .append("' to '").append(patch.getScheduleStatus().name()).append("'; ");
+        }
+        if (patch.getRemarks() != null && !patch.getRemarks().equals(oldRemarks)) {
+            changes.append("remarks from '").append(oldRemarks)
+                    .append("' to '").append(patch.getRemarks()).append("'; ");
+        }
+
+        String description = changes.length() > 0
+                ? "updated " + patientName + "'s schedule: " + changes.toString().trim()
+                : "made no changes to " + patientName + "'s schedule.";
+
+        logsService.log("Schedule Updated", description);
         scheduleRepository.save(existing);
     }
 

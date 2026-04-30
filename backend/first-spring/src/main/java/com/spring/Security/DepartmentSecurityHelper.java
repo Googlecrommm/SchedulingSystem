@@ -12,7 +12,9 @@ public class DepartmentSecurityHelper {
         // If ADMIN, trust whatever the frontend sends (null = all departments)
         if (auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
-            return requestedDepartment;
+            return (requestedDepartment == null || requestedDepartment.isBlank())
+                    ? null
+                    : requestedDepartment;
         }
 
         // For non-admins, extract department from their Users principal
