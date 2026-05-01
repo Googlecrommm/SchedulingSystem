@@ -1,5 +1,7 @@
 package com.spring.Specifications;
 
+import com.spring.Enums.AccountStatus;
+import com.spring.Enums.SoftDelete;
 import com.spring.Models.Users;
 import org.apache.catalina.User;
 import org.springframework.data.jpa.domain.Specification;
@@ -7,7 +9,8 @@ import org.springframework.data.jpa.domain.Specification;
 public class UserSpecification {
     public static Specification<Users> hasAccountStatus(String accountStatus){
         return (root, query, criteriaBuilder) -> {
-            if(accountStatus == null) return null;
+            if(accountStatus == null)
+                return criteriaBuilder.notEqual(root.get("accountStatus"), AccountStatus.Disabled);;
             return criteriaBuilder.equal(root.get("accountStatus"), accountStatus);
         };
     }

@@ -8,7 +8,8 @@ public class HospitalizationPlanSpecification {
 
     public static Specification<HospitalizationPlan> hasStatus(SoftDelete planStatus){
         return (root, query, criteriaBuilder) -> {
-            if (planStatus == null) return null;
+            if (planStatus == null)
+                return criteriaBuilder.notEqual(root.get("planStatus"), SoftDelete.Archived);
             return criteriaBuilder.equal(root.get("planStatus"), planStatus);
         };
     }

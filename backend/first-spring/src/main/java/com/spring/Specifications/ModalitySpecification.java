@@ -1,5 +1,6 @@
 package com.spring.Specifications;
 
+import com.spring.Enums.SoftDelete;
 import com.spring.Models.Modalities;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -7,7 +8,8 @@ public class ModalitySpecification {
 
     public static Specification<Modalities> hasStatus(String modalityStatus){
         return (root, query, criteriaBuilder) -> {
-            if (modalityStatus == null) return null;
+            if (modalityStatus == null)
+                return criteriaBuilder.notEqual(root.get("modalityStatus"), SoftDelete.Archived);;
             return criteriaBuilder.equal(root.get("modalityStatus"), modalityStatus);
         };
     }

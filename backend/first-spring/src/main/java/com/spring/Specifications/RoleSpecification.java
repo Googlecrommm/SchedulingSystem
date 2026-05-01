@@ -1,5 +1,6 @@
 package com.spring.Specifications;
 
+import com.spring.Enums.SoftDelete;
 import com.spring.Models.Roles;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -7,7 +8,8 @@ public class RoleSpecification {
 
     public static Specification<Roles> hasStatus(String status){
         return (root, query, criteriaBuilder) -> {
-            if(status == null) return null;
+            if(status == null)
+                return criteriaBuilder.notEqual(root.get("roleStatus"), SoftDelete.Archived);;
             return criteriaBuilder.equal(root.get("roleStatus"), status);
         };
     }
