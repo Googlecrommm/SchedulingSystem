@@ -97,7 +97,7 @@ public class MachineService {
     }
 
     //READ & FILTER
-    public Page<MachineResponseDTO> getMachines(String machineStatus, String modalityName, String departmentName, Pageable pageable) {
+    public Page<MachineResponseDTO> getMachines(MachineStatus machineStatus, String modalityName, String departmentName, Pageable pageable) {
         Specification<Machines> filters = Specification
                 .where(MachineSpecification.hasStatus(machineStatus))
                 .and(MachineSpecification.hasModality(modalityName))

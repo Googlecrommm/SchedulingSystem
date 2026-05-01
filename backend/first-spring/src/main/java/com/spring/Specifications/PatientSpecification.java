@@ -8,7 +8,8 @@ public class PatientSpecification {
 
     public static Specification<Patients> hasStatus(PatientStatus patientStatus){
         return (root, query, criteriaBuilder) -> {
-            if (patientStatus == null) return null;
+            if (patientStatus == null)
+                return criteriaBuilder.notEqual(root.get("status"), PatientStatus.Archived);
             return criteriaBuilder.equal(root.get("status"), patientStatus);
         };
     }

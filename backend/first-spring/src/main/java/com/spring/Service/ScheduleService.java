@@ -90,10 +90,10 @@ public class ScheduleService {
         ScheduleResponseDTO scheduleDTO = modelMapper.map(schedules, ScheduleResponseDTO.class);
         scheduleDTO.setDoctorFullName(schedules.getDoctor().getLastName() + ", "
                 + schedules.getDoctor().getFirstName() + " "
-                + (schedules.getDoctor().getMiddleName() == null ? "" : schedules.getDoctor().getMiddleName()));
+                + (schedules.getDoctor().getMiddleName() == null ? " " : schedules.getDoctor().getMiddleName()));
         scheduleDTO.setPatientFullName(schedules.getPatient().getLastName() + ", "
                 + schedules.getPatient().getFirstName() + " "
-                + (schedules.getPatient().getMiddleName() == null ? "" : schedules.getPatient().getMiddleName()));
+                + (schedules.getPatient().getMiddleName() == null ? " " : schedules.getPatient().getMiddleName()));
         scheduleDTO.setContactNumber(schedules.getPatient().getContactNumber());
         scheduleDTO.setBirthDate(schedules.getPatient().getBirthDate());
         scheduleDTO.setSex(schedules.getPatient().getSex());
@@ -446,7 +446,7 @@ public class ScheduleService {
 
         // ─── Build change description by comparing old values vs patch values ────
         String patientName = existing.getPatient().getFirstName() + " "
-                + (existing.getPatient().getMiddleName() == null ? "" : existing.getPatient().getMiddleName() + " ")
+                + (existing.getPatient().getMiddleName() == null ? " " : existing.getPatient().getMiddleName() + " ")
                 + existing.getPatient().getLastName();
 
         StringBuilder changes = new StringBuilder();

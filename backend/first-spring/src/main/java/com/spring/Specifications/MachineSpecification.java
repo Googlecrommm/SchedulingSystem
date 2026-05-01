@@ -1,13 +1,15 @@
 package com.spring.Specifications;
 
+import com.spring.Enums.MachineStatus;
 import com.spring.Models.Machines;
 import org.springframework.data.jpa.domain.Specification;
 
 public class MachineSpecification {
 
-    public static Specification<Machines> hasStatus(String machineStatus) {
+    public static Specification<Machines> hasStatus(MachineStatus machineStatus) {
         return (root, query, criteriaBuilder) -> {
-            if (machineStatus == null) return null;
+            if (machineStatus == null)
+                return criteriaBuilder.notEqual(root.get("machineStatus"), MachineStatus.Archived);
             return criteriaBuilder.equal(root.get("machineStatus"), machineStatus);
         };
     }

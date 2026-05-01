@@ -59,7 +59,7 @@ public class DoctorService {
     private DoctorsResponseDTO mapToDTO(Doctors doctors) {
         DoctorsResponseDTO doctorDTO = modelMapper.map(doctors, DoctorsResponseDTO.class);
         doctorDTO.setFullName(doctors.getLastName() + ", "
-                + (doctors.getMiddleName() == null ? "" : doctors.getMiddleName())
+                + (doctors.getMiddleName() == null ? " " : doctors.getMiddleName())
                 + doctors.getFirstName());
         doctorDTO.setRoleName(doctors.getRole().getRoleName());
         doctorDTO.setDepartmentName(doctors.getRole().getDepartment().getDepartmentName());
@@ -103,7 +103,7 @@ public class DoctorService {
     }
 
     //READ & FILTER
-    public Page<DoctorsResponseDTO> getDoctors(String availabilityStatus, String roleName, String departmentName, Pageable pageable) {
+    public Page<DoctorsResponseDTO> getDoctors(DoctorStatus availabilityStatus, String roleName, String departmentName, Pageable pageable) {
         Specification<Doctors> filters = Specification
                 .where(DoctorSpecification.hasStatus(availabilityStatus))
                 .and(DoctorSpecification.hasRole(roleName))

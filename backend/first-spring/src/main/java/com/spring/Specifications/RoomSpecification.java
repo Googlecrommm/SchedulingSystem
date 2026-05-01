@@ -8,7 +8,8 @@ import org.springframework.data.jpa.domain.Specification;
 public class RoomSpecification {
     public static Specification<Rooms> hasStatus(MachineStatus roomStatus){
         return (root, query, criteriaBuilder) -> {
-            if (roomStatus == null) return null;
+            if (roomStatus == null)
+                return criteriaBuilder.notEqual(root.get("roomStatus"), MachineStatus.Archived);
             return criteriaBuilder.equal(root.get("roomStatus"), roomStatus);
         };
     }

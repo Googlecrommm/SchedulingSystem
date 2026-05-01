@@ -1,5 +1,6 @@
 package com.spring.Controller;
 
+import com.spring.Enums.DoctorStatus;
 import com.spring.Models.Doctors;
 import com.spring.Security.DepartmentSecurityHelper;
 import com.spring.Service.DoctorService;
@@ -41,7 +42,7 @@ public class DoctorController {
     @PreAuthorize("isAuthenticated()")
     @GetMapping("getDoctors")
     public ResponseEntity<Page<DoctorsResponseDTO>> getDoctors(
-            @RequestParam(required = false) String availabilityStatus,
+            @RequestParam(required = false) DoctorStatus availabilityStatus,
             @RequestParam(required = false) String roleName,
             @RequestParam(required = false) String departmentName,
             Pageable pageable,

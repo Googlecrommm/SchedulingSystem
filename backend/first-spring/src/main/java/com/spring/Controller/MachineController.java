@@ -1,5 +1,6 @@
 package com.spring.Controller;
 
+import com.spring.Enums.MachineStatus;
 import com.spring.Models.Machines;
 import com.spring.Security.DepartmentSecurityHelper;
 import com.spring.Service.MachineService;
@@ -39,7 +40,7 @@ public class MachineController {
     @PreAuthorize("isAuthenticated()")
     @GetMapping("getMachines")
     public ResponseEntity<Page<MachineResponseDTO>> getMachines(
-            @RequestParam(required = false) String machineStatus,
+            @RequestParam(required = false) MachineStatus machineStatus,
             @RequestParam(required = false) String modalityName,
             @RequestParam(required = false) String departmentName,
             Pageable pageable,
