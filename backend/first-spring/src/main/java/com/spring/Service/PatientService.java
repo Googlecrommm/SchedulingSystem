@@ -38,7 +38,7 @@ public class PatientService {
                 .map(patients -> {
                     PatientResponseDTO patientDTO = modelMapper.map(patients, PatientResponseDTO.class);
                     patientDTO.setFullName(
-                            patients.getLastName() + ", " + patients.getFirstName()
+                            patients.getLastName() + ", " + patients.getFirstName() + " "
                             + (patients.getMiddleName() == null ? "" : patients.getMiddleName())
                     );
                     return patientDTO;
@@ -51,7 +51,7 @@ public class PatientService {
                 .map(patients -> {
                     PatientResponseDTO patientDTO = modelMapper.map(patients, PatientResponseDTO.class);
                     patientDTO.setFullName(
-                            patients.getLastName() + ", " + patients.getFirstName()
+                            patients.getLastName() + ", " + patients.getFirstName() + " "
                             + (patients.getMiddleName() == null ? " " : patients.getMiddleName())
                     );
                     return patientDTO;
@@ -66,7 +66,7 @@ public class PatientService {
                 .map(patients -> {
                     PatientResponseDTO patientDTO = modelMapper.map(patients, PatientResponseDTO.class);
                     patientDTO.setFullName(
-                            patients.getLastName() + ", " + patients.getFirstName()
+                            patients.getLastName() + ", " + patients.getFirstName() + " "
                             + (patients.getMiddleName() == null ? " " : patients.getMiddleName())
                     );
                     return patientDTO;
