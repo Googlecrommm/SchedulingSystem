@@ -208,13 +208,20 @@ public class ScheduleService {
     }
 
     //READ & FILTER — single method handles all departments dynamically
-    public Page<ScheduleResponseDTO> getSchedules(ScheduleStatus scheduleStatus, String name, String patientName, String departmentName, Pageable pageable){
+    public Page<ScheduleResponseDTO> getSchedules(
+            ScheduleStatus scheduleStatus,
+            String name,
+            String patientName,
+            String departmentName,
+            String modalityName,
+            Pageable pageable){
 
         Specification<Schedules> filters = Specification
                 .where(ScheduleSpecification.hasStatus(scheduleStatus))
                 .and(ScheduleSpecification.toDoctor(name))
                 .and(ScheduleSpecification.searchPatient(patientName))
-                .and(ScheduleSpecification.hasDepartment(departmentName));
+                .and(ScheduleSpecification.hasDepartment(departmentName))
+                .and(ScheduleSpecification.hasModality(modalityName));
 
         Pageable sortedPageable = PageRequest.of(
                 pageable.getPageNumber(),
@@ -238,7 +245,7 @@ public class ScheduleService {
     // DELETED: countAllSchedules()  — built a Radiology spec but never used it, was dead code
 
     // COUNT MONTHLY — dynamic, works for any department
-    public Map<String, Long> getMonthlyBreakdown(String department) {
+    public Map<String, Long> getMonthlyBreakdown(String department, String modalityName) {
         Map<String, Long> counts = new LinkedHashMap<>();
 
         String[] months = {"January", "February", "March", "April", "May", "June",
@@ -250,6 +257,7 @@ public class ScheduleService {
 
             Specification<Schedules> spec = Specification
                     .where(ScheduleSpecification.hasDepartment(department))
+                    .and(ScheduleSpecification.hasModality(modalityName))
                     .and((root, query, cb) -> cb.between(root.get("startDateTime"), start, end));
 
             counts.put(months[i - 1], scheduleRepository.count(spec));
@@ -259,14 +267,15 @@ public class ScheduleService {
     }
 
     //DASHBOARD COUNTS — single method handles all departments dynamically
-    public Map<String, Long> getDashboardCounts(String department, String filter) {
+    public Map<String, Long> getDashboardCounts(String department, String filter, String modalityName) {
         Map<String, Long> counts = new HashMap<>();
 
         for (ScheduleStatus status : ScheduleStatus.values()) {
             Specification<Schedules> spec = Specification
                     .where(ScheduleSpecification.hasDepartment(department))
                     .and(ScheduleSpecification.hasStatus(status))
-                    .and(ScheduleSpecification.byDateFilter(filter));
+                    .and(ScheduleSpecification.byDateFilter(filter))
+                    .and(ScheduleSpecification.hasModality(modalityName));
 
             counts.put(status.name(), scheduleRepository.count(spec));
         }
@@ -607,12 +616,14 @@ public class ScheduleService {
     }
 
     //PRINT — dynamic, works for any department
-    public byte[] exportSchedulesToPdf(String department, String filter) {
+    public byte[] exportSchedulesToPdf(String department, String filter, String modalityName) {
         Specification<Schedules> spec = Specification
                 .where(ScheduleSpecification.hasDepartment(department))
-                .and(ScheduleSpecification.byDateFilter(filter));
+                .and(ScheduleSpecification.byDateFilter(filter))
+                .and(ScheduleSpecification.hasModality(modalityName));
 
         List<Schedules> schedules = scheduleRepository.findAll(spec);
+
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document document = new Document(PageSize.A4.rotate());
@@ -621,7 +632,9 @@ public class ScheduleService {
 
             Font titleFont = new Font(Font.FontFamily.HELVETICA, 14, Font.BOLD);
             Paragraph title = new Paragraph(
-                    (department == null ? "All Departments" : department) + " Schedules - " + filter.toUpperCase(),
+                    (department == null ? "All Departments" : department)
+                            + (modalityName != null ? " - " + modalityName : "")
+                            + " Schedules - " + filter.toUpperCase(),
                     titleFont
             );
             title.setAlignment(Element.ALIGN_CENTER);

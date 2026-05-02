@@ -46,6 +46,7 @@ public class ScheduleController {
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String patientName,
             @RequestParam(required = false) String departmentName,
+            @RequestParam(required = false) String modalityName,
             Pageable pageable,
             Authentication authentication) {
 
@@ -53,7 +54,7 @@ public class ScheduleController {
                 .resolveEffectiveDepartment(departmentName, authentication);
 
         return ResponseEntity.ok(
-                scheduleService.getSchedules(scheduleStatus, name, patientName, effectiveDept, pageable));
+                scheduleService.getSchedules(scheduleStatus, name, patientName, effectiveDept, modalityName, pageable));
     }
 
     // DELETED: getRadiologySched()  — replaced by getSchedules() with departmentName param
@@ -74,12 +75,13 @@ public class ScheduleController {
     public ResponseEntity<Map<String, Long>> getDashboardCounts(
             @RequestParam(required = false) String departmentName,
             @RequestParam(defaultValue = "overall") String filter,
+            @RequestParam(required = false) String modalityName,
             Authentication authentication) {
 
         String effectiveDept = departmentSecurityHelper
                 .resolveEffectiveDepartment(departmentName, authentication);
 
-        return ResponseEntity.ok(scheduleService.getDashboardCounts(effectiveDept, filter));
+        return ResponseEntity.ok(scheduleService.getDashboardCounts(effectiveDept, filter, modalityName));
     }
 
     //DASHBOARD MONTHLY BREAKDOWN — single endpoint, all roles, department scoped via helper
@@ -87,12 +89,13 @@ public class ScheduleController {
     @GetMapping("dashboard/monthly-breakdown")
     public ResponseEntity<Map<String, Long>> getMonthlyBreakdown(
             @RequestParam(required = false) String departmentName,
+            @RequestParam(required = false) String modalityName,
             Authentication authentication) {
 
         String effectiveDept = departmentSecurityHelper
                 .resolveEffectiveDepartment(departmentName, authentication);
 
-        return ResponseEntity.ok(scheduleService.getMonthlyBreakdown(effectiveDept));
+        return ResponseEntity.ok(scheduleService.getMonthlyBreakdown(effectiveDept, modalityName));
     }
 
     // DELETED: dashboard/countRadio  — replaced by dashboard/counts with departmentName param
@@ -155,12 +158,13 @@ public class ScheduleController {
     public ResponseEntity<byte[]> exportPdf(
             @RequestParam(required = false) String departmentName,
             @RequestParam(defaultValue = "overall") String filter,
+            @RequestParam(required = false) String modalityName,
             Authentication authentication) {
 
         String effectiveDept = departmentSecurityHelper
                 .resolveEffectiveDepartment(departmentName, authentication);
 
-        byte[] pdf = scheduleService.exportSchedulesToPdf(effectiveDept, filter);
+        byte[] pdf = scheduleService.exportSchedulesToPdf(effectiveDept, filter, modalityName);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=schedules-" + filter + ".pdf")

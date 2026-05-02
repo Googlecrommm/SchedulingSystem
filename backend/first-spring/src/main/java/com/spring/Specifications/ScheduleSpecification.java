@@ -34,6 +34,13 @@ public class ScheduleSpecification {
         };
     }
 
+    public static Specification<Schedules> hasModality(String modalityName){
+        return (root, query, criteriaBuilder) -> {
+            if (modalityName == null) return null;
+            return criteriaBuilder.equal(root.get("machine").get("modality").get("modalityName"), modalityName);
+        };
+    }
+
     public static Specification<Schedules> searchPatient(String patientName){
         return (root, query, criteriaBuilder) -> {
             if (patientName == null) return null;
