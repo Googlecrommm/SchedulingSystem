@@ -102,7 +102,7 @@ public class ScheduleController {
     // DELETED: dashboard/countRehab  — replaced by dashboard/counts with departmentName param
 
     //UPDATE
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @PatchMapping("updateSchedule/{scheduleId}")
     public ResponseEntity<SuccessResponse> updateSchedule(
             @PathVariable int scheduleId,
@@ -113,7 +113,7 @@ public class ScheduleController {
     }
 
     //ARCHIVE
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @PutMapping("archiveSchedule/{scheduleId}")
     public ResponseEntity<SuccessResponse> archiveSchedule(@PathVariable int scheduleId){
         scheduleService.archiveSchedule(scheduleId);
@@ -121,7 +121,7 @@ public class ScheduleController {
     }
 
     //CANCELLED
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @PutMapping("cancelSchedule/{scheduleId}")
     public ResponseEntity<SuccessResponse> cancelSchedule(@PathVariable int scheduleId){
         scheduleService.cancelSchedule(scheduleId);
@@ -129,7 +129,7 @@ public class ScheduleController {
     }
 
     //CONFIRMED
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @PutMapping("confirmSchedule/{scheduleId}")
     public ResponseEntity<SuccessResponse> confirmSchedule(@PathVariable int scheduleId){
         scheduleService.confirmSchedule(scheduleId);
@@ -137,7 +137,7 @@ public class ScheduleController {
     }
 
     //DONE
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @PutMapping("doneSchedule/{scheduleId}")
     public ResponseEntity<SuccessResponse> doneSchedule(@PathVariable int scheduleId){
         scheduleService.doneSchedule(scheduleId);
@@ -145,7 +145,7 @@ public class ScheduleController {
     }
 
     //RESTORE
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @PutMapping("restoreSchedule/{scheduleId}")
     public ResponseEntity<SuccessResponse> restoreSchedule(@PathVariable int scheduleId){
         scheduleService.restoreSchedule(scheduleId);
