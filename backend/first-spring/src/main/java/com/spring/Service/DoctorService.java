@@ -59,8 +59,8 @@ public class DoctorService {
     private DoctorsResponseDTO mapToDTO(Doctors doctors) {
         DoctorsResponseDTO doctorDTO = modelMapper.map(doctors, DoctorsResponseDTO.class);
         doctorDTO.setFullName(doctors.getLastName() + ", "
-                + (doctors.getMiddleName() == null ? " " : doctors.getMiddleName())
-                + doctors.getFirstName());
+                        + doctors.getFirstName()
+                        + (doctors.getMiddleName() == null ? "" : doctors.getMiddleName()));
         doctorDTO.setRoleName(doctors.getRole().getRoleName());
         doctorDTO.setDepartmentName(doctors.getRole().getDepartment().getDepartmentName());
         return doctorDTO;

@@ -38,9 +38,8 @@ public class PatientService {
                 .map(patients -> {
                     PatientResponseDTO patientDTO = modelMapper.map(patients, PatientResponseDTO.class);
                     patientDTO.setFullName(
-                            patients.getLastName() + ", "
-                                    + (patients.getMiddleName() == null ? "" : patients.getMiddleName())
-                                    + patients.getFirstName()
+                            patients.getLastName() + ", " + patients.getFirstName()
+                            + (patients.getMiddleName() == null ? "" : patients.getMiddleName())
                     );
                     return patientDTO;
                 });
@@ -52,9 +51,8 @@ public class PatientService {
                 .map(patients -> {
                     PatientResponseDTO patientDTO = modelMapper.map(patients, PatientResponseDTO.class);
                     patientDTO.setFullName(
-                            patients.getLastName() + ", "
+                            patients.getLastName() + ", " + patients.getFirstName()
                             + (patients.getMiddleName() == null ? " " : patients.getMiddleName())
-                            + patients.getFirstName()
                     );
                     return patientDTO;
                 });
@@ -68,9 +66,8 @@ public class PatientService {
                 .map(patients -> {
                     PatientResponseDTO patientDTO = modelMapper.map(patients, PatientResponseDTO.class);
                     patientDTO.setFullName(
-                            patients.getLastName() + ", "
-                                    + (patients.getMiddleName() == null ? " " : patients.getMiddleName())
-                                    + patients.getFirstName()
+                            patients.getLastName() + ", " + patients.getFirstName()
+                            + (patients.getMiddleName() == null ? " " : patients.getMiddleName())
                     );
                     return patientDTO;
                 })
