@@ -31,9 +31,9 @@ public class RolesService {
 
     //CREATE ROLE
     public void addRole(Roles role){
-    //    if (role.getRoleName().equalsIgnoreCase("Admin")){
-    //        throw new NotAllowed("Creating Admin role is not allowed");
-    //    }
+        if (role.getRoleName().equalsIgnoreCase("Admin")){
+            throw new NotAllowed("Creating Admin role is not allowed");
+        }
         rolesRepository.save(role);
     }
 

@@ -16,25 +16,34 @@ import java.io.IOException;
 public class JwtAuthFilter extends OncePerRequestFilter {
     private final UserDetailsServiceImpl userDetailsServiceImpl;
     private final JwtService jwtService;
+    private final TokenBlacklistService tokenBlacklistService;
 
-    public JwtAuthFilter(UserDetailsServiceImpl userDetailsServiceImpl, JwtService jwtService){
-         this.userDetailsServiceImpl = userDetailsServiceImpl;
-         this.jwtService = jwtService;
+    public JwtAuthFilter(UserDetailsServiceImpl userDetailsServiceImpl, JwtService jwtService,
+                         TokenBlacklistService tokenBlacklistService) {
+        this.userDetailsServiceImpl = userDetailsServiceImpl;
+        this.jwtService = jwtService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
-
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
         String authHeader = request.getHeader("Authorization");
 
-        if(authHeader != null && authHeader.startsWith("Bearer ")){
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
+
+            // Reject blacklisted tokens immediately
+            if (tokenBlacklistService.isBlacklisted(token)) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("Token has been invalidated. Please log in again.");
+                return;
+            }
+
             String email = jwtService.extractEmail(token);
             UserDetails userDetails = userDetailsServiceImpl.loadUserByUsername(email);
 
-            if (jwtService.validateToken(token, email)){
-
-
+            if (jwtService.validateToken(token, email)) {
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(
                                 userDetails,
