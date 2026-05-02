@@ -23,17 +23,15 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
-    private final LogsService logsService;
     private final TokenBlacklistService tokenBlacklistService;
 
     public AuthService(UsersRepository usersRepository, PasswordEncoder passwordEncoder,
                        JwtService jwtService, AuthenticationManager authenticationManager,
-                       LogsService logsService, TokenBlacklistService tokenBlacklistService) {
+                       TokenBlacklistService tokenBlacklistService) {
         this.usersRepository = usersRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
-        this.logsService = logsService;
         this.tokenBlacklistService = tokenBlacklistService;
     }
 
@@ -65,8 +63,6 @@ public class AuthService {
                 ? getUser.getRole().getDepartment().getDepartmentName()
                 : null;
 
-        logsService.log("Login", "logged in");
-
         return new AuthResponseDTO(
                 jwtService.generateToken(getUser),
                 fullName,
@@ -80,7 +76,6 @@ public class AuthService {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
             tokenBlacklistService.blacklist(token);
-            logsService.log("Logout", "logged out");
         }
     }
 }
