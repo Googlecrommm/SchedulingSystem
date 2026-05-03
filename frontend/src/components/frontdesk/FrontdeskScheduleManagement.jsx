@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import {
@@ -22,7 +22,6 @@ import {
 } from "../ui";
 import { useFrontdeskNav, useDeptMeta } from "./frontdeskUtils";
 
-// ── Constants ─────────────────────────────────────────────────────────────────
 
 const TABS = [
   { label: "All",       icon: Calendar      },
@@ -33,7 +32,6 @@ const TABS = [
   { label: "Done",      icon: CheckCircle   },
 ];
 
-// Table columns — "Medical Professional" is generic for all departments
 const COLUMNS = ["Full Name", "Date", "Time", "Medical Professional", "Machine", "Room", "Status", "Action"];
 
 const INACTIVE_STATUSES = ["Cancelled", "Done", "Archived"];
@@ -59,6 +57,7 @@ const BLANK_FORM = {
   middleName:   "",
   lastName:     "",
   patientId:    "",
+  patientFullName: "",
   sex:          "",
   dob:          "",
   contactNo:    "",
@@ -68,7 +67,6 @@ const BLANK_FORM = {
   remarks:      "",
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getAuthHeader() {
   const token = localStorage.getItem("token");
@@ -133,7 +131,62 @@ function useDebounce(value, delay = 400) {
   return debounced;
 }
 
-// ── Time slot blocking ────────────────────────────────────────────────────────
+
+function ModalityDropdown({ value, onChange, modalities }) {
+  const [open, setOpen] = useState(false);
+  const ref             = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const label = value === "all"
+    ? "All Modalities"
+    : modalities.find((m) => m.modalityName === value)?.modalityName ?? "All Modalities";
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary transition-colors cursor-pointer whitespace-nowrap"
+      >
+        {label}
+        <ChevronDown size={14} className="text-gray-400" />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 mt-1.5 w-auto bg-white rounded-xl shadow-card border border-gray-100 py-1 z-50">
+          <button
+            onClick={() => { onChange("all"); setOpen(false); }}
+            className={`w-full text-left px-4 py-2.5 text-sm transition-colors whitespace-nowrap
+              ${value === "all"
+                ? "text-primary font-semibold bg-primary/5"
+                : "text-gray-600 hover:bg-primary/5 hover:text-primary"}`}
+          >
+            All Modalities
+          </button>
+          {modalities.map((m) => (
+            <button
+              key={m.modalityId}
+              onClick={() => { onChange(m.modalityName); setOpen(false); }}
+              className={`w-full text-left px-4 py-2.5 text-sm transition-colors whitespace-nowrap
+                ${value === m.modalityName
+                  ? "text-primary font-semibold bg-primary/5"
+                  : "text-gray-600 hover:bg-primary/5 hover:text-primary"}`}
+            >
+              {m.modalityName}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function toMins(hhmm) {
   const [h, m] = hhmm.split(":").map(Number);
@@ -177,7 +230,6 @@ const TIME_OPTIONS = (() => {
   return opts;
 })();
 
-// ── Sub-components ────────────────────────────────────────────────────────────
 
 function TimeDropdown({ formik, field, startBlocked = new Set(), endBlocked = new Set(), selectedDate = "" }) {
   const ic         = useInputClass(formik);
@@ -234,7 +286,6 @@ function SelectField({ formik, field, placeholder, options, keyProp, valueProp, 
   );
 }
 
-// ── Section outline group ─────────────────────────────────────────────────────
 
 function SectionGroup({ title, children }) {
   return (
@@ -247,10 +298,7 @@ function SectionGroup({ title, children }) {
   );
 }
 
-// PatientSearchableInput — search bar that auto-fills all patient fields on select.
-// Uses GET /api/SearchName/{name} (unpaginated, accessible by FRONTDESK).
-// Patient name is stored as separate firstName / middleName / lastName fields
-// to match the backend Patients model exactly.
+
 function PatientSearchableInput({ formik }) {
   const [query,      setQuery]      = useState("");
   const [results,    setResults]    = useState([]);
@@ -260,7 +308,6 @@ function PatientSearchableInput({ formik }) {
   const debounceRef  = useRef(null);
   const containerRef = useRef(null);
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false);
@@ -269,7 +316,6 @@ function PatientSearchableInput({ formik }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Sync existing state when patientId changes externally (e.g. form reset)
   useEffect(() => {
     setIsExisting(!!formik.values.patientId);
     if (!formik.values.patientId) setQuery("");
@@ -279,7 +325,6 @@ function PatientSearchableInput({ formik }) {
     const val = e.target.value;
     setQuery(val);
     setIsExisting(false);
-    // Clear patientId so the form knows this is no longer a locked existing patient
     formik.setFieldValue("patientId", "");
 
     if (!val.trim()) { setResults([]); setOpen(false); return; }
@@ -288,7 +333,6 @@ function PatientSearchableInput({ formik }) {
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        // GET /api/SearchName/{name} — unpaginated, returns List<PatientResponseDTO>
         const res  = await axios.get(`/api/SearchName/${encodeURIComponent(val.trim())}`, {
           headers: getAuthHeader(),
         });
@@ -303,25 +347,25 @@ function PatientSearchableInput({ formik }) {
     }, 350);
   }
 
-  // When user picks an existing patient, lock the name fields and auto-fill the rest
+
   function handleSelect(patient) {
     setIsExisting(true); setOpen(false); setResults([]);
-    // Build display query from the response DTO's name field (lastName, firstName middleName)
-    setQuery(patient.name ?? "");
-    // Split into individual fields to populate the three inputs
-    formik.setFieldValue("firstName",  patient.firstName  ?? "");
-    formik.setFieldValue("middleName", patient.middleName ?? "");
-    formik.setFieldValue("lastName",   patient.lastName   ?? "");
-    formik.setFieldValue("patientId",  patient.patientId  ?? "");
-    formik.setFieldValue("sex",        patient.sex        ?? "");
-    formik.setFieldValue("dob",        patient.birthDate  ?? "");
-    formik.setFieldValue("contactNo",  patient.contactNumber ?? "");
-    formik.setFieldValue("address",    patient.address    ?? "");
+    setQuery(patient.fullName ?? "");
+    formik.setFieldValue("patientId",     String(patient.patientId ?? ""));
+    formik.setFieldValue("patientFullName", patient.fullName ?? "");
+ 
+    formik.setFieldValue("firstName",  "");
+    formik.setFieldValue("middleName", "");
+    formik.setFieldValue("lastName",   "");
+    formik.setFieldValue("sex",        patient.sex           ?? "");
+    formik.setFieldValue("dob",        patient.birthDate      ?? "");
+    formik.setFieldValue("contactNo",  patient.contactNumber  ?? "");
+    formik.setFieldValue("address",    patient.address        ?? "");
   }
 
   function handleClear() {
     setQuery(""); setIsExisting(false); setResults([]); setOpen(false);
-    ["firstName","middleName","lastName","patientId","sex","dob","contactNo","address"].forEach(
+    ["firstName","middleName","lastName","patientId","patientFullName","sex","dob","contactNo","address"].forEach(
       (f) => formik.setFieldValue(f, "")
     );
   }
@@ -367,7 +411,7 @@ function PatientSearchableInput({ formik }) {
               key={p.patientId} type="button" onClick={() => handleSelect(p)}
               className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-primary/5 hover:text-primary transition-colors"
             >
-              <span className="font-medium">{p.name}</span>
+              <span className="font-medium">{p.fullName}</span>
               {p.birthDate     && <span className="ml-2 text-xs text-gray-400">DOB: {p.birthDate}</span>}
               {p.contactNumber && <span className="ml-2 text-xs text-gray-400">{p.contactNumber}</span>}
             </button>
@@ -378,9 +422,7 @@ function PatientSearchableInput({ formik }) {
   );
 }
 
-// ── Conflict blocking hook ────────────────────────────────────────────────────
-// Fetches ALL schedules for the selected date from the server so blocking is
-// never limited to the current page slice.
+
 
 function useDateSchedules(selectedDate) {
   const [dateSchedules, setDateSchedules] = useState([]);
@@ -417,7 +459,7 @@ function useBookedRanges({ dateSchedules, selectedProfName, selectedMachineName,
         if (excludeId != null && s.scheduleId === excludeId) return false;
         if (!s.startDateTime || !s.endDateTime) return false;
         return (
-          (selectedProfName    && s.name        === selectedProfName)    ||
+          (selectedProfName    && s.doctorFullName === selectedProfName)    ||
           (selectedMachineName && s.machineName === selectedMachineName) ||
           (selectedRoomName    && s.roomName    === selectedRoomName)
         );
@@ -429,7 +471,6 @@ function useBookedRanges({ dateSchedules, selectedProfName, selectedMachineName,
   }, [dateSchedules, selectedProfName, selectedMachineName, selectedRoomName, selectedDate, excludeId]);
 }
 
-// ── Validation schemas ────────────────────────────────────────────────────────
 
 const scheduleSchema = Yup.object({
   professional: Yup.string().required("Medical professional is required"),
@@ -445,15 +486,18 @@ const scheduleSchema = Yup.object({
     .test("after-start", "End time must be after start time", function (v) {
       return !this.parent.startTime || !v || v > this.parent.startTime;
     }),
-  firstName:    Yup.string().required("First name is required"),
+  patientId:    Yup.string(),
+  firstName:    Yup.string().when("patientId", { is: (v) => !v, then: (s) => s.required("First name is required"), otherwise: (s) => s }),
   middleName:   Yup.string(),
-  lastName:     Yup.string().required("Last name is required"),
-  sex:          Yup.string().required("Sex is required"),
-  dob:          Yup.string().required("Date of birth is required"),
-  contactNo:    Yup.string()
-    .matches(/^\+?[0-9]{7,15}$/, "Enter a valid contact number")
-    .required("Contact number is required"),
-  address:      Yup.string().required("Address is required"),
+  lastName:     Yup.string().when("patientId", { is: (v) => !v, then: (s) => s.required("Last name is required"),  otherwise: (s) => s }),
+  sex:          Yup.string().when("patientId", { is: (v) => !v, then: (s) => s.required("Sex is required"),         otherwise: (s) => s }),
+  dob:          Yup.string().when("patientId", { is: (v) => !v, then: (s) => s.required("Date of birth is required"), otherwise: (s) => s }),
+  contactNo:    Yup.string().when("patientId", {
+    is: (v) => !v,
+    then: (s) => s.matches(/^\+?[0-9]{7,15}$/, "Enter a valid contact number").required("Contact number is required"),
+    otherwise: (s) => s,
+  }),
+  address:      Yup.string().when("patientId", { is: (v) => !v, then: (s) => s.required("Address is required"), otherwise: (s) => s }),
   hospPlan:     Yup.string(),
   hospCaseType: Yup.string(),
   remarks:      Yup.string().required("Remarks is required"),
@@ -478,7 +522,6 @@ const editScheduleSchema = Yup.object({
   remarks:      Yup.string().required("Remarks is required"),
 });
 
-// ── Schedule Form (create) ────────────────────────────────────────────────────
 
 function ScheduleForm({ initialValues, submitLabel, onSubmit, onClose, professionals, modalities, machines, rooms, hospPlans, hospCaseTypes }) {
   const formik = useFormik({
@@ -492,7 +535,6 @@ function ScheduleForm({ initialValues, submitLabel, onSubmit, onClose, professio
   });
   const ic = useInputClass(formik);
 
-  // Clear machine when modality changes
   const prevModalityRef = useRef(initialValues.modality);
   useEffect(() => {
     if (prevModalityRef.current !== formik.values.modality) {
@@ -506,7 +548,7 @@ function ScheduleForm({ initialValues, submitLabel, onSubmit, onClose, professio
   const selectedRoomId      = formik.values.room;
   const selectedDate        = formik.values.date;
 
-  const selectedProfName    = professionals.find((p) => String(p.doctorId) === String(selectedProfId))?.name ?? null;
+  const selectedProfName    = professionals.find((p) => String(p.doctorId) === String(selectedProfId))?.fullName ?? null;
   const selectedMachineName = machines.find((m) => String(m.machineId) === String(selectedMachineId))?.machineName ?? null;
   const selectedRoomName    = rooms.find((r) => String(r.roomId) === String(selectedRoomId))?.roomName ?? null;
 
@@ -514,7 +556,6 @@ function ScheduleForm({ initialValues, submitLabel, onSubmit, onClose, professio
   const bookedRanges  = useBookedRanges({ dateSchedules, selectedProfName, selectedMachineName, selectedRoomName, selectedDate, excludeId: null });
   const { startBlocked, endBlocked } = useMemo(() => buildBlockedSets(bookedRanges), [bookedRanges]);
 
-  // Clear time when any resource changes
   const prevProfRef    = useRef(selectedProfId);
   const prevMachRef    = useRef(selectedMachineId);
   const prevRoomRef    = useRef(selectedRoomId);
@@ -547,7 +588,7 @@ function ScheduleForm({ initialValues, submitLabel, onSubmit, onClose, professio
       <SectionGroup title="Schedule Details">
         <FormField label="Medical Professional" error={formik.touched.professional && formik.errors.professional}>
           <SelectField formik={formik} field="professional" placeholder="Select Medical Professional"
-            options={professionals} keyProp="doctorId" valueProp="doctorId" labelProp="name" />
+            options={professionals} keyProp="doctorId" valueProp="doctorId" labelProp="fullName" />
         </FormField>
 
         <FormField label="Procedure" error={formik.touched.procedure && formik.errors.procedure}>
@@ -591,50 +632,74 @@ function ScheduleForm({ initialValues, submitLabel, onSubmit, onClose, professio
           <PatientSearchableInput formik={formik} />
         </FormField>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <FormField label="First Name" error={formik.touched.firstName && formik.errors.firstName}>
-            <input type="text" placeholder="First name"
-              className={ic("firstName")} {...formik.getFieldProps("firstName")}
-              readOnly={!!formik.values.patientId} />
-          </FormField>
-          <FormField label="Middle Name" error={formik.touched.middleName && formik.errors.middleName}>
-            <input type="text" placeholder="Middle name (optional)"
-              className={ic("middleName")} {...formik.getFieldProps("middleName")}
-              readOnly={!!formik.values.patientId} />
-          </FormField>
-          <FormField label="Last Name" error={formik.touched.lastName && formik.errors.lastName}>
-            <input type="text" placeholder="Last name"
-              className={ic("lastName")} {...formik.getFieldProps("lastName")}
-              readOnly={!!formik.values.patientId} />
-          </FormField>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <FormField label="Sex" error={formik.touched.sex && formik.errors.sex}>
-            <div className="relative">
-              <select className={`${ic("sex")} appearance-none cursor-pointer`} {...formik.getFieldProps("sex")}>
-                <option value="" disabled>Select Sex</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        {formik.values.patientId && (
+          <div className="rounded-xl border border-green-200 bg-green-50/50 px-4 py-3 space-y-3">
+            <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">Patient Details (Read-only)</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FormField label="Full Name">
+                <input readOnly value={formik.values.patientFullName || "—"} className={readonlyInputClass} />
+              </FormField>
+              <FormField label="Sex">
+                <input readOnly value={formik.values.sex || "—"} className={readonlyInputClass} />
+              </FormField>
             </div>
-          </FormField>
-          <FormField label="Date of Birth" error={formik.touched.dob && formik.errors.dob}>
-            <input type="date" className={ic("dob")} {...formik.getFieldProps("dob")} />
-          </FormField>
-        </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FormField label="Date of Birth">
+                <input readOnly value={formik.values.dob || "—"} className={readonlyInputClass} />
+              </FormField>
+              <FormField label="Contact No.">
+                <input readOnly value={formik.values.contactNo || "—"} className={readonlyInputClass} />
+              </FormField>
+            </div>
+            <FormField label="Address">
+              <input readOnly value={formik.values.address || "—"} className={readonlyInputClass} />
+            </FormField>
+          </div>
+        )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <FormField label="Contact No." error={formik.touched.contactNo && formik.errors.contactNo}>
-            <input type="text" placeholder="e.g. 09123456789"
-              className={ic("contactNo")} {...formik.getFieldProps("contactNo")} />
-          </FormField>
-          <FormField label="Address" error={formik.touched.address && formik.errors.address}>
-            <input type="text" placeholder="Full address"
-              className={ic("address")} {...formik.getFieldProps("address")} />
-          </FormField>
-        </div>
+        {!formik.values.patientId && (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <FormField label="First Name" error={formik.touched.firstName && formik.errors.firstName}>
+                <input type="text" placeholder="First name"
+                  className={ic("firstName")} {...formik.getFieldProps("firstName")} />
+              </FormField>
+              <FormField label="Middle Name" error={formik.touched.middleName && formik.errors.middleName}>
+                <input type="text" placeholder="Middle name (optional)"
+                  className={ic("middleName")} {...formik.getFieldProps("middleName")} />
+              </FormField>
+              <FormField label="Last Name" error={formik.touched.lastName && formik.errors.lastName}>
+                <input type="text" placeholder="Last name"
+                  className={ic("lastName")} {...formik.getFieldProps("lastName")} />
+              </FormField>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FormField label="Sex" error={formik.touched.sex && formik.errors.sex}>
+                <div className="relative">
+                  <select className={`${ic("sex")} appearance-none cursor-pointer`} {...formik.getFieldProps("sex")}>
+                    <option value="" disabled>Select Sex</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
+              </FormField>
+              <FormField label="Date of Birth" error={formik.touched.dob && formik.errors.dob}>
+                <input type="date" className={ic("dob")} {...formik.getFieldProps("dob")} />
+              </FormField>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FormField label="Contact No." error={formik.touched.contactNo && formik.errors.contactNo}>
+                <input type="text" placeholder="e.g. 09123456789"
+                  className={ic("contactNo")} {...formik.getFieldProps("contactNo")} />
+              </FormField>
+              <FormField label="Address" error={formik.touched.address && formik.errors.address}>
+                <input type="text" placeholder="Full address"
+                  className={ic("address")} {...formik.getFieldProps("address")} />
+              </FormField>
+            </div>
+          </>
+        )}
       </SectionGroup>
 
       <SectionGroup title="Hospitalization">
@@ -660,13 +725,12 @@ function ScheduleForm({ initialValues, submitLabel, onSubmit, onClose, professio
   );
 }
 
-// ── Edit Schedule Modal ───────────────────────────────────────────────────────
 
 function EditScheduleModal({ schedule, professionals, modalities, machines, rooms, hospPlans, hospCaseTypes, onSubmit, onClose }) {
   const { date: initDate, time: initStartTime } = splitDatetime(schedule.startDateTime);
   const { time: initEndTime }                   = splitDatetime(schedule.endDateTime);
 
-  const initProfId     = String(professionals.find((p) => p.name        === schedule.name)?.doctorId              ?? "");
+  const initProfId     = String(professionals.find((p) => p.fullName === schedule.doctorFullName)?.doctorId              ?? "");
   const matchedMachine = machines.find((m) => m.machineName === schedule.machineName);
   const initMachineId  = String(matchedMachine?.machineId ?? "");
   const initModalityId = String(modalities.find((mod) => mod.modalityName === matchedMachine?.modalityName)?.modalityId ?? "");
@@ -697,7 +761,6 @@ function EditScheduleModal({ schedule, professionals, modalities, machines, room
   });
   const ic = useInputClass(formik);
 
-  // Clear machine when modality changes
   const prevModalityRef = useRef(formik.values.modality);
   useEffect(() => {
     if (prevModalityRef.current !== formik.values.modality) {
@@ -710,7 +773,7 @@ function EditScheduleModal({ schedule, professionals, modalities, machines, room
   const selectedMachineId   = formik.values.machine;
   const selectedRoomId      = formik.values.room;
   const selectedDate        = formik.values.date;
-  const selectedProfName    = professionals.find((p) => String(p.doctorId) === String(selectedProfId))?.name ?? null;
+  const selectedProfName    = professionals.find((p) => String(p.doctorId) === String(selectedProfId))?.fullName ?? null;
   const selectedMachineName = machines.find((m) => String(m.machineId) === String(selectedMachineId))?.machineName ?? null;
   const selectedRoomName    = rooms.find((r) => String(r.roomId) === String(selectedRoomId))?.roomName ?? null;
 
@@ -753,7 +816,7 @@ function EditScheduleModal({ schedule, professionals, modalities, machines, room
 
         <SectionGroup title="Schedule Details">
           <FormField label="Patient Name">
-            <input readOnly value={schedule.patientName ?? "—"} className={readonlyInputClass} />
+            <input readOnly value={schedule.patientFullName ?? "—"} className={readonlyInputClass} />
           </FormField>
 
           <FormField label="Procedure" error={formik.touched.procedure && formik.errors.procedure}>
@@ -763,7 +826,7 @@ function EditScheduleModal({ schedule, professionals, modalities, machines, room
 
           <FormField label="Medical Professional" error={formik.touched.professional && formik.errors.professional}>
             <SelectField formik={formik} field="professional" placeholder="Select Medical Professional"
-              options={professionals} keyProp="doctorId" valueProp="doctorId" labelProp="name" />
+              options={professionals} keyProp="doctorId" valueProp="doctorId" labelProp="fullName" />
           </FormField>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -821,7 +884,6 @@ function EditScheduleModal({ schedule, professionals, modalities, machines, room
   );
 }
 
-// ── View Modal ────────────────────────────────────────────────────────────────
 
 function ViewScheduleModal({ schedule, onClose }) {
   const ro = readonlyInputClass;
@@ -832,13 +894,13 @@ function ViewScheduleModal({ schedule, onClose }) {
     <Modal title="View Patient Schedule" onClose={onClose} maxWidth="max-w-2xl" scrollable>
       <div className="space-y-4">
         <FormField label="Patient Name">
-          <input readOnly value={schedule.patientName ?? "—"} className={ro} />
+          <input readOnly value={schedule.patientFullName ?? "—"} className={ro} />
         </FormField>
         <FormField label="Procedure">
           <input readOnly value={schedule.procedureName ?? "—"} className={ro} />
         </FormField>
         <FormField label="Medical Professional">
-          <input readOnly value={schedule.name ?? "—"} className={ro} />
+          <input readOnly value={schedule.doctorFullName ?? "—"} className={ro} />
         </FormField>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -894,14 +956,11 @@ function ViewScheduleModal({ schedule, onClose }) {
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function FrontdeskScheduleManagement() {
   const navItems = useFrontdeskNav();
   const { deptName, userRole } = useDeptMeta();
 
-  const [activeTab,     setActiveTab]     = useState("All");
-  const [searchQuery,   setSearchQuery]   = useState("");
   const [showAdd,       setShowAdd]       = useState(false);
   const [viewSchedule,  setViewSchedule]  = useState(null);
   const [editSchedule,  setEditSchedule]  = useState(null);
@@ -911,6 +970,13 @@ export default function FrontdeskScheduleManagement() {
   const [page,          setPage]          = useState(0);
   const [totalPages,    setTotalPages]    = useState(1);
 
+  
+  const [filters, setFilters] = useState({
+    tab:            "All",  
+    modalityFilter: "all",  
+    search:         "",     
+  });
+
   const [professionals, setProfessionals] = useState([]);
   const [modalities,    setModalities]    = useState([]);
   const [machines,      setMachines]      = useState([]);
@@ -918,27 +984,36 @@ export default function FrontdeskScheduleManagement() {
   const [hospPlans,     setHospPlans]     = useState([]);
   const [hospCaseTypes, setHospCaseTypes] = useState([]);
 
-  const debouncedSearch = useDebounce(searchQuery, 400);
+  const setTab           = (tab)           => setFilters((f) => ({ ...f, tab }));
+  const setModalityFilter = (modalityFilter) => setFilters((f) => ({ ...f, modalityFilter }));
+  const setSearch        = (search)        => setFilters((f) => ({ ...f, search }));
 
-  useEffect(() => { setPage(0); }, [activeTab, debouncedSearch]);
-  useEffect(() => { fetchSchedules(); }, [activeTab, debouncedSearch, page]);
+  const debouncedSearch = useDebounce(filters.search, 400);
+
+  useEffect(() => { setPage(0); }, [filters.tab, filters.modalityFilter, debouncedSearch]);
+  useEffect(() => { fetchSchedules(); }, [filters.tab, filters.modalityFilter, debouncedSearch, page]); 
   useEffect(() => { fetchDropdownData(); }, []);
 
-  // ── Fetch schedules — single generic endpoint, backend scopes by dept ────
-  const fetchSchedules = useCallback(async () => {
+
+  function buildParams() {
+    const patientName  = debouncedSearch.trim() || undefined;
+    const modalityName = filters.modalityFilter !== "all" ? filters.modalityFilter : undefined;
+    return {
+      page,
+      size: 10,
+      ...(filters.tab !== "All" && { scheduleStatus: filters.tab }),
+      ...(patientName  && { patientName }),
+      ...(modalityName && { modalityName }),
+    };
+  }
+
+  async function fetchSchedules() {
     setLoading(true);
     try {
-      const headers     = getAuthHeader();
-      const patientName = debouncedSearch.trim() || undefined;
-
-      const params = {
-        page,
-        size: 10,
-        ...(activeTab !== "All" && { scheduleStatus: activeTab }),
-        ...(patientName && { patientName }),
-      };
-
-      const res = await axios.get("/api/getSchedules", { headers, params });
+      const res = await axios.get("/api/getSchedules", {
+        headers: getAuthHeader(),
+        params:  buildParams(),
+      });
       setSchedules(res.data?.content   ?? []);
       setTotalPages(res.data?.totalPages ?? 1);
     } catch (err) {
@@ -947,14 +1022,13 @@ export default function FrontdeskScheduleManagement() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, debouncedSearch, page]);
+  }
 
-  // ── Fetch dropdown data — generic endpoints, backend scopes by dept ──────
   async function fetchDropdownData() {
     try {
       const headers = getAuthHeader();
       const [profRes, modalityRes, machineRes, roomRes, planRes, typeRes] = await Promise.all([
-        axios.get("/api/professionalDropdown", { headers }),  // generic → replaces radiologistDropdown / therapistDropdown
+        axios.get("/api/doctorDropdown",        { headers }),  
         axios.get("/api/modalityDropdown",      { headers }),
         axios.get("/api/machineDropdown",        { headers }),
         axios.get("/api/roomDropdown",           { headers }),
@@ -973,7 +1047,6 @@ export default function FrontdeskScheduleManagement() {
     }
   }
 
-  // ── Status updates ────────────────────────────────────────────────────────
   async function updateStatus(id, status) {
     const map = {
       Confirmed: `/api/confirmSchedule/${id}`,
@@ -1010,7 +1083,6 @@ export default function FrontdeskScheduleManagement() {
     }
   }
 
-  // ── Create ────────────────────────────────────────────────────────────────
   async function handleCreate(values) {
     const isExisting = !!values.patientId;
     const payload = {
@@ -1040,7 +1112,6 @@ export default function FrontdeskScheduleManagement() {
     await fetchSchedules();
   }
 
-  // ── Edit ──────────────────────────────────────────────────────────────────
   async function handleEdit(values) {
     const payload = {
       startDateTime:          buildDatetime(values.date, values.startTime),
@@ -1048,10 +1119,8 @@ export default function FrontdeskScheduleManagement() {
       procedureName:          values.procedure,
       remarks:                values.remarks || null,
       doctorId:               Number(values.professional),
-      machineId:              values.machine      ? Number(values.machine)      : null,
-      roomId:                 values.room         ? Number(values.room)         : null,
-      hospitalizationPlanId:  values.hospPlan     ? Number(values.hospPlan)     : null,
-      hospitalizationTypeId:  values.hospCaseType ? Number(values.hospCaseType) : null,
+      machineId:              values.machine ? Number(values.machine) : null,
+      roomId:                 values.room    ? Number(values.room)    : null,
     };
     await axios.patch(`/api/updateSchedule/${editSchedule.scheduleId}`, payload, { headers: getAuthHeader() });
     await fetchSchedules();
@@ -1059,20 +1128,35 @@ export default function FrontdeskScheduleManagement() {
 
   const meta = confirmAction && confirmMeta[confirmAction.type];
 
+  const modalityLabel = filters.modalityFilter === "all"
+    ? "All Modalities"
+    : modalities.find((m) => m.modalityName === filters.modalityFilter)?.modalityName ?? "All Modalities";
+
   return (
     <AdminLayout
       navItems={navItems}
-      pageTitle={`${deptName} — Schedule Management`}
-      pageSubtitle="Patient Schedules"
+      pageTitle={
+        <span className="flex items-center gap-3">
+          {`${deptName} — Schedule Management`}
+          {modalities.length > 0 && (
+            <ModalityDropdown
+              value={filters.modalityFilter}
+              onChange={setModalityFilter}
+              modalities={modalities}
+            />
+          )}
+        </span>
+      }
+      pageSubtitle={modalityLabel}
       userRole={userRole}
-      searchValue={searchQuery}
-      onSearchChange={setSearchQuery}
+      searchValue={filters.search}
+      onSearchChange={setSearch}
       searchPlaceholder="Search Patient"
     >
       <TabBar
         tabs={TABS}
-        activeTab={activeTab}
-        onTabChange={(tab) => { setActiveTab(tab); setSearchQuery(""); }}
+        activeTab={filters.tab}
+        onTabChange={(tab) => setTab(tab)}
         addLabel="Add Patient"
         onAdd={() => setShowAdd(true)}
       />
@@ -1089,14 +1173,14 @@ export default function FrontdeskScheduleManagement() {
         onNext={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
         renderRow={(s) => (
           <tr key={s.scheduleId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.patientName}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.patientFullName}</td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">{formatDate(s.startDateTime)}</td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">
               {s.startDateTime && s.endDateTime
                 ? `${formatTime(s.startDateTime)} - ${formatTime(s.endDateTime)}`
                 : "—"}
             </td>
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.name        ?? "—"}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.doctorFullName ?? "—"}</td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.machineName  ?? "—"}</td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.roomName     ?? "—"}</td>
             <td className={`px-6 py-4 text-center text-sm font-semibold ${scheduleStatusColor(s.scheduleStatus)}`}>
@@ -1150,7 +1234,7 @@ export default function FrontdeskScheduleManagement() {
       {confirmAction && meta && (
         <ConfirmDialog
           title={meta.title}
-          message={meta.msg(confirmAction.schedule.patientName ?? "This schedule")}
+          message={meta.msg(confirmAction.schedule.patientFullName ?? "This schedule")}
           confirmLabel={meta.label}
           danger={meta.danger}
           onConfirm={applyConfirm}

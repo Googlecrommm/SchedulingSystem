@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { UserRoundPlus, Archive, Pencil, RefreshCw, ChevronDown, Eye } from "lucide-react";
@@ -25,11 +25,13 @@ const TABS = [
 ];
 
 // No create endpoint exists in PatientController — Add button is intentionally absent.
-const activeActions  = [
-  { label: "Edit",      icon: Pencil                  },
-  { label: "Archive",   icon: Archive,  danger: true  },
+const activeActions = [
+  { label: "View",    icon: Eye,      danger: false },
+  { label: "Edit",    icon: Pencil,   danger: false },
+  { label: "Archive", icon: Archive,  danger: true  },
 ];
 const archiveActions = [
+  { label: "View",      icon: Eye,      danger: false },
   { label: "Unarchive", icon: RefreshCw               },
 ];
 
@@ -38,24 +40,54 @@ const SEX_OPTIONS = ["Male", "Female"];
 
 const PAGE_SIZE = 10;
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 function getAuthHeader() {
   const token = localStorage.getItem("token");
   return { Authorization: `Bearer ${token}` };
 }
 
-// Maps PatientResponseDTO → flat local object.
-// DTO fields: patientId, name, address, contactNumber, birthDate, sex (Sex enum), patientStatus
+// Parses the DTO's fullName back into name parts for the edit/view forms.
+// PatientService builds fullName as:
+//   lastName + ", " + firstName + " " + (middleName ?? "")
+// e.g. "Santos, Maria Luisa" or "Santos, Maria "
+// Strategy: split on the first ", " to get lastName; then split the remainder
+// on the first space to get firstName and optional middleName.
+function parseFullName(fullName = "") {
+  if (!fullName) return { firstName: "", middleName: "", lastName: "" };
+
+  const commaIdx = fullName.indexOf(", ");
+  if (commaIdx === -1) return { firstName: fullName.trim(), middleName: "", lastName: "" };
+
+  const lastName  = fullName.slice(0, commaIdx).trim();
+  const remainder = fullName.slice(commaIdx + 2).trim(); // "firstName middleName" or "firstName "
+
+  // Split only on the FIRST space — firstName is always one word,
+  // everything after (if any) is the middle name.
+  const spaceIdx = remainder.indexOf(" ");
+  if (spaceIdx === -1) {
+    return { firstName: remainder, middleName: "", lastName };
+  }
+
+  const firstName  = remainder.slice(0, spaceIdx).trim();
+  const middleName = remainder.slice(spaceIdx + 1).trim(); // may be "" if backend appended a trailing space
+  return { firstName, middleName, lastName };
+}
+
+// Maps PatientResponseDTO → flat local object used throughout the component.
 function mapPatient(p) {
+  const { firstName, middleName, lastName } = parseFullName(p.fullName);
   return {
-    id:        p.patientId,
-    name:      p.name            ?? "",
-    address:   p.address         ?? "",
-    contact:   p.contactNumber   ?? "",   // DTO: contactNumber
-    birthdate: p.birthDate       ?? "",   // DTO: birthDate (LocalDate → "YYYY-MM-DD")
-    sex:       p.sex             ?? "",   // DTO: sex (Sex enum → string)
-    archived:  p.patientStatus === "Archived",  // DTO: patientStatus
+    id:          p.patientId,
+    name:        p.fullName       ?? "",
+    firstName,
+    middleName,
+    lastName,
+    address:     p.address        ?? "",
+    contact:     p.contactNumber  ?? "",
+    birthdate:   p.birthDate      ?? "",   // LocalDate → "YYYY-MM-DD"
+    sex:         p.sex            ?? "",   // Sex enum → string
+    archived:    p.patientStatus === "Archived",
   };
 }
 
@@ -63,44 +95,38 @@ function mapPatient(p) {
 function formatBirthdate(iso) {
   if (!iso) return "—";
   const date = new Date(iso.includes("T") ? iso : iso + "T00:00:00");
-  return date.toLocaleDateString("en-US", {
-    month: "long",
-    day:   "numeric",
-    year:  "numeric",
-  });
+  return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }
 
 // ─── VALIDATION ───────────────────────────────────────────────────────────────
 // Mirrors PatientService validation rules:
-//   - name: not blank, max 100
-//   - contactNumber: not blank, exactly 11 digits (service rejects < 11)
-//   - address, birthDate, sex: required / not null
+//   - firstName, lastName: required, not blank
+//   - contactNumber: required, exactly 11 digits (service rejects < 11)
+//   - address, birthDate, sex: required
 
 const patientSchema = Yup.object({
-  name:      Yup.string()
-    .required("Full name is required")
-    .max(100, "Name must be at most 100 characters"),
-  address:   Yup.string().required("Address is required"),
-  contact:   Yup.string()
+  firstName:  Yup.string().trim().required("First name is required").max(100),
+  middleName: Yup.string(),                               // optional — backend allows null
+  lastName:   Yup.string().trim().required("Last name is required").max(100),
+  address:    Yup.string().trim().required("Address is required"),
+  contact:    Yup.string()
     .required("Contact number is required")
     .matches(/^\d{11}$/, "Contact number must be exactly 11 digits"),
-  birthdate: Yup.string().required("Date of birth is required"),
-  sex:       Yup.string().required("Sex is required"),
+  birthdate:  Yup.string().required("Date of birth is required"),
+  sex:        Yup.string().required("Sex is required"),
 });
 
 // ─── EDIT FORM ────────────────────────────────────────────────────────────────
-// No create form — PatientController has no POST endpoint.
-// Edit sends: { name, address, contactNumber, birthDate, sex }
-// matching Patients model setters used in PatientService.updatePatient().
 
 function PatientForm({
-  initialValues = { name: "", address: "", contact: "", birthdate: "", sex: "" },
+  initialValues = { firstName: "", middleName: "", lastName: "", address: "", contact: "", birthdate: "", sex: "" },
   submitLabel   = "Save Changes",
   onSubmit,
   onClose,
 }) {
   const formik = useFormik({
     initialValues,
+    enableReinitialize: true,   // FIX: repopulate form when editPatient changes
     validationSchema: patientSchema,
     onSubmit: async (values, { setSubmitting }) => {
       try {
@@ -118,16 +144,36 @@ function PatientForm({
   return (
     <form onSubmit={formik.handleSubmit} noValidate className="space-y-4">
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <FormField label="Full Name" error={formik.touched.name && formik.errors.name}>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <FormField label="First Name" error={formik.touched.firstName && formik.errors.firstName}>
           <input
             type="text"
-            placeholder="Full Name"
-            className={ic("name")}
-            {...formik.getFieldProps("name")}
+            placeholder="First Name"
+            className={ic("firstName")}
+            {...formik.getFieldProps("firstName")}
           />
         </FormField>
 
+        <FormField label="Middle Name" error={formik.touched.middleName && formik.errors.middleName}>
+          <input
+            type="text"
+            placeholder="Middle Name (optional)"
+            className={ic("middleName")}
+            {...formik.getFieldProps("middleName")}
+          />
+        </FormField>
+
+        <FormField label="Last Name" error={formik.touched.lastName && formik.errors.lastName}>
+          <input
+            type="text"
+            placeholder="Last Name"
+            className={ic("lastName")}
+            {...formik.getFieldProps("lastName")}
+          />
+        </FormField>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Contact Number" error={formik.touched.contact && formik.errors.contact}>
           <input
             type="text"
@@ -135,16 +181,6 @@ function PatientForm({
             maxLength={11}
             className={ic("contact")}
             {...formik.getFieldProps("contact")}
-          />
-        </FormField>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <FormField label="Date of Birth" error={formik.touched.birthdate && formik.errors.birthdate}>
-          <input
-            type="date"
-            className={ic("birthdate")}
-            {...formik.getFieldProps("birthdate")}
           />
         </FormField>
 
@@ -167,17 +203,27 @@ function PatientForm({
         </FormField>
       </div>
 
-      <FormField label="Address" error={formik.touched.address && formik.errors.address}>
-        <input
-          type="text"
-          placeholder="Address"
-          className={ic("address")}
-          {...formik.getFieldProps("address")}
-        />
-      </FormField>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <FormField label="Date of Birth" error={formik.touched.birthdate && formik.errors.birthdate}>
+          <input
+            type="date"
+            className={ic("birthdate")}
+            {...formik.getFieldProps("birthdate")}
+          />
+        </FormField>
+
+        <FormField label="Address" error={formik.touched.address && formik.errors.address}>
+          <input
+            type="text"
+            placeholder="Address"
+            className={ic("address")}
+            {...formik.getFieldProps("address")}
+          />
+        </FormField>
+      </div>
 
       <ModalFooter
-        onClear={() => formik.resetForm()}
+        onClear={() => formik.resetForm({ values: initialValues })}
         submitLabel={submitLabel}
         submitting={formik.isSubmitting}
       />
@@ -191,36 +237,46 @@ function ViewPatientModal({ patient, onClose }) {
   const ro = readonlyInputClass;
 
   return (
-    <Modal title="View Patient" onClose={onClose} maxWidth="max-w-lg" scrollable>
+    <Modal title="View Patient Information" onClose={onClose} scrollable>
       <div className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label className="block text-sm font-semibold text-primary mb-1.5">Full Name</label>
-            <input readOnly value={patient.name || "—"} className={ro} />
+            <label className="block text-sm font-semibold text-primary mb-1.5">First Name</label>
+            <input readOnly disabled value={patient.firstName || "—"} className={ro} />
           </div>
           <div>
+            <label className="block text-sm font-semibold text-primary mb-1.5">Middle Name</label>
+            <input readOnly disabled value={patient.middleName || "—"} className={ro} />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-primary mb-1.5">Last Name</label>
+            <input readOnly disabled value={patient.lastName || "—"} className={ro} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
             <label className="block text-sm font-semibold text-primary mb-1.5">Contact Number</label>
-            <input readOnly value={patient.contact || "—"} className={ro} />
+            <input readOnly disabled value={patient.contact || "—"} className={ro} />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-primary mb-1.5">Sex</label>
+            <input readOnly disabled value={patient.sex || "—"} className={ro} />
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-semibold text-primary mb-1.5">Date of Birth</label>
-            <input readOnly value={formatBirthdate(patient.birthdate)} className={ro} />
+            <input readOnly disabled value={formatBirthdate(patient.birthdate)} className={ro} />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-primary mb-1.5">Sex</label>
-            <input readOnly value={patient.sex || "—"} className={ro} />
+            <label className="block text-sm font-semibold text-primary mb-1.5">Address</label>
+            <input readOnly disabled value={patient.address || "—"} className={ro} />
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-semibold text-primary mb-1.5">Address</label>
-          <input readOnly value={patient.address || "—"} className={ro} />
-        </div>
-
-        <ModalFooter onClose={onClose} />
       </div>
     </Modal>
   );
@@ -231,45 +287,59 @@ function ViewPatientModal({ patient, onClose }) {
 export default function PatientManagement() {
   const [activeTab,     setActiveTab]     = useState("All");
   const [searchQuery,   setSearchQuery]   = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState(""); // FIX: debounce search
   const [viewPatient,   setViewPatient]   = useState(null);
   const [editPatient,   setEditPatient]   = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
   const [patients,      setPatients]      = useState([]);
   const [loading,       setLoading]       = useState(false);
+  const [error,         setError]         = useState(null);
   const [page,          setPage]          = useState(1);
   const [totalPages,    setTotalPages]    = useState(1);
 
-  // Reset to page 1 whenever tab or search changes
+  // FIX: debounce search input — only fire fetch 400ms after user stops typing
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
+
+  // Reset to page 1 whenever tab or debounced search changes
   useEffect(() => {
     setPage(1);
-  }, [activeTab, searchQuery]);
+    setError(null);
+  }, [activeTab, debouncedSearch]);
 
-  useEffect(() => {
-    fetchPatients();
-  }, [activeTab, searchQuery, page]);
+  // FIX: memoize the patientStatus param so useCallback has a stable primitive dep
+  const patientStatusParam = useMemo(() => {
+    if (debouncedSearch.trim()) return null; // search endpoint doesn't take a status param
+    return activeTab === "Archived" ? "Archived" : null; // null → backend uses hasStatus(null) → excludes Archived
+  }, [activeTab, debouncedSearch]);
 
   // ─── FETCH ──────────────────────────────────────────────────────────────────
-  // GET /api/getPatients?patientStatus=Active|Archived&page=N&size=10&sort=name,asc
-  // GET /api/searchPatient/{name}?page=N&size=10
+  // GET /api/getPatients?patientStatus=&page=&size=&sort=   (no search)
+  // GET /api/searchPatient/{name}?page=&size=&sort=          (with search)
   // Response: Page<PatientResponseDTO>
-  // DTO: { patientId, name, address, contactNumber, birthDate, sex, patientStatus }
-
+  //
+  // FIX: useCallback was declared AFTER the useEffect that called it — moved up.
+  // FIX: dep array now uses stable primitives (patientStatusParam, debouncedSearch, page).
+  // FIX: removed the duplicate useEffect([activeTab, searchQuery, page]) that caused double fetches.
   const fetchPatients = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const url = searchQuery.trim()
-        ? `/api/searchPatient/${encodeURIComponent(searchQuery.trim())}`
+      const trimmed = debouncedSearch.trim();
+      const url     = trimmed
+        ? `/api/searchPatient/${encodeURIComponent(trimmed)}`
         : `/api/getPatients`;
 
       const params = {
-        page: page - 1,   // backend is 0-indexed (Spring Pageable)
+        page: page - 1,      // Spring Pageable is 0-indexed
         size: PAGE_SIZE,
-        sort: "name,asc",
-        // Only pass patientStatus on the base fetch, not on search.
-        // Search endpoint (searchByNameContaining) searches across all statuses.
-        ...(searchQuery.trim() ? {} : {
-          patientStatus: activeTab === "Archived" ? "Archived" : "Active",
-        }),
+        sort: "lastName,asc",
+        // FIX: only pass patientStatus when NOT searching and a specific status is needed.
+        // When null, the backend's PatientSpecification.hasStatus(null) excludes Archived
+        // records automatically — no need to send "Active" explicitly.
+        ...(patientStatusParam && { patientStatus: patientStatusParam }),
       };
 
       const res      = await axios.get(url, { headers: getAuthHeader(), params });
@@ -280,22 +350,30 @@ export default function PatientManagement() {
       setTotalPages(pageData?.totalPages ?? 1);
     } catch (err) {
       console.error("Failed to fetch patients:", err);
+      setError("Failed to load patients. Please try again.");
       setPatients([]);
       setTotalPages(1);
     } finally {
       setLoading(false);
     }
-  }, [activeTab, searchQuery, page]);
+  }, [debouncedSearch, patientStatusParam, page]);
+
+  // FIX: single useEffect depending on the useCallback ref — no duplicate fetch
+  useEffect(() => {
+    fetchPatients();
+  }, [fetchPatients]);
 
   // When searching, the backend returns all statuses — filter client-side by tab.
-  const displayed = searchQuery.trim()
+  // When not searching, the backend already scopes by status.
+  const displayed = debouncedSearch.trim()
     ? patients.filter((p) => activeTab === "Archived" ? p.archived : !p.archived)
     : patients;
 
-  // ─── ACTIONS ─────────────────────────────────────────────────────────────────
+  // ─── ACTIONS ────────────────────────────────────────────────────────────────
 
   function handleAction(action, patient) {
     if (action === "Edit")      return setEditPatient(patient);
+    if (action === "View")      return setViewPatient(patient);
     if (action === "Archive")   return setConfirmAction({ type: "archive",   patient });
     if (action === "Unarchive") return setConfirmAction({ type: "unarchive", patient });
   }
@@ -304,19 +382,19 @@ export default function PatientManagement() {
   // PUT /api/restorePatient/{patientId}
   async function applyConfirm() {
     const { type, patient } = confirmAction;
-    try {
-      const endpoint =
-        type === "archive"
-          ? `/api/archivePatient/${patient.id}`
-          : `/api/restorePatient/${patient.id}`;
+    const endpoint =
+      type === "archive"
+        ? `/api/archivePatient/${patient.id}`
+        : `/api/restorePatient/${patient.id}`;
 
+    try {
       await axios.put(endpoint, null, {
         headers: { ...getAuthHeader(), "Content-Type": "application/json" },
       });
-
       await fetchPatients();
     } catch (err) {
       console.error(`Failed to ${type} patient:`, err);
+      setError(`Failed to ${type} patient. Please try again.`);
     } finally {
       setConfirmAction(null);
     }
@@ -335,9 +413,16 @@ export default function PatientManagement() {
         activeTab={activeTab}
         onTabChange={(tab) => {
           setActiveTab(tab);
-          setSearchQuery("");  // clear search when switching tabs
+          setSearchQuery("");
         }}
       />
+
+      {/* Error banner */}
+      {error && (
+        <div className="mb-4 px-4 py-3 rounded-md bg-red-50 border border-red-200 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       <DataTable
         columns={["Full Name", "Contact", "Birthdate", "Address", "Sex", "Action"]}
@@ -376,7 +461,7 @@ export default function PatientManagement() {
         )}
       />
 
-      {/* ── VIEW MODAL ─────────────────────────────────────────────────────── */}
+      {/* ── VIEW MODAL ────────────────────────────────────────────────────── */}
       {viewPatient && (
         <ViewPatientModal
           patient={viewPatient}
@@ -384,31 +469,36 @@ export default function PatientManagement() {
         />
       )}
 
-      {/* ── EDIT MODAL ─────────────────────────────────────────────────────── */}
+      {/* ── EDIT MODAL ────────────────────────────────────────────────────── */}
       {/* PUT /api/updatePatient/{patientId}
-          Body (Patients model fields): { name, address, contactNumber, birthDate, sex }
-          - sex must match Sex enum name: "Male" | "Female"
-          - birthDate: "YYYY-MM-DD" string (Spring deserializes LocalDate from ISO) */}
+          Body uses Patients model field names:
+            firstName, middleName, lastName, address, contactNumber, birthDate, sex */}
       {editPatient && (
         <Modal title="Edit Patient Information" onClose={() => setEditPatient(null)} scrollable>
           <PatientForm
             initialValues={{
-              name:      editPatient.name,
-              address:   editPatient.address,
-              contact:   editPatient.contact,
-              birthdate: editPatient.birthdate,
-              sex:       editPatient.sex,
+              firstName:  editPatient.firstName,
+              middleName: editPatient.middleName,
+              lastName:   editPatient.lastName,
+              address:    editPatient.address,
+              contact:    editPatient.contact,
+              birthdate:  editPatient.birthdate,
+              sex:        editPatient.sex,
             }}
             submitLabel="Save Changes"
             onSubmit={async (values) => {
+              // FIX: field names match the Patients entity — not the DTO.
+              // contactNumber (not contact), birthDate (not birthdate), sex is the Sex enum.
               await axios.put(
                 `/api/updatePatient/${editPatient.id}`,
                 {
-                  name:          values.name,
-                  address:       values.address,
-                  contactNumber: values.contact,   // Patients model field: contactNumber
-                  birthDate:     values.birthdate, // Patients model field: birthDate (LocalDate)
-                  sex:           values.sex,       // Patients model field: sex (Sex enum)
+                  firstName:     values.firstName.trim(),
+                  middleName:    values.middleName?.trim() || null,
+                  lastName:      values.lastName.trim(),
+                  address:       values.address.trim(),
+                  contactNumber: values.contact,
+                  birthDate:     values.birthdate,   // "YYYY-MM-DD" — matches LocalDate
+                  sex:           values.sex,          // "Male" | "Female" — matches Sex enum
                 },
                 { headers: getAuthHeader() }
               );
@@ -419,7 +509,7 @@ export default function PatientManagement() {
         </Modal>
       )}
 
-      {/* ── CONFIRM DIALOG ─────────────────────────────────────────────────── */}
+      {/* ── CONFIRM DIALOG ────────────────────────────────────────────────── */}
       {confirmAction && (
         <ConfirmDialog
           title={confirmAction.type === "archive" ? "Archive Patient?" : "Unarchive Patient?"}

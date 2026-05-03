@@ -1,6 +1,50 @@
 import { Component } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
+// ── JWT helpers ───────────────────────────────────────────────────────────────
+
+function decodeJwtPayload(token) {
+  try {
+    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(base64));
+  } catch {
+    return null;
+  }
+}
+
+function isTokenExpired(token) {
+  const payload = decodeJwtPayload(token);
+  if (!payload || !payload.exp) return true;
+  // exp is in seconds; Date.now() is in ms
+  return payload.exp * 1000 < Date.now();
+}
+
+// Returns the clean role string from either the JWT or localStorage fallback.
+// JwtService.java stores authorities as [{ authority: "ROLE_ADMIN" }].
+function getRoleFromToken(token) {
+  const payload = decodeJwtPayload(token);
+  if (!payload) return localStorage.getItem("userRole") ?? "";
+
+  const raw = payload.role ?? payload.roles ?? payload.authorities ?? payload.authority;
+  if (!raw) return localStorage.getItem("userRole") ?? "";
+
+  if (Array.isArray(raw) && raw.length > 0) {
+    const first = raw[0];
+    // [{ authority: "ROLE_ADMIN" }]
+    if (typeof first === "object") return (first.authority ?? "").replace(/^ROLE_/i, "");
+    // ["ADMIN"]
+    return String(first).replace(/^ROLE_/i, "");
+  }
+  return String(raw).replace(/^ROLE_/i, "");
+}
+
+// Clears all auth keys from localStorage (mirrors handleSignOut in index.jsx)
+function clearAuth() {
+  ["token", "userName", "userRole", "departmentName"].forEach((k) =>
+    localStorage.removeItem(k)
+  );
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 import Loginpage from "./components/auth/Loginpage";
 
@@ -24,11 +68,9 @@ import FrontdeskDashboard              from "./components/frontdesk/FrontdeskDas
 import FrontdeskScheduleManagement     from "./components/frontdesk/FrontdeskScheduleManagement";
 import FrontdeskProfessionalManagement from "./components/frontdesk/FrontdeskProfessionalManagement";
 import FrontdeskMachineManagement      from "./components/frontdesk/FrontdeskMachineManagement";
-import FrontdeskModalityManagement     from "./components/frontdesk/FrontdeskModalityManagement";
 import FrontdeskRoomManagement         from "./components/frontdesk/FrontdeskRoomManagement";
 
-// ── Error Boundary ────────────────────────────────────────────────────────────
-// Catches any runtime crash and shows a readable message instead of a white screen.
+
 class ErrorBoundary extends Component {
   state = { hasError: false, error: null };
 
@@ -61,11 +103,50 @@ class ErrorBoundary extends Component {
   }
 }
 
-// ── Private Route ─────────────────────────────────────────────────────────────
-// Redirects unauthenticated users to login instead of showing a white screen.
-function PrivateRoute({ children }) {
+
+
+function AdminRoute({ children }) {
   const token = localStorage.getItem("token");
-  return token ? children : <Navigate to="/" replace />;
+
+  if (!token) {
+    clearAuth();
+    return <Navigate to="/" replace />;
+  }
+
+  if (isTokenExpired(token)) {
+    clearAuth();
+    return <Navigate to="/" replace />;
+  }
+
+  const role = getRoleFromToken(token).toLowerCase();
+  if (role !== "admin" && role !== "administrator") {
+    // Non-admin lands on their own dashboard instead of a blank page
+    return <Navigate to="/frontdesk/dashboard" replace />;
+  }
+
+  return children;
+}
+
+function FrontdeskRoute({ children }) {
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    clearAuth();
+    return <Navigate to="/" replace />;
+  }
+
+  if (isTokenExpired(token)) {
+    clearAuth();
+    return <Navigate to="/" replace />;
+  }
+
+  const role = getRoleFromToken(token).toLowerCase();
+  if (role === "admin" || role === "administrator") {
+    // Admin accidentally on a frontdesk URL → send to admin dashboard
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  return children;
 }
 
 export default function App() {
@@ -81,27 +162,26 @@ export default function App() {
           <Route path="/user-management" element={<Navigate to="/admin/user-management" replace />} />
 
           {/* ── Admin ── */}
-          <Route path="/admin/dashboard"             element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
-          <Route path="/admin/schedules"             element={<PrivateRoute><AdminScheduleManagement /></PrivateRoute>} />
-          <Route path="/admin/user-management"       element={<PrivateRoute><UserManagement /></PrivateRoute>} />
-          <Route path="/admin/department-management" element={<PrivateRoute><DepartmentManagement /></PrivateRoute>} />
-          <Route path="/admin/role-management"       element={<PrivateRoute><RoleManagement /></PrivateRoute>} />
-          <Route path="/admin/machine-management"    element={<PrivateRoute><MachineManagement /></PrivateRoute>} />
-          <Route path="/admin/modality-management"   element={<PrivateRoute><ModalityManagement /></PrivateRoute>} />
-          <Route path="/admin/medical-professionals" element={<PrivateRoute><ProfessionalManagement /></PrivateRoute>} />
-          <Route path="/admin/hospitalization-plans" element={<PrivateRoute><HospitalizationPlanManagement /></PrivateRoute>} />
-          <Route path="/admin/hospitalization-types" element={<PrivateRoute><HospitalizationCaseTypeManagement /></PrivateRoute>} />
-          <Route path="/admin/patient-management"    element={<PrivateRoute><PatientManagement /></PrivateRoute>} />
-          <Route path="/admin/room-management"       element={<PrivateRoute><RoomManagement /></PrivateRoute>} />
-          <Route path="/admin/activity-logs"         element={<PrivateRoute><ActivityLogs /></PrivateRoute>} />
+          <Route path="/admin/dashboard"             element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+          <Route path="/admin/schedules"             element={<AdminRoute><AdminScheduleManagement /></AdminRoute>} />
+          <Route path="/admin/user-management"       element={<AdminRoute><UserManagement /></AdminRoute>} />
+          <Route path="/admin/department-management" element={<AdminRoute><DepartmentManagement /></AdminRoute>} />
+          <Route path="/admin/role-management"       element={<AdminRoute><RoleManagement /></AdminRoute>} />
+          <Route path="/admin/machine-management"    element={<AdminRoute><MachineManagement /></AdminRoute>} />
+          <Route path="/admin/modality-management"   element={<AdminRoute><ModalityManagement /></AdminRoute>} />
+          <Route path="/admin/medical-professionals" element={<AdminRoute><ProfessionalManagement /></AdminRoute>} />
+          <Route path="/admin/hospitalization-plans" element={<AdminRoute><HospitalizationPlanManagement /></AdminRoute>} />
+          <Route path="/admin/hospitalization-types" element={<AdminRoute><HospitalizationCaseTypeManagement /></AdminRoute>} />
+          <Route path="/admin/patient-management"    element={<AdminRoute><PatientManagement /></AdminRoute>} />
+          <Route path="/admin/room-management"       element={<AdminRoute><RoomManagement /></AdminRoute>} />
+          <Route path="/admin/activity-logs"         element={<AdminRoute><ActivityLogs /></AdminRoute>} />
 
           {/* ── Frontdesk — single route set for every department ── */}
-          <Route path="/frontdesk/dashboard"     element={<PrivateRoute><FrontdeskDashboard /></PrivateRoute>} />
-          <Route path="/frontdesk/schedules"     element={<PrivateRoute><FrontdeskScheduleManagement /></PrivateRoute>} />
-          <Route path="/frontdesk/professionals" element={<PrivateRoute><FrontdeskProfessionalManagement /></PrivateRoute>} />
-          <Route path="/frontdesk/machines"      element={<PrivateRoute><FrontdeskMachineManagement /></PrivateRoute>} />
-          <Route path="/frontdesk/modalities"    element={<PrivateRoute><FrontdeskModalityManagement /></PrivateRoute>} />
-          <Route path="/frontdesk/rooms"         element={<PrivateRoute><FrontdeskRoomManagement /></PrivateRoute>} />
+          <Route path="/frontdesk/dashboard"     element={<FrontdeskRoute><FrontdeskDashboard /></FrontdeskRoute>} />
+          <Route path="/frontdesk/schedules"     element={<FrontdeskRoute><FrontdeskScheduleManagement /></FrontdeskRoute>} />
+          <Route path="/frontdesk/professionals" element={<FrontdeskRoute><FrontdeskProfessionalManagement /></FrontdeskRoute>} />
+          <Route path="/frontdesk/machines"      element={<FrontdeskRoute><FrontdeskMachineManagement /></FrontdeskRoute>} />
+          <Route path="/frontdesk/rooms"         element={<FrontdeskRoute><FrontdeskRoomManagement /></FrontdeskRoute>} />
 
           {/* ── Legacy redirects — old Radiology / Rehab URLs → unified ── */}
           <Route path="/radiology/dashboard"          element={<Navigate to="/frontdesk/dashboard"     replace />} />

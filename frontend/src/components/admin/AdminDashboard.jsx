@@ -1,8 +1,8 @@
 import axios from "../../config/axiosInstance";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
-  UserCheck, UserX, Clock, ChevronDown, FileDown,
+  UserCheck, UserX, Clock, ChevronDown, ChevronRight, FileDown, AlertCircle,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -14,79 +14,64 @@ import {
   scheduleStatusColor,
 } from "../ui";
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
 const TIME_FRAMES = ["Daily", "Weekly", "Monthly", "Yearly", "Overall"];
 
-// Statuses we care about for chart + stat cards
-const TRACKED_STATUSES = ["Scheduled", "Confirmed", "Cancelled", "Done"];
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-function DepartmentDropdown({ value, onChange, departments }) {
-  const [open, setOpen] = useState(false);
-  const ref             = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const label = value === "all"
-    ? "All Departments"
-    : departments.find((d) => String(d.departmentId) === String(value))?.departmentName ?? "All Departments";
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary transition-colors cursor-pointer whitespace-nowrap"
-      >
-        {label}
-        <ChevronDown size={14} className="text-gray-400" />
-      </button>
-
-      {open && (
-        <div className="absolute left-0 mt-1.5 w-auto bg-white rounded-xl shadow-card border border-gray-100 py-1 z-50">
-          <button
-            onClick={() => { onChange("all"); setOpen(false); }}
-            className={`w-full text-left px-4 py-2.5 text-sm transition-colors whitespace-nowrap
-              ${value === "all"
-                ? "text-primary font-semibold bg-primary/5"
-                : "text-gray-600 hover:bg-primary/5 hover:text-primary"}`}
-          >
-            All Departments
-          </button>
-          {departments.map((d) => (
-            <button
-              key={d.departmentId}
-              onClick={() => { onChange(String(d.departmentId)); setOpen(false); }}
-              className={`w-full text-left px-4 py-2.5 text-sm transition-colors whitespace-nowrap
-                ${String(value) === String(d.departmentId)
-                  ? "text-primary font-semibold bg-primary/5"
-                  : "text-gray-600 hover:bg-primary/5 hover:text-primary"}`}
-            >
-              {d.departmentName}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+function getAuthHeader() {
+  const token = localStorage.getItem("token");
+  return { Authorization: `Bearer ${token}` };
 }
 
+function parseDT(raw) {
+  if (!raw) return null;
+  if (Array.isArray(raw)) {
+    const [y, mo, d, h = 0, mi = 0] = raw;
+    return new Date(y, mo - 1, d, h, mi);
+  }
+  const str = String(raw).replace(" ", "T").split(".")[0];
+  const dt  = new Date(str);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
+function fmtDate(raw) {
+  const d = parseDT(raw);
+  if (!d) return "—";
+  return d.toLocaleDateString("en-CA", { month: "2-digit", day: "2-digit", year: "numeric" });
+}
+
+function fmtTime(raw) {
+  const d = parseDT(raw);
+  if (!d) return "";
+  return d.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true });
+}
+
+function toDateStr(raw) {
+  const d = typeof raw === "object" && raw instanceof Date ? raw : parseDT(raw);
+  if (!d) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function isStatus(s, status) {
+  return (s.scheduleStatus ?? "").toLowerCase() === status.toLowerCase();
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 
 function LoadingSkeleton() {
   return (
     <div className="animate-pulse">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
-        {[1, 2, 3].map((i) => (
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6 mb-6">
+        {[1, 2, 3, 4].map((i) => (
           <div key={i} className="bg-white rounded-2xl p-6 shadow-card h-32">
             <div className="h-4 bg-gray-200 rounded w-1/3 mb-4" />
             <div className="h-8 bg-gray-200 rounded w-1/2" />
           </div>
         ))}
       </div>
-      <div className="bg-white rounded-2xl shadow-card p-6 mb-6 h-[420px]">
+      <div className="bg-white rounded-2xl shadow-card p-6 mb-6 h-[500px]">
         <div className="h-6 bg-gray-200 rounded w-1/4 mb-4" />
         <div className="h-full bg-gray-100 rounded" />
       </div>
@@ -94,104 +79,306 @@ function LoadingSkeleton() {
   );
 }
 
+function ErrorMessage({ message, onRetry }) {
+  return (
+    <div className="bg-red-50 border border-red-200 rounded-2xl p-6 mb-6">
+      <div className="flex items-start gap-3">
+        <AlertCircle className="w-6 h-6 text-red-500 shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <h3 className="text-sm font-semibold text-red-800 mb-1">Error Loading Dashboard</h3>
+          <p className="text-sm text-red-600 mb-3">{message}</p>
+          <button
+            onClick={onRetry}
+            className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 text-sm font-medium rounded-lg transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── CascadingDropdown ─────────────────────────────────────────────────────────
+//
+//  Two-level fly-out inspired by the screenshot's platform mega-menu:
+//
+//    [All Departments ▾]
+//      ├─ All Departments
+//      ├─ Radiology          ▶  ┌───────────────────┐
+//      │                       │ All Modalities      │
+//      └─ Rehabilitation   ▶   │ CT Scan             │
+//                              │ MRI                 │
+//                              └───────────────────┘
+//
+//  selectedDept  = departmentName | ""  (empty = All)
+//  selectedModal = modalityName   | ""  (empty = All for that dept)
+
+function CascadingDropdown({
+  departments,        // [{ departmentId, departmentName }]
+  modalitiesByDept,   // { [deptName]: [{ modalityId, modalityName }] }
+  selectedDept,
+  selectedModal,
+  onSelect,           // ({ dept, modal }) => void
+}) {
+  const [open,        setOpen]        = useState(false);
+  const [hoveredDept, setHoveredDept] = useState(null);
+  const rootRef  = useRef(null);
+  const subTimer = useRef(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) {
+        setOpen(false);
+        setHoveredDept(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  // Trigger label
+  const triggerLabel = selectedModal
+    ? `${selectedDept} › ${selectedModal}`
+    : selectedDept || "All Departments";
+
+  function close() { setOpen(false); setHoveredDept(null); }
+
+  function handleSelectAll()                         { onSelect({ dept: "", modal: "" });             close(); }
+  function handleSelectDept(deptName)                { onSelect({ dept: deptName, modal: "" });        close(); }
+  function handleSelectModal(deptName, modalName)    { onSelect({ dept: deptName, modal: modalName }); close(); }
+
+  function handleDeptEnter(deptName) {
+    clearTimeout(subTimer.current);
+    setHoveredDept(deptName);
+  }
+  function handleDeptLeave() {
+    subTimer.current = setTimeout(() => setHoveredDept(null), 120);
+  }
+  function handleSubEnter() { clearTimeout(subTimer.current); }
+
+  const itemCls = (active) =>
+    `w-full text-left px-4 py-2.5 text-sm transition-colors cursor-pointer whitespace-nowrap
+     ${active
+       ? "font-semibold text-primary bg-primary/5"
+       : "text-gray-600 hover:bg-primary/5 hover:text-primary"}`;
+
+  return (
+    <div className="relative inline-block" ref={rootRef}>
+      {/* Trigger button */}
+      <button
+        onClick={() => { setOpen((v) => !v); setHoveredDept(null); }}
+        className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary transition-colors cursor-pointer whitespace-nowrap"
+      >
+        {triggerLabel}
+        <ChevronDown
+          size={14}
+          className={`text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {/* Primary dropdown panel */}
+      {open && (
+        <div className="absolute left-0 top-full mt-1.5 bg-white rounded-xl shadow-card border border-gray-100 py-1 z-50 min-w-[190px]">
+
+          {/* "All Departments" row */}
+          <button
+            onClick={handleSelectAll}
+            className={itemCls(!selectedDept && !selectedModal)}
+          >
+            All Departments
+          </button>
+
+          {/* One row per department */}
+          {departments.map((dept) => {
+            const deptName   = dept.departmentName;
+            const modalities = modalitiesByDept[deptName] ?? [];
+            const hasModals  = modalities.length > 0;
+            const isActive   = selectedDept === deptName && !selectedModal;
+
+            return (
+              <div
+                key={dept.departmentId}
+                className="relative"
+                onMouseEnter={() => hasModals && handleDeptEnter(deptName)}
+                onMouseLeave={() => hasModals && handleDeptLeave()}
+              >
+                {/* Department row */}
+                <button
+                  onClick={() => handleSelectDept(deptName)}
+                  className={`${itemCls(isActive)} flex items-center justify-between gap-6`}
+                >
+                  <span>{deptName}</span>
+                  {hasModals && (
+                    <ChevronRight size={13} className="text-gray-400 shrink-0" />
+                  )}
+                </button>
+
+                {/* Sub-menu: modalities for this dept */}
+                {hasModals && hoveredDept === deptName && (
+                  <div
+                    className="absolute left-full top-0 ml-1 bg-white rounded-xl shadow-card border border-gray-100 py-1 z-50 min-w-[170px]"
+                    onMouseEnter={handleSubEnter}
+                    onMouseLeave={handleDeptLeave}
+                  >
+                    {/* "All Modalities" shortcut — selects dept only */}
+                    <button
+                      onClick={() => handleSelectDept(deptName)}
+                      className={itemCls(selectedDept === deptName && !selectedModal)}
+                    >
+                      All Modalities
+                    </button>
+
+                    {modalities.map((m) => (
+                      <button
+                        key={m.modalityId}
+                        onClick={() => handleSelectModal(deptName, m.modalityName)}
+                        className={itemCls(
+                          selectedDept === deptName && selectedModal === m.modalityName
+                        )}
+                      >
+                        {m.modalityName}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
-  const [activeTimeFrame, setActiveTimeFrame] = useState("Daily");
-  const [deptFilter,      setDeptFilter]      = useState("all");
-  const [departments,     setDepartments]     = useState([]);
-  const [stats,           setStats]           = useState({ confirmed: 0, cancelled: 0, scheduled: 0 });
-  const [chartData,       setChartData]       = useState([]);
-  const [chartDate,       setChartDate]       = useState("");
-  const [recentSchedules, setRecentSchedules] = useState([]);
-  const [loading,         setLoading]         = useState(true);
-  const [pdfLoading,      setPdfLoading]      = useState(false);
+  const [activeTimeFrame,  setActiveTimeFrame]  = useState("Daily");
+  const [selectedDept,     setSelectedDept]     = useState("");  // "" = All
+  const [selectedModal,    setSelectedModal]    = useState("");  // "" = All
+  const [departments,      setDepartments]      = useState([]);
+  const [modalitiesByDept, setModalitiesByDept] = useState({});  // { deptName: [...] }
+  const [stats,            setStats]            = useState({ confirmed: 0, cancelled: 0, scheduled: 0, done: 0 });
+  const [chartData,        setChartData]        = useState([]);
+  const [chartDate,        setChartDate]        = useState("");
+  const [recentSchedules,  setRecentSchedules]  = useState([]);
+  const [loading,          setLoading]          = useState(true);
+  const [error,            setError]            = useState(null);
+  const [pdfLoading,       setPdfLoading]       = useState(false);
 
-  useEffect(() => { fetchDepartments(); }, []);
+  // ── Fetch departments + modalities once ──────────────────────────────────
 
   useEffect(() => {
-    if (departments.length > 0 || deptFilter === "all") fetchDashboardData();
-  }, [activeTimeFrame, deptFilter, departments]);
+    async function fetchDropdownData() {
+      try {
+        const headers = getAuthHeader();
 
-  function getAuthHeader() {
-    const token = localStorage.getItem("token");
-    return { Authorization: `Bearer ${token}` };
-  }
+        const [deptRes, modalRes] = await Promise.all([
+          axios.get("/api/departmentsDropdown", { headers }),
+          axios.get("/api/modalityDropdown",    { headers }),
+        ]);
 
-  // Safely parse a LocalDateTime that may arrive as an array [y,mo,d,h,m] or a string
-  function parseDT(raw) {
-    if (!raw) return null;
-    if (Array.isArray(raw)) {
-      const [y, mo, d, h = 0, mi = 0] = raw;
-      return new Date(y, mo - 1, d, h, mi);
+        const depts = Array.isArray(deptRes.data)
+          ? deptRes.data
+          : deptRes.data?.content ?? [];
+
+        // Only active modalities; group by department name
+        const allModalities = (modalRes.data ?? []).filter(
+          (m) => (m.modalityStatus ?? "").toLowerCase() === "active"
+        );
+        const grouped = {};
+        for (const m of allModalities) {
+          const key = m.departmentName ?? "Unknown";
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(m);
+        }
+
+        setDepartments(depts);
+        setModalitiesByDept(grouped);
+      } catch (err) {
+        console.error("Failed to fetch dropdown data:", err);
+      }
     }
-    const str = String(raw).replace(" ", "T").split(".")[0];
-    const dt  = new Date(str);
-    return isNaN(dt.getTime()) ? null : dt;
-  }
+    fetchDropdownData();
+  }, []);
 
-  function toDateStr(raw) {
-    const d = parseDT(raw);
-    if (!d) return "";
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }
+  // ── Fetch dashboard data ─────────────────────────────────────────────────
 
-  function isStatus(s, status) {
-    return (s.scheduleStatus ?? "").toLowerCase() === status.toLowerCase();
-  }
-
-  async function fetchDashboardData() {
+  const fetchDashboardData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const headers  = getAuthHeader();
-      const filter   = activeTimeFrame.toLowerCase();
-      const deptName = deptFilter === "all"
-        ? undefined
-        : departments.find((d) => String(d.departmentId) === String(deptFilter))?.departmentName;
+      const headers     = getAuthHeader();
+      const filter      = activeTimeFrame.toLowerCase();
+      const deptParam   = selectedDept  ? { departmentName: selectedDept  } : {};
+      const modalParam  = selectedModal ? { modalityName:   selectedModal } : {};
+      const scopeParams = { ...deptParam, ...modalParam };
 
-      // Fetch all schedules for ALL tracked statuses (backend hasStatus() defaults to
-      // Scheduled when null, so we must fetch each status separately and merge).
-      const statusResults = await Promise.all(
-        TRACKED_STATUSES.map((status) =>
-          axios.get("/api/getSchedules", {
-            headers,
-            params: {
-              page: 0,
-              size: 2000,
-              scheduleStatus: status,
-              ...(deptName && { departmentName: deptName }),
-            },
-          })
-        )
-      );
-      const allSched = statusResults.flatMap((res) => res.data?.content ?? []);
-
-      // counts is still used for the Overall chart point — fetch it too
+      // Stat card counts — uses backend aggregation (fast)
       const countsRes = await axios.get("/api/dashboard/counts", {
         headers,
-        params: { filter, ...(deptName && { department: deptName }) },
+        params: { filter, ...scopeParams },
       });
-      const counts = countsRes.data;
+      const counts = countsRes.data ?? {};
+      setStats({
+        scheduled: counts.Scheduled ?? 0,
+        confirmed: counts.Confirmed ?? 0,
+        cancelled: counts.Cancelled ?? 0,
+        done:      counts.Done      ?? 0,
+      });
 
+      // All schedules for chart + recent table (scoped to dept/modality)
+      const schedRes = await axios.get("/api/getSchedules", {
+        headers,
+        params: { page: 0, size: 2000, ...scopeParams },
+      });
+      const allSched = schedRes.data?.content ?? [];
+
+      // ── Recent table — status priority then date asc ─────────────────────
+      const STATUS_PRIORITY = { Scheduled: 0, Confirmed: 1, Cancelled: 2, Done: 3 };
+      const sorted = [...allSched].sort((a, b) => {
+        const pa = STATUS_PRIORITY[a.scheduleStatus] ?? 99;
+        const pb = STATUS_PRIORITY[b.scheduleStatus] ?? 99;
+        if (pa !== pb) return pa - pb;
+        return (parseDT(a.startDateTime)?.getTime() ?? 0) - (parseDT(b.startDateTime)?.getTime() ?? 0);
+      });
+      setRecentSchedules(sorted.slice(0, 5));
+
+      // ── Chart ─────────────────────────────────────────────────────────────
       const now = new Date();
 
-      // ── Pre-filter allSched to the active time window ───────────────────────
-      // This ensures chart and boxes only count records within the selected period.
       function getWindowBounds() {
         if (activeTimeFrame === "Daily") {
-          return { start: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0), end: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999) };
+          return {
+            start: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0),
+            end:   new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999),
+          };
         }
         if (activeTimeFrame === "Weekly") {
-          const monday = new Date(now); monday.setDate(now.getDate() - ((now.getDay() + 6) % 7)); monday.setHours(0, 0, 0, 0);
-          const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23, 59, 59, 999);
+          const monday = new Date(now);
+          monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+          monday.setHours(0, 0, 0, 0);
+          const sunday = new Date(monday);
+          sunday.setDate(monday.getDate() + 6);
+          sunday.setHours(23, 59, 59, 999);
           return { start: monday, end: sunday };
         }
         if (activeTimeFrame === "Monthly") {
-          return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999) };
+          return {
+            start: new Date(now.getFullYear(), now.getMonth(), 1),
+            end:   new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999),
+          };
         }
         if (activeTimeFrame === "Yearly") {
-          return { start: new Date(now.getFullYear(), 0, 1), end: new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999) };
+          return {
+            start: new Date(now.getFullYear(), 0, 1),
+            end:   new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999),
+          };
         }
-        return null; // Overall — no bounds
+        return null; // Overall
       }
 
       const bounds      = getWindowBounds();
@@ -199,36 +386,33 @@ export default function AdminDashboard() {
         ? allSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d >= bounds.start && d <= bounds.end; })
         : allSched;
 
-      function countByWindow(schedules) {
+      function countGroup(list) {
         return {
-          confirmed: schedules.filter((s) => isStatus(s, "Confirmed")).length,
-          cancelled: schedules.filter((s) => isStatus(s, "Cancelled")).length,
-          scheduled: schedules.filter((s) => isStatus(s, "Scheduled")).length,
+          confirmed: list.filter((s) => isStatus(s, "Confirmed")).length,
+          cancelled: list.filter((s) => isStatus(s, "Cancelled")).length,
+          scheduled: list.filter((s) => isStatus(s, "Scheduled")).length,
+          done:      list.filter((s) => isStatus(s, "Done")).length,
         };
       }
 
-      function countByDate(schedules, dateStr) {
-        return countByWindow(schedules.filter((s) => toDateStr(s.startDateTime) === dateStr));
-      }
-
-      // ── Build chart series (always from windowSched) ───────────────────────
-      let series     = [];
-      let rangeLabel = "";
+      let series = [], rangeLabel = "";
 
       if (activeTimeFrame === "Daily") {
         for (let h = 6; h <= 22; h++) {
           const hourSched = windowSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d.getHours() === h; });
           const period = h < 12 ? "AM" : "PM";
           const h12    = h === 0 ? 12 : h > 12 ? h - 12 : h;
-          series.push({ label: `${h12}${period}`, ...countByWindow(hourSched) });
+          series.push({ label: `${h12}${period}`, ...countGroup(hourSched) });
         }
         rangeLabel = now.toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
       } else if (activeTimeFrame === "Weekly") {
-        const monday = new Date(now); monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
         for (let i = 0; i < 7; i++) {
-          const d   = new Date(monday); d.setDate(monday.getDate() + i);
-          series.push({ label: d.toLocaleDateString("en-CA", { weekday: "short" }), ...countByDate(windowSched, toDateStr(d)) });
+          const d    = new Date(monday); d.setDate(monday.getDate() + i);
+          const dStr = toDateStr(d);
+          series.push({ label: d.toLocaleDateString("en-CA", { weekday: "short" }), ...countGroup(windowSched.filter((s) => toDateStr(s.startDateTime) === dStr)) });
         }
         const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
         const fmt    = (d) => d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
@@ -242,7 +426,7 @@ export default function AdminDashboard() {
           const wStart = new Date(cursor);
           const wEnd   = new Date(cursor); wEnd.setDate(wEnd.getDate() + 6);
           if (wEnd > lastDay) wEnd.setTime(lastDay.getTime());
-          series.push({ label: `Week ${weekNum}`, ...countByWindow(windowSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d >= wStart && d <= wEnd; })) });
+          series.push({ label: `Week ${weekNum}`, ...countGroup(windowSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d >= wStart && d <= wEnd; })) });
           cursor.setDate(cursor.getDate() + 7); weekNum++;
         }
         rangeLabel = now.toLocaleDateString("en-CA", { month: "long", year: "numeric" });
@@ -250,102 +434,48 @@ export default function AdminDashboard() {
       } else if (activeTimeFrame === "Yearly") {
         const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
         for (let m = 0; m < 12; m++) {
-          series.push({ label: MONTHS[m], ...countByWindow(windowSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d.getMonth() === m; })) });
+          series.push({ label: MONTHS[m], ...countGroup(windowSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d.getMonth() === m; })) });
         }
         rangeLabel = String(now.getFullYear());
 
       } else {
-        // Overall — all records, no window filter
-        series = [{ label: "Overall", ...countByWindow(windowSched) }];
+        series     = [{ label: "Overall", ...countGroup(windowSched) }];
         rangeLabel = "All Time";
       }
-
-      // ── Stat cards — sum directly from series so boxes always match the chart ──
-      const totals = series.reduce(
-        (acc, pt) => ({
-          confirmed: acc.confirmed + (pt.confirmed ?? 0),
-          cancelled: acc.cancelled + (pt.cancelled ?? 0),
-          scheduled: acc.scheduled + (pt.scheduled ?? 0),
-        }),
-        { confirmed: 0, cancelled: 0, scheduled: 0 }
-      );
-      setStats(totals);
 
       setChartData(series);
       setChartDate(rangeLabel);
 
-      // Recent schedules — Scheduled first, then by date ascending (matches schedule page)
-      const STATUS_PRIORITY = { Scheduled: 0, Confirmed: 1, Cancelled: 2, Done: 3 };
-      const sorted = [...allSched].sort((a, b) => {
-        const pa = STATUS_PRIORITY[a.scheduleStatus] ?? 99;
-        const pb = STATUS_PRIORITY[b.scheduleStatus] ?? 99;
-        if (pa !== pb) return pa - pb;
-        const da = parseDT(a.startDateTime), db = parseDT(b.startDateTime);
-        return (da?.getTime() ?? 0) - (db?.getTime() ?? 0);
-      });
-      setRecentSchedules(sorted.slice(0, 5));
-
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
+      setError(err.response?.data?.message || "Failed to load dashboard data.");
     } finally {
       setLoading(false);
     }
-  }
+  }, [activeTimeFrame, selectedDept, selectedModal]);
 
-  async function fetchDepartments() {
-    try {
-      const res  = await axios.get("/api/departmentsDropdown", { headers: getAuthHeader() });
-      const data = res.data;
-      setDepartments(Array.isArray(data) ? data : data?.content ?? []);
-    } catch (err) {
-      console.error("Failed to fetch departments:", err);
-    }
-  }
+  useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
-  function formatDate(raw) {
-    const d = parseDT(raw);
-    if (!d) return "—";
-    return d.toLocaleDateString("en-CA", { month: "2-digit", day: "2-digit", year: "numeric" });
-  }
-
-  function formatTimeRange(startRaw, endRaw) {
-    const s = parseDT(startRaw), e = parseDT(endRaw);
-    if (!s) return "—";
-    const fmt = (dt) => dt.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true });
-    return `${fmt(s)}${e ? ` - ${fmt(e)}` : ""}`;
-  }
-
-  // Helper to parse LocalDateTime for use in JSX (above)
-  function parseDT(raw) {
-    if (!raw) return null;
-    if (Array.isArray(raw)) {
-      const [y, mo, d, h = 0, mi = 0] = raw;
-      return new Date(y, mo - 1, d, h, mi);
-    }
-    const str = String(raw).replace(" ", "T").split(".")[0];
-    const dt  = new Date(str);
-    return isNaN(dt.getTime()) ? null : dt;
-  }
+  // ── PDF Export ──────────────────────────────────────────────────────────────
 
   async function handleDownloadPdf() {
     setPdfLoading(true);
     try {
-      const headers  = getAuthHeader();
-      const filter   = activeTimeFrame.toLowerCase();
-      const deptName = deptFilter === "all"
-        ? undefined
-        : departments.find((d) => String(d.departmentId) === String(deptFilter))?.departmentName;
+      const headers    = getAuthHeader();
+      const filter     = activeTimeFrame.toLowerCase();
+      const deptParam  = selectedDept  ? { departmentName: selectedDept  } : {};
+      const modalParam = selectedModal ? { modalityName:   selectedModal } : {};
 
       const response = await axios.get("/api/export/pdf", {
         headers,
-        params: { filter, ...(deptName && { department: deptName }) },
+        params:       { filter, ...deptParam, ...modalParam },
         responseType: "blob",
       });
 
-      const url      = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
-      const link     = document.createElement("a");
-      link.href      = url;
-      link.download  = `schedules-${filter}${deptName ? `-${deptName}` : ""}.pdf`;
+      const url  = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
+      const link = document.createElement("a");
+      link.href  = url;
+      link.download = `schedules-${filter}${selectedDept ? `-${selectedDept}` : ""}${selectedModal ? `-${selectedModal}` : ""}.pdf`;
       link.click();
       window.URL.revokeObjectURL(url);
     } catch (err) {
@@ -355,7 +485,10 @@ export default function AdminDashboard() {
     }
   }
 
+  // ── Render ──────────────────────────────────────────────────────────────────
+
   const statsCards = [
+    { icon: UserCheck, label: "Done",      value: stats.done,      color: "text-blue-500"   },
     { icon: UserCheck, label: "Confirmed", value: stats.confirmed, color: "text-green-500"  },
     { icon: UserX,     label: "Cancelled", value: stats.cancelled, color: "text-accent"     },
     { icon: Clock,     label: "Scheduled", value: stats.scheduled, color: "text-yellow-500" },
@@ -364,23 +497,32 @@ export default function AdminDashboard() {
   return (
     <AdminLayout
       pageTitle={
-        <span className="flex items-center gap-3">
+        <span className="flex items-center gap-3 flex-wrap">
           Admin Dashboard
-          <DepartmentDropdown
-            value={deptFilter}
-            onChange={setDeptFilter}
-            departments={departments}
-          />
+          {departments.length > 0 && (
+            <CascadingDropdown
+              departments={departments}
+              modalitiesByDept={modalitiesByDept}
+              selectedDept={selectedDept}
+              selectedModal={selectedModal}
+              onSelect={({ dept, modal }) => {
+                setSelectedDept(dept);
+                setSelectedModal(modal);
+              }}
+            />
+          )}
         </span>
       }
       pageSubtitle="Overview And Analysis"
     >
+      {error && <ErrorMessage message={error} onRetry={fetchDashboardData} />}
+
       {loading ? (
         <LoadingSkeleton />
       ) : (
         <>
           {/* Stat Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6 mb-6">
             {statsCards.map(({ icon: Icon, label, value, color }) => (
               <div
                 key={label}
@@ -411,6 +553,7 @@ export default function AdminDashboard() {
               </button>
             </div>
 
+            {/* Time-frame tabs */}
             <div className="flex items-center gap-1 border-b border-gray-200 mb-6 overflow-x-auto overflow-y-hidden">
               {TIME_FRAMES.map((label) => (
                 <button
@@ -426,8 +569,10 @@ export default function AdminDashboard() {
               ))}
             </div>
 
+            {/* Legend */}
             <div className="flex items-center justify-end gap-4 sm:gap-6 mb-4 flex-wrap">
               {[
+                { color: "bg-blue-500",   label: "Done"      },
                 { color: "bg-green-500",  label: "Confirmed" },
                 { color: "bg-accent",     label: "Cancelled" },
                 { color: "bg-yellow-500", label: "Scheduled" },
@@ -449,7 +594,12 @@ export default function AdminDashboard() {
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                     <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6B7280" }} stroke="#D1D5DB" />
-                    <YAxis tick={{ fontSize: 12, fill: "#6B7280" }} stroke="#D1D5DB" allowDecimals={false} domain={[0, (dataMax) => Math.max(dataMax + 1, 5)]} />
+                    <YAxis
+                      tick={{ fontSize: 12, fill: "#6B7280" }}
+                      stroke="#D1D5DB"
+                      allowDecimals={false}
+                      domain={[0, (dataMax) => Math.max(dataMax + 1, 5)]}
+                    />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "#fff",
@@ -459,6 +609,7 @@ export default function AdminDashboard() {
                         boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                       }}
                     />
+                    <Line type="monotone" dataKey="done"      stroke="#3B82F6" strokeWidth={2} dot={{ fill: "#3B82F6", r: 4 }} activeDot={{ r: 6 }} connectNulls />
                     <Line type="monotone" dataKey="confirmed" stroke="#22C55E" strokeWidth={2} dot={{ fill: "#22C55E", r: 4 }} activeDot={{ r: 6 }} connectNulls />
                     <Line type="monotone" dataKey="cancelled" stroke="#C0392B" strokeWidth={2} dot={{ fill: "#C0392B", r: 4 }} activeDot={{ r: 6 }} connectNulls />
                     <Line type="monotone" dataKey="scheduled" stroke="#EAB308" strokeWidth={2} dot={{ fill: "#EAB308", r: 4 }} activeDot={{ r: 6 }} connectNulls />
@@ -498,9 +649,17 @@ export default function AdminDashboard() {
                   {recentSchedules.length > 0 ? (
                     recentSchedules.map((s, i) => (
                       <tr key={s.scheduleId ?? i} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">{s.patientName}</td>
-                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">{formatDate(s.startDateTime)}</td>
-                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">{formatTimeRange(s.startDateTime, s.endDateTime)}</td>
+                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">
+                          {s.patientFullName ?? "—"}
+                        </td>
+                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">
+                          {fmtDate(s.startDateTime)}
+                        </td>
+                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">
+                          {s.startDateTime && s.endDateTime
+                            ? `${fmtTime(s.startDateTime)} - ${fmtTime(s.endDateTime)}`
+                            : "—"}
+                        </td>
                         <td className="px-4 sm:px-6 py-4 text-center">
                           <span className={`text-sm font-semibold ${scheduleStatusColor(s.scheduleStatus)}`}>
                             {s.scheduleStatus}
@@ -511,7 +670,9 @@ export default function AdminDashboard() {
                   ) : (
                     <tr>
                       <td colSpan={4} className="px-4 sm:px-6 py-8 text-center text-sm text-gray-400">
-                        No recent schedules found
+                        {selectedDept || selectedModal
+                          ? `No recent schedules found${selectedDept ? ` for ${selectedDept}` : ""}${selectedModal ? ` › ${selectedModal}` : ""}`
+                          : "No recent schedules found"}
                       </td>
                     </tr>
                   )}

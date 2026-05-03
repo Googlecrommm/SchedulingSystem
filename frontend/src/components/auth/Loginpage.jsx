@@ -2,10 +2,42 @@ import { useState } from "react";
 import { Eye, EyeOff, User, Lock } from "lucide-react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import hospitalBg from "../../assets/hospital-bg.jpg";
 import DGMCLogo from "../../assets/dgmc-logo.png";
 import axios from "axios";
+
+// ── Auth guard helpers ────────────────────────────────────────────────────────
+
+function decodeJwtPayload(token) {
+  try {
+    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(base64));
+  } catch {
+    return null;
+  }
+}
+
+function isTokenExpired(token) {
+  const payload = decodeJwtPayload(token);
+  if (!payload || !payload.exp) return true;
+  return payload.exp * 1000 < Date.now();
+}
+
+function getRoleFromToken(token) {
+  const payload = decodeJwtPayload(token);
+  if (!payload) return localStorage.getItem("userRole") ?? "";
+
+  const raw = payload.role ?? payload.roles ?? payload.authorities ?? payload.authority;
+  if (!raw) return localStorage.getItem("userRole") ?? "";
+
+  if (Array.isArray(raw) && raw.length > 0) {
+    const first = raw[0];
+    if (typeof first === "object") return (first.authority ?? "").replace(/^ROLE_/i, "");
+    return String(first).replace(/^ROLE_/i, "");
+  }
+  return String(raw).replace(/^ROLE_/i, "");
+}
 
 const loginSchema = Yup.object({
   username: Yup.string().required("Username is required"),
@@ -54,6 +86,16 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [serverError,  setServerError]  = useState(null);
   const navigate = useNavigate();
+
+  // ── Already logged in? Skip the login page ────────────────────────────────
+  const existingToken = localStorage.getItem("token");
+  if (existingToken && !isTokenExpired(existingToken)) {
+    const role = getRoleFromToken(existingToken).toLowerCase();
+    const dest = (role === "admin" || role === "administrator")
+      ? "/admin/dashboard"
+      : "/frontdesk/dashboard";
+    return <Navigate to={dest} replace />;
+  }
 
   const formik = useFormik({
     initialValues: { username: "", password: "" },

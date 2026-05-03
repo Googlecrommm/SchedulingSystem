@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Calendar, CalendarCheck, CalendarX, Clock, Archive,
   CheckCircle, Eye, RefreshCw, ChevronDown,
@@ -150,9 +150,11 @@ function ViewScheduleModal({ schedule, onClose }) {
         <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Patient Information</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <ReadonlyField label="Patient Name"  value={schedule.patientName} />
+          <ReadonlyField label="Patient Name"  value={schedule.patientFullName} />
           <ReadonlyField label="Sex"           value={schedule.sex} />
-          <ReadonlyField label="Date of Birth" value={schedule.birthDate} />
+          <ReadonlyField label="Date of Birth" value={schedule.birthDate
+            ? new Date(schedule.birthDate).toLocaleDateString("en-CA", { month: "2-digit", day: "2-digit", year: "numeric" })
+            : "—"} />
           <ReadonlyField label="Contact No."   value={schedule.contactNumber} />
         </div>
 
@@ -168,7 +170,7 @@ function ViewScheduleModal({ schedule, onClose }) {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <ReadonlyField label="Doctor / Specialist" value={schedule.name} />
+          <ReadonlyField label="Doctor / Specialist" value={schedule.doctorFullName} />
           <ReadonlyField label="Procedure"           value={schedule.procedureName} />
         </div>
 
@@ -206,9 +208,15 @@ function ViewScheduleModal({ schedule, onClose }) {
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function AdminScheduleManagement() {
-  const [activeTab,     setActiveTab]     = useState("All");
-  const [searchQuery,   setSearchQuery]   = useState("");
-  const [deptFilter,    setDeptFilter]    = useState("all");
+  // ── All filter state lives in one object ─────────────────────────────────────
+  // Adding a new filter = add a key here + one param line in buildParams().
+  // No scattered useState, no mismatched dep arrays, no double-fetch race.
+  const [filters, setFilters] = useState({
+    tab:        "All",   // maps to scheduleStatus param (omitted when "All")
+    deptFilter: "all",   // resolved to departmentName string before sending
+    search:     "",      // debounced before sending as patientName
+  });
+
   const [schedules,     setSchedules]     = useState([]);
   const [departments,   setDepartments]   = useState([]);
   const [loading,       setLoading]       = useState(false);
@@ -217,56 +225,53 @@ export default function AdminScheduleManagement() {
   const [page,          setPage]          = useState(0);
   const [totalPages,    setTotalPages]    = useState(1);
 
-  // Debounce search so we don't fire a request on every keystroke
-  const debouncedSearch = useDebounce(searchQuery, 400);
+  const debouncedSearch = useDebounce(filters.search, 400);
 
-  // Reset to page 0 whenever filters change (not on every search keystroke —
-  // debouncedSearch handles that)
-  useEffect(() => {
-    setPage(0);
-    setSearchQuery("");
-  }, [activeTab, deptFilter]);
+  // Convenience setters so call sites stay readable
+  const setTab        = (tab)        => setFilters((f) => ({ ...f, tab }));
+  const setDeptFilter = (deptFilter) => setFilters((f) => ({ ...f, deptFilter }));
+  const setSearch     = (search)     => setFilters((f) => ({ ...f, search }));
 
-  // Fetch departments once on mount
+  // ── Single effect: reset page then fetch whenever any filter or page changes ─
+  // No split effects, no coordination bugs, no lint suppression needed.
   useEffect(() => {
     fetchDepartments();
   }, []);
 
-  // Re-fetch when any filter, page, or debounced search changes.
-  // `departments` is intentionally NOT in this dep array — it caused a
-  // double-fetch on mount (departments loads → triggers fetchSchedules again
-  // even though nothing filter-relevant changed). The deptName resolution
-  // inside fetchSchedules uses the latest departments via closure at call time.
+  useEffect(() => {
+    setPage(0);
+  }, [filters.tab, filters.deptFilter, debouncedSearch]);
+
   useEffect(() => {
     fetchSchedules();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, debouncedSearch, deptFilter, page]);
+  }, [filters.tab, filters.deptFilter, debouncedSearch, page]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Build query params from current filter state ─────────────────────────────
+  // To add a new filter: add its key to `filters`, resolve it here, done.
+  function buildParams(depts) {
+    const deptName = filters.deptFilter !== "all"
+      ? depts.find((d) => String(d.departmentId) === String(filters.deptFilter))?.departmentName
+      : undefined;
+    const patientName = debouncedSearch.trim() || undefined;
+
+    return {
+      page,
+      size: 10,
+      ...(filters.tab !== "All" && { scheduleStatus: filters.tab }),
+      ...(deptName    && { departmentName: deptName }),
+      ...(patientName && { patientName }),
+      // Add new filter params here, e.g: ...(modalityName && { modalityName }),
+    };
+  }
 
   // ── Fetch schedules ──────────────────────────────────────────────────────────
-  // FIX: "All" tab now sends a single request with no scheduleStatus param.
-  // The backend's hasStatus() spec already returns all non-Archived records
-  // when scheduleStatus is null — no more 4 × 2000 record client-side merge.
-  const fetchSchedules = useCallback(async () => {
+  async function fetchSchedules() {
     setLoading(true);
     try {
-      const headers   = getAuthHeader();
-      const deptName  = deptFilter !== "all"
-        ? departments.find((d) => String(d.departmentId) === String(deptFilter))?.departmentName
-        : undefined;
-      const patientName = debouncedSearch.trim() || undefined;
-
-      // "All" tab omits scheduleStatus entirely → backend returns all non-Archived
-      // Every other tab passes the exact status string for server-side filtering
-      const params = {
-        page,
-        size: 10,
-        ...(activeTab !== "All" && { scheduleStatus: activeTab }),
-        ...(deptName    && { departmentName: deptName }),
-        ...(patientName && { patientName }),
-      };
-
-      const res = await axios.get("/api/getSchedules", { headers, params });
-
+      const res = await axios.get("/api/getSchedules", {
+        headers: getAuthHeader(),
+        params:  buildParams(departments),
+      });
       setSchedules(res.data?.content ?? []);
       setTotalPages(res.data?.totalPages ?? 1);
     } catch (err) {
@@ -274,8 +279,7 @@ export default function AdminScheduleManagement() {
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, debouncedSearch, deptFilter, page, departments]);
+  }
 
   // ── Fetch departments ────────────────────────────────────────────────────────
   async function fetchDepartments() {
@@ -314,9 +318,9 @@ export default function AdminScheduleManagement() {
 
   const meta = confirmAction && confirmMeta[confirmAction.type];
 
-  const deptLabel = deptFilter === "all"
+  const deptLabel = filters.deptFilter === "all"
     ? "All Departments"
-    : departments.find((d) => String(d.departmentId) === String(deptFilter))?.departmentName ?? "All Departments";
+    : departments.find((d) => String(d.departmentId) === String(filters.deptFilter))?.departmentName ?? "All Departments";
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -325,15 +329,15 @@ export default function AdminScheduleManagement() {
         <span className="flex items-center gap-3">
           Schedule Management
           <DepartmentDropdown
-            value={deptFilter}
+            value={filters.deptFilter}
             onChange={setDeptFilter}
             departments={departments}
           />
         </span>
       }
       pageSubtitle={deptLabel}
-      searchValue={searchQuery}
-      onSearchChange={setSearchQuery}
+      searchValue={filters.search}
+      onSearchChange={setSearch}
       searchPlaceholder="Search Patient"
     >
 
@@ -342,10 +346,10 @@ export default function AdminScheduleManagement() {
         {TABS.map(({ label, icon: Icon }) => (
           <button
             key={label}
-            onClick={() => setActiveTab(label)}
+            onClick={() => setTab(label)}
             className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2
               transition-colors duration-200 -mb-px whitespace-nowrap cursor-pointer
-              ${activeTab === label
+              ${filters.tab === label
                 ? "border-primary text-primary"
                 : "border-transparent text-gray-400 hover:text-primary hover:border-gray-300"}`}
           >
@@ -368,7 +372,7 @@ export default function AdminScheduleManagement() {
         onNext={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
         renderRow={(s) => (
           <tr key={s.scheduleId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.patientName}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.patientFullName}</td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">
               {s.startDateTime
                 ? new Date(s.startDateTime.replace(" ", "T")).toLocaleDateString("en-CA", {
@@ -408,7 +412,7 @@ export default function AdminScheduleManagement() {
       {confirmAction && meta && (
         <ConfirmDialog
           title={meta.title}
-          message={meta.msg(confirmAction.schedule.patientName ?? "This schedule")}
+          message={meta.msg(confirmAction.schedule.patientFullName ?? "This schedule")}
           confirmLabel={meta.label}
           danger={meta.danger}
           onConfirm={applyConfirm}

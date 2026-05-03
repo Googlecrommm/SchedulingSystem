@@ -8,7 +8,6 @@ import {
 } from "../ui";
 import { useFrontdeskNav, useDeptMeta } from "./frontdeskUtils";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getAuthHeader() {
   const token = localStorage.getItem("token");
@@ -24,7 +23,6 @@ function useDebounce(value, delay = 400) {
   return debounced;
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function FrontdeskModalityManagement() {
   const navItems           = useFrontdeskNav();
@@ -41,7 +39,6 @@ export default function FrontdeskModalityManagement() {
   useEffect(() => { setPage(0); }, [debouncedSearch]);
   useEffect(() => { fetchModalities(); }, [debouncedSearch, page]);
 
-  // Generic endpoint — backend filters by dept from JWT, Active only
   const fetchModalities = useCallback(async () => {
     setLoading(true);
     try {
@@ -81,7 +78,6 @@ export default function FrontdeskModalityManagement() {
       onSearchChange={setSearchQuery}
       searchPlaceholder="Search Modality"
     >
-      {/* Static single tab */}
       <div className="flex items-center border-b border-gray-200 mb-4">
         <div className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium text-primary
           border-b-2 border-primary -mb-px">
@@ -91,7 +87,7 @@ export default function FrontdeskModalityManagement() {
       </div>
 
       <DataTable
-        columns={["Modality", "Department"]}
+        columns={["Modality"]}
         rows={modalities}
         loading={loading}
         emptyIcon={Layers}
@@ -104,9 +100,6 @@ export default function FrontdeskModalityManagement() {
           <tr key={modality.modalityId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
             <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">
               {modality.modalityName}
-            </td>
-            <td className="px-6 py-4 text-center text-sm text-gray-600">
-              {modality.departmentName ?? "—"}
             </td>
           </tr>
         )}

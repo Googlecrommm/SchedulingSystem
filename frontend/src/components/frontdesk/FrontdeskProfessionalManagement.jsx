@@ -13,7 +13,6 @@ import {
 } from "../ui";
 import { useFrontdeskNav, useDeptMeta } from "./frontdeskUtils";
 
-// ── Constants ─────────────────────────────────────────────────────────────────
 
 const TABS = [
   { label: "All",         icon: Cross,       tabStatus: null          },
@@ -24,30 +23,38 @@ const TABS = [
 
 const confirmMeta = {
   leave: {
-    title: "Mark as On Leave?",
-    msg:   (n) => `"${n}" will be marked as On Leave.`,
-    label: "Confirm",
+    title:  "Mark as On Leave?",
+    msg:    (n) => `"${n}" will be marked as On Leave.`,
+    label:  "Confirm",
     danger: false,
   },
   unavailable: {
-    title: "Mark as Unavailable?",
-    msg:   (n) => `"${n}" will be marked as Unavailable.`,
-    label: "Confirm",
+    title:  "Mark as Unavailable?",
+    msg:    (n) => `"${n}" will be marked as Unavailable.`,
+    label:  "Confirm",
     danger: true,
   },
   available: {
-    title: "Mark as Available?",
-    msg:   (n) => `"${n}" will be marked as Available.`,
-    label: "Confirm",
+    title:  "Mark as Available?",
+    msg:    (n) => `"${n}" will be marked as Available.`,
+    label:  "Confirm",
     danger: false,
   },
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getAuthHeader() {
   const token = localStorage.getItem("token");
   return { Authorization: `Bearer ${token}` };
+}
+
+function useDebounce(value, delay = 400) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(id);
+  }, [value, delay]);
+  return debounced;
 }
 
 function formatStatus(status) {
@@ -57,96 +64,96 @@ function formatStatus(status) {
   return status ?? "—";
 }
 
-function getDoctorActions(doctor) {
-  const s = doctor.availabilityStatus;
-  if (s === "Available") {
+function getDoctorActions(status) {
+  if (status === "Available") {
     return [
       { label: "On Leave",    icon: Clock   },
       { label: "Unavailable", icon: XCircle },
     ];
   }
-  if (s === "On_Leave") {
+  if (status === "On_Leave") {
     return [
       { label: "Available",   icon: CheckCircle },
       { label: "Unavailable", icon: XCircle     },
     ];
   }
-  if (s === "Unavailable") {
+  if (status === "Unavailable") {
     return [{ label: "Available", icon: CheckCircle }];
   }
   return [];
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function FrontdeskProfessionalManagement() {
-  const navItems           = useFrontdeskNav();
+  const navItems               = useFrontdeskNav();
   const { deptName, userRole } = useDeptMeta();
 
   const [activeTab,     setActiveTab]     = useState("All");
-  const [searchQuery,   setSearchQuery]   = useState("");
-  const [confirmAction, setConfirmAction] = useState(null);
   const [professionals, setProfessionals] = useState([]);
   const [loading,       setLoading]       = useState(false);
+  const [searchQuery,   setSearchQuery]   = useState("");
+  const [confirmAction, setConfirmAction] = useState(null);
   const [page,          setPage]          = useState(1);
   const [totalPages,    setTotalPages]    = useState(1);
-  const [serverResults, setServerResults] = useState(null);
 
-  useEffect(() => {
-    setPage(1);
-    setSearchQuery("");
-    setServerResults(null);
-  }, [activeTab]);
-
+  const debouncedSearch = useDebounce(searchQuery, 400);
   const activeTabStatus = TABS.find((t) => t.label === activeTab)?.tabStatus ?? null;
+  const isSearching     = debouncedSearch.trim().length > 0;
 
-  // ── Fetch professionals — single generic endpoint, scoped by JWT dept ────
+  useEffect(() => { setPage(1); }, [activeTab, debouncedSearch]);
+
   const fetchProfessionals = useCallback(async () => {
     setLoading(true);
     try {
-      const params = {
-        page: page - 1,
-        size: 10,
-        ...(activeTabStatus && { availabilityStatus: activeTabStatus }),
-      };
-      const res = await axios.get("/api/getDoctors", {
-        headers: getAuthHeader(),
-        params,
-      });
-      setProfessionals(res.data.content ?? []);
-      setTotalPages(res.data.totalPages ?? 1);
+      if (isSearching) {
+      
+        const res = await axios.get(
+          `/api/searchDoctor/${encodeURIComponent(debouncedSearch.trim())}`,
+          {
+            headers: getAuthHeader(),
+            params: { page: 0, size: 200 }, 
+          }
+        );
+
+        const all = res.data?.content ?? [];
+
+        const filtered = activeTabStatus
+          ? all.filter((d) => d.availabilityStatus === activeTabStatus)
+          : all;
+
+        const PAGE_SIZE   = 10;
+        const totalItems  = filtered.length;
+        const computedPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+        const safePage      = Math.min(page, computedPages);
+        const start         = (safePage - 1) * PAGE_SIZE;
+
+        setProfessionals(filtered.slice(start, start + PAGE_SIZE));
+        setTotalPages(computedPages);
+      } else {
+        const res = await axios.get("/api/getDoctors", {
+          headers: getAuthHeader(),
+          params: {
+            page: page - 1, 
+            size: 10,
+            ...(activeTabStatus && { availabilityStatus: activeTabStatus }),
+          },
+        });
+
+        setProfessionals(res.data?.content ?? []);
+        setTotalPages(res.data?.totalPages ?? 1);
+      }
     } catch (err) {
       console.error("Failed to fetch professionals:", err);
+      setProfessionals([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
-  }, [activeTab, page]);
+  }, [debouncedSearch, activeTabStatus, page, isSearching]);
 
-  useEffect(() => {
-    fetchProfessionals();
-  }, [fetchProfessionals]);
+  useEffect(() => { fetchProfessionals(); }, [fetchProfessionals]);
 
-  // ── Debounced server search ───────────────────────────────────────────────
-  useEffect(() => {
-    if (!searchQuery.trim()) { setServerResults(null); return; }
-    const timeout = setTimeout(async () => {
-      try {
-        const res = await axios.get(
-          "/api/searchDoctor/" + encodeURIComponent(searchQuery.trim()),
-          { headers: getAuthHeader(), params: { page: 0, size: 100 } }
-        );
-        setServerResults(res.data.content ?? []);
-      } catch (err) {
-        console.error("Search failed:", err);
-        setServerResults(null);
-      }
-    }, 400);
-    return () => clearTimeout(timeout);
-  }, [searchQuery]);
 
-  const displayed = serverResults ?? professionals;
-
-  // ── Actions ───────────────────────────────────────────────────────────────
   function handleAction(action, professional) {
     if (action === "On Leave")    return setConfirmAction({ type: "leave",       professional });
     if (action === "Unavailable") return setConfirmAction({ type: "unavailable", professional });
@@ -185,12 +192,12 @@ export default function FrontdeskProfessionalManagement() {
       <TabBar
         tabs={TABS}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={(tab) => { setActiveTab(tab); setSearchQuery(""); }}
       />
 
       <DataTable
         columns={["Full Name", "Role", "Status", "Action"]}
-        rows={displayed}
+        rows={professionals}
         loading={loading}
         emptyIcon={Cross}
         emptyText="No medical professionals found"
@@ -222,7 +229,7 @@ export default function FrontdeskProfessionalManagement() {
             </td>
             <td className="px-6 py-4 text-center">
               <ActionDropdown
-                items={getDoctorActions(professional)}
+                items={getDoctorActions(professional.availabilityStatus)}
                 onAction={(action) => handleAction(action, professional)}
               />
             </td>

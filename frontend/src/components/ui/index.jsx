@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import axios from "../../config/axiosInstance";
 import {
   LayoutDashboard, Users, Building2, UserCog, Cpu, Calendar,
   ChevronDown, ChevronLeft, ChevronRight,
@@ -54,6 +55,28 @@ export function AdminLayout({
   const [showUserDropdown,  setShowUserDropdown]  = useState(false);
   const userDropdownRef                            = useRef(null);
   const location                                   = useLocation();
+  const navigate                                   = useNavigate();
+
+  async function handleSignOut() {
+    try {
+      const token = localStorage.getItem("token");
+      if (token) {
+        await axios.post(
+          "/auth/logout",
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+    } catch (err) {
+      console.error("Logout error:", err);
+    } finally {
+      localStorage.removeItem("token");
+      localStorage.removeItem("userName");
+      localStorage.removeItem("userRole");
+      localStorage.removeItem("departmentName");
+      navigate("/", { replace: true });
+    }
+  }
 
   useEffect(() => {
     const handler = (e) => {
@@ -203,7 +226,10 @@ export function AdminLayout({
 
               {showUserDropdown && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-card border border-gray-100 z-50 py-1">
-                  <button className="w-full text-left px-4 py-2.5 text-sm text-accent hover:bg-red-50 transition-colors cursor-pointer">
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full text-left px-4 py-2.5 text-sm text-accent hover:bg-red-50 transition-colors cursor-pointer"
+                  >
                     Sign Out
                   </button>
                 </div>

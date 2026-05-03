@@ -1,5 +1,5 @@
 import axios from "../../config/axiosInstance";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   UserCheck, UserX, Clock, AlertCircle, FileDown, ChevronDown,
@@ -11,16 +11,15 @@ import {
 import { AdminLayout, scheduleStatusColor } from "../ui";
 import { useFrontdeskNav, useDeptMeta } from "./frontdeskUtils";
 
-// ── Constants ─────────────────────────────────────────────────────────────────
 
 const TIME_FRAMES = ["Daily", "Weekly", "Monthly", "Yearly", "Overall"];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getAuthHeader() {
   const token = localStorage.getItem("token");
   return { Authorization: `Bearer ${token}` };
 }
+
 
 function parseDT(raw) {
   if (!raw) return null;
@@ -33,81 +32,24 @@ function parseDT(raw) {
   return isNaN(dt.getTime()) ? null : dt;
 }
 
-function toDateStr(raw) {
+function fmtDate(raw) {
+  const d = parseDT(raw);
+  if (!d) return "—";
+  return d.toLocaleDateString("en-CA", { month: "2-digit", day: "2-digit", year: "numeric" });
+}
+
+function fmtTime(raw) {
   const d = parseDT(raw);
   if (!d) return "";
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return d.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
-function isStatus(s, status) {
-  return (s.scheduleStatus ?? "").toLowerCase() === status.toLowerCase();
-}
-
-function countByDate(schedules, dateStr) {
-  const day = schedules.filter((s) => toDateStr(s.startDateTime) === dateStr);
-  return {
-    confirmed: day.filter((s) => isStatus(s, "Confirmed")).length,
-    cancelled: day.filter((s) => isStatus(s, "Cancelled")).length,
-    scheduled: day.filter((s) => isStatus(s, "Scheduled")).length,
-  };
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function ModalityDropdown({ value, onChange, options }) {
-  const [open, setOpen] = useState(false);
-  const ref             = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const label = value === "all" ? "All Modality" : value;
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary transition-colors cursor-pointer"
-      >
-        {label}
-        <ChevronDown size={14} className="text-gray-400" />
-      </button>
-
-      {open && (
-        <div className="absolute left-0 mt-1.5 w-44 bg-white rounded-xl shadow-card border border-gray-100 py-1 z-50">
-          <button
-            onClick={() => { onChange("all"); setOpen(false); }}
-            className={`w-full text-left px-4 py-2.5 text-sm transition-colors
-              ${value === "all" ? "text-primary font-semibold bg-primary/5" : "text-gray-600 hover:bg-primary/5 hover:text-primary"}`}
-          >
-            All Modality
-          </button>
-          {options.map((m) => (
-            <button
-              key={m}
-              onClick={() => { onChange(m); setOpen(false); }}
-              className={`w-full text-left px-4 py-2.5 text-sm transition-colors
-                ${value === m ? "text-primary font-semibold bg-primary/5" : "text-gray-600 hover:bg-primary/5 hover:text-primary"}`}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function LoadingSkeleton() {
   return (
     <div className="animate-pulse">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
-        {[1, 2, 3].map((i) => (
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6 mb-6">
+        {[1, 2, 3, 4].map((i) => (
           <div key={i} className="bg-white rounded-2xl p-6 shadow-card h-32">
             <div className="h-4 bg-gray-200 rounded w-1/3 mb-4" />
             <div className="h-8 bg-gray-200 rounded w-1/2" />
@@ -142,199 +84,269 @@ function ErrorMessage({ message, onRetry }) {
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+
+
+function ModalityDropdown({ modalities, selectedModality, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref             = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const label = selectedModality || "All Modalities";
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary transition-colors cursor-pointer whitespace-nowrap"
+      >
+        {label}
+        <ChevronDown size={14} className="text-gray-400" />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 mt-1.5 w-auto bg-white rounded-xl shadow-card border border-gray-100 py-1 z-50">
+          <button
+            onClick={() => { onChange(""); setOpen(false); }}
+            className={`w-full text-left px-4 py-2.5 text-sm transition-colors whitespace-nowrap
+              ${!selectedModality
+                ? "text-primary font-semibold bg-primary/5"
+                : "text-gray-600 hover:bg-primary/5 hover:text-primary"}`}
+          >
+            All Modalities
+          </button>
+          {modalities.map((m) => (
+            <button
+              key={m.modalityId}
+              onClick={() => { onChange(m.modalityName); setOpen(false); }}
+              className={`w-full text-left px-4 py-2.5 text-sm transition-colors whitespace-nowrap
+                ${selectedModality === m.modalityName
+                  ? "text-primary font-semibold bg-primary/5"
+                  : "text-gray-600 hover:bg-primary/5 hover:text-primary"}`}
+            >
+              {m.modalityName}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 export default function FrontdeskDashboard() {
   const navItems = useFrontdeskNav();
   const { deptName, userRole } = useDeptMeta();
 
-  const [activeTimeFrame, setActiveTimeFrame] = useState("Daily");
-  const [modalityFilter,  setModalityFilter]  = useState("all");
-  const [modalities,      setModalities]      = useState([]);
-  const [machines,        setMachines]        = useState([]);
-  const [stats,           setStats]           = useState({ confirmed: 0, cancelled: 0, scheduled: 0 });
-  const [chartData,       setChartData]       = useState([]);
-  const [recentSchedules, setRecentSchedules] = useState([]);
-  const [chartDate,       setChartDate]       = useState("");
-  const [loading,         setLoading]         = useState(true);
-  const [error,           setError]           = useState(null);
-  const [pdfLoading,      setPdfLoading]      = useState(false);
+  const [activeTimeFrame,  setActiveTimeFrame]  = useState("Daily");
+  const [selectedModality, setSelectedModality] = useState("");   
+  const [modalities,       setModalities]       = useState([]);
+  const [stats,            setStats]            = useState({ scheduled: 0, confirmed: 0, cancelled: 0, done: 0 });
+  const [chartData,        setChartData]        = useState([]);
+  const [recentSchedules,  setRecentSchedules]  = useState([]);
+  const [chartDate,        setChartDate]        = useState("");
+  const [loading,          setLoading]          = useState(true);
+  const [error,            setError]            = useState(null);
+  const [pdfLoading,       setPdfLoading]       = useState(false);
 
-  useEffect(() => { fetchDropdowns(); }, []);
 
   useEffect(() => {
-    if (modalities.length > 0 || modalityFilter === "all") fetchDashboardData();
-  }, [activeTimeFrame, modalityFilter, modalities]);
-
-  // Build allowed machine names set when modality filter is active
-  const allowedMachineNames = useMemo(() => {
-    if (modalityFilter === "all" || machines.length === 0) return null;
-    return new Set(
-      machines
-        .filter((m) => m.modalityName === modalityFilter)
-        .map((m) => m.machineName)
-    );
-  }, [modalityFilter, machines]);
-
-  async function fetchDropdowns() {
-    try {
-      const headers = getAuthHeader();
-      const [modalityRes, machineRes] = await Promise.all([
-        axios.get("/api/modalityDropdown", { headers }),
-        axios.get("/api/machineDropdown",  { headers }),
-      ]);
-      const modalityData = Array.isArray(modalityRes.data) ? modalityRes.data : modalityRes.data?.content ?? [];
-      const machineData  = Array.isArray(machineRes.data)  ? machineRes.data  : machineRes.data?.content  ?? [];
-      setModalities(modalityData.map((m) => m.modalityName ?? m));
-      setMachines(machineData.filter((m) => m.machineStatus !== "Archived"));
-    } catch (err) {
-      console.error("Failed to fetch dropdown data:", err);
+    async function fetchModalities() {
+      try {
+        const res    = await axios.get("/api/modalityDropdown", { headers: getAuthHeader() });
+        const active = (res.data ?? []).filter(
+          (m) => (m.modalityStatus ?? "").toLowerCase() === "active"
+        );
+        setModalities(active);
+      } catch (err) {
+        console.error("Failed to load modalities:", err);
+      }
     }
-  }
+    fetchModalities();
+  }, []);
 
-  async function fetchDashboardData() {
+
+  const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const headers = getAuthHeader();
-      const filter  = activeTimeFrame.toLowerCase();
+      const headers       = getAuthHeader();
+      const filter        = activeTimeFrame.toLowerCase();
+      const modalityParam = selectedModality ? { modalityName: selectedModality } : {};
 
-      // Single generic endpoint — backend scopes by dept from JWT
-      const TRACKED = ["Scheduled", "Confirmed", "Cancelled", "Done"];
-      const [countsRes, ...statusResults] = await Promise.all([
-        axios.get("/api/dashboard/count", { headers, params: { filter } }),
-        ...TRACKED.map((status) =>
-          axios.get("/api/getSchedules", {
-            headers,
-            params: { page: 0, size: 2000, scheduleStatus: status },
-          })
-        ),
+      const [countsRes, recentRes] = await Promise.all([
+        axios.get("/api/dashboard/counts", { headers, params: { filter, ...modalityParam } }),
+        axios.get("/api/getSchedules",     { headers, params: { page: 0, size: 10, ...modalityParam } }),
       ]);
 
-      const allSched = statusResults
-        .flatMap((res) => res.data?.content ?? [])
-        .filter((s) => allowedMachineNames ? allowedMachineNames.has(s.machineName) : true);
+      const counts = countsRes.data ?? {};
+      setStats({
+        scheduled: counts.Scheduled ?? 0,
+        confirmed: counts.Confirmed ?? 0,
+        cancelled: counts.Cancelled ?? 0,
+        done:      counts.Done      ?? 0,
+      });
 
-      // ── Build chart series ──────────────────────────────────────────────────
+      const allRecent = recentRes.data?.content ?? [];
+      const sorted    = [...allRecent].sort((a, b) => {
+        const da = parseDT(a.startDateTime), db = parseDT(b.startDateTime);
+        if (!da || !db) return 0;
+        return db - da;
+      });
+      setRecentSchedules(sorted.slice(0, 5));
+
       const now = new Date();
-      let series     = [];
-      let rangeLabel = "";
+      let series = [], rangeLabel = "";
 
-      if (activeTimeFrame === "Daily") {
-        const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-        const todaySched = allSched.filter((s) => {
-          const d = parseDT(s.startDateTime);
-          return d && `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` === todayIso;
+      {
+        const schedRes = await axios.get("/api/getSchedules", {
+          headers,
+          params: { page: 0, size: 1000, ...modalityParam },
         });
-        for (let h = 6; h <= 22; h++) {
-          const hourSched = todaySched.filter((s) => {
+        const allSched  = schedRes.data?.content ?? [];
+        const isStatus  = (s, st) => (s.scheduleStatus ?? "").toLowerCase() === st.toLowerCase();
+
+        const countByDate = (list, isoDate) => {
+          const day = list.filter((s) => {
             const d = parseDT(s.startDateTime);
-            return d && d.getHours() === h;
+            if (!d) return false;
+            const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+            return iso === isoDate;
           });
-          const period = h < 12 ? "AM" : "PM";
-          const h12    = h === 0 ? 12 : h > 12 ? h - 12 : h;
-          series.push({
-            label:     `${h12}${period}`,
-            confirmed: hourSched.filter((s) => isStatus(s, "Confirmed")).length,
-            cancelled: hourSched.filter((s) => isStatus(s, "Cancelled")).length,
-            scheduled: hourSched.filter((s) => isStatus(s, "Scheduled")).length,
+          return {
+            confirmed: day.filter((s) => isStatus(s, "Confirmed")).length,
+            cancelled: day.filter((s) => isStatus(s, "Cancelled")).length,
+            scheduled: day.filter((s) => isStatus(s, "Scheduled")).length,
+            done:      day.filter((s) => isStatus(s, "Done")).length,
+          };
+        };
+
+        if (activeTimeFrame === "Daily") {
+          const todayIso   = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+          const todaySched = allSched.filter((s) => {
+            const d = parseDT(s.startDateTime);
+            if (!d) return false;
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` === todayIso;
           });
-        }
-        rangeLabel = now.toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+          for (let h = 6; h <= 22; h++) {
+            const hourSched = todaySched.filter((s) => { const d = parseDT(s.startDateTime); return d && d.getHours() === h; });
+            const period    = h < 12 ? "AM" : "PM";
+            const h12       = h === 0 ? 12 : h > 12 ? h - 12 : h;
+            series.push({
+              label:     `${h12}${period}`,
+              confirmed: hourSched.filter((s) => isStatus(s, "Confirmed")).length,
+              cancelled: hourSched.filter((s) => isStatus(s, "Cancelled")).length,
+              scheduled: hourSched.filter((s) => isStatus(s, "Scheduled")).length,
+              done:      hourSched.filter((s) => isStatus(s, "Done")).length,
+            });
+          }
+          rangeLabel = now.toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
-      } else if (activeTimeFrame === "Weekly") {
-        const dow    = now.getDay();
-        const monday = new Date(now); monday.setDate(now.getDate() - ((dow + 6) % 7));
-        for (let i = 0; i < 7; i++) {
-          const d   = new Date(monday); d.setDate(monday.getDate() + i);
-          const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-          series.push({ label: d.toLocaleDateString("en-CA", { weekday: "short" }), ...countByDate(allSched, iso) });
-        }
-        const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
-        const fmt    = (d) => d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
-        rangeLabel   = `${fmt(monday)} – ${fmt(sunday)}`;
+        } else if (activeTimeFrame === "Weekly") {
+          const dow    = now.getDay();
+          const monday = new Date(now);
+          monday.setDate(now.getDate() - ((dow + 6) % 7));
+          for (let i = 0; i < 7; i++) {
+            const d   = new Date(monday);
+            d.setDate(monday.getDate() + i);
+            const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+            series.push({ label: d.toLocaleDateString("en-CA", { weekday: "short" }), ...countByDate(allSched, iso) });
+          }
+          const sunday = new Date(monday);
+          sunday.setDate(monday.getDate() + 6);
+          const fmt  = (d) => d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
+          rangeLabel = `${fmt(monday)} – ${fmt(sunday)}`;
 
-      } else if (activeTimeFrame === "Monthly") {
-        const year = now.getFullYear(), month = now.getMonth();
-        const firstDay = new Date(year, month, 1), lastDay = new Date(year, month + 1, 0);
-        let weekNum = 1, cursor = new Date(firstDay);
-        while (cursor <= lastDay) {
-          const wStart = new Date(cursor), wEnd = new Date(cursor);
-          wEnd.setDate(wEnd.getDate() + 6);
-          if (wEnd > lastDay) wEnd.setTime(lastDay.getTime());
-          const wSched = allSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d >= wStart && d <= wEnd; });
-          series.push({
-            label:     `Week ${weekNum}`,
-            confirmed: wSched.filter((s) => isStatus(s, "Confirmed")).length,
-            cancelled: wSched.filter((s) => isStatus(s, "Cancelled")).length,
-            scheduled: wSched.filter((s) => isStatus(s, "Scheduled")).length,
+        } else if (activeTimeFrame === "Monthly") {
+          const year    = now.getFullYear(), month = now.getMonth();
+          const lastDay = new Date(year, month + 1, 0);
+          let weekNum = 1, cursor = new Date(year, month, 1);
+          while (cursor <= lastDay) {
+            const wStart = new Date(cursor);
+            const wEnd   = new Date(cursor);
+            wEnd.setDate(wEnd.getDate() + 6);
+            if (wEnd > lastDay) wEnd.setTime(lastDay.getTime());
+            const wSched = allSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d >= wStart && d <= wEnd; });
+            series.push({
+              label:     `Week ${weekNum}`,
+              confirmed: wSched.filter((s) => isStatus(s, "Confirmed")).length,
+              cancelled: wSched.filter((s) => isStatus(s, "Cancelled")).length,
+              scheduled: wSched.filter((s) => isStatus(s, "Scheduled")).length,
+              done:      wSched.filter((s) => isStatus(s, "Done")).length,
+            });
+            cursor.setDate(cursor.getDate() + 7);
+            weekNum++;
+          }
+          rangeLabel = now.toLocaleDateString("en-CA", { month: "long", year: "numeric" });
+
+        } else if (activeTimeFrame === "Yearly") {
+          const MONTHS     = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+          const currentYear = now.getFullYear();
+          const yearSched   = allSched.filter((s) => {
+            const d = parseDT(s.startDateTime);
+            return d && d.getFullYear() === currentYear;
           });
-          cursor.setDate(cursor.getDate() + 7); weekNum++;
-        }
-        rangeLabel = now.toLocaleDateString("en-CA", { month: "long", year: "numeric" });
-
-      } else if (activeTimeFrame === "Yearly") {
-        const year   = now.getFullYear();
-        const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-        for (let m = 0; m < 12; m++) {
-          const mSched = allSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d.getFullYear() === year && d.getMonth() === m; });
-          series.push({
-            label:     MONTHS[m],
-            confirmed: mSched.filter((s) => isStatus(s, "Confirmed")).length,
-            cancelled: mSched.filter((s) => isStatus(s, "Cancelled")).length,
-            scheduled: mSched.filter((s) => isStatus(s, "Scheduled")).length,
+          series = MONTHS.map((label, idx) => {
+            const mSched = yearSched.filter((s) => {
+              const d = parseDT(s.startDateTime);
+              return d && d.getMonth() === idx;
+            });
+            return {
+              label,
+              confirmed: mSched.filter((s) => isStatus(s, "Confirmed")).length,
+              cancelled: mSched.filter((s) => isStatus(s, "Cancelled")).length,
+              scheduled: mSched.filter((s) => isStatus(s, "Scheduled")).length,
+              done:      mSched.filter((s) => isStatus(s, "Done")).length,
+            };
           });
-        }
-        rangeLabel = String(now.getFullYear());
+          rangeLabel = String(currentYear);
 
-      } else {
-        series = [{
-          label:     "Overall",
-          confirmed: allSched.filter((s) => isStatus(s, "Confirmed")).length,
-          cancelled: allSched.filter((s) => isStatus(s, "Cancelled")).length,
-          scheduled: allSched.filter((s) => isStatus(s, "Scheduled")).length,
-        }];
-        rangeLabel = "All Time";
+        } else {
+          series = [{
+            label:     "Overall",
+            confirmed: allSched.filter((s) => isStatus(s, "Confirmed")).length,
+            cancelled: allSched.filter((s) => isStatus(s, "Cancelled")).length,
+            scheduled: allSched.filter((s) => isStatus(s, "Scheduled")).length,
+            done:      allSched.filter((s) => isStatus(s, "Done")).length,
+          }];
+          rangeLabel = "All Time";
+        }
       }
 
-      const totals = series.reduce(
-        (acc, pt) => ({
-          confirmed: acc.confirmed + (pt.confirmed ?? 0),
-          cancelled: acc.cancelled + (pt.cancelled ?? 0),
-          scheduled: acc.scheduled + (pt.scheduled ?? 0),
-        }),
-        { confirmed: 0, cancelled: 0, scheduled: 0 }
-      );
-      setStats(totals);
       setChartData(series);
       setChartDate(rangeLabel);
 
-      const sorted = [...allSched].sort((a, b) => {
-        const da = parseDT(a.startDateTime), db = parseDT(b.startDateTime);
-        return (db?.getTime() ?? 0) - (da?.getTime() ?? 0);
-      });
-      setRecentSchedules(sorted.slice(0, 5));
     } catch (err) {
       setError(err.response?.data?.message || "Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
-  }
+  }, [activeTimeFrame, selectedModality]);
+
+  useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
+
 
   async function handleDownloadPdf() {
     setPdfLoading(true);
     try {
-      const headers  = getAuthHeader();
-      const filter   = activeTimeFrame.toLowerCase();
-      const response = await axios.get("/api/export/pdf", {
+      const headers       = getAuthHeader();
+      const filter        = activeTimeFrame.toLowerCase();
+      const modalityParam = selectedModality ? { modalityName: selectedModality } : {};
+      const response      = await axios.get("/api/export/pdf", {
         headers,
-        params: { filter },   // backend uses JWT dept — no hardcoded dept param
+        params:       { filter, ...modalityParam },
         responseType: "blob",
       });
       const url     = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
       const link    = document.createElement("a");
       link.href     = url;
-      link.download = `${deptName.toLowerCase()}-schedules-${filter}.pdf`;
+      link.download = `${deptName.toLowerCase()}-schedules-${filter}${selectedModality ? `-${selectedModality.toLowerCase().replace(/\s+/g, "-")}` : ""}.pdf`;
       link.click();
       window.URL.revokeObjectURL(url);
     } catch (err) {
@@ -344,27 +356,32 @@ export default function FrontdeskDashboard() {
     }
   }
 
+ 
   const statsCards = [
+    { icon: UserCheck, label: "Done",      value: stats.done,      color: "text-blue-500"   },
     { icon: UserCheck, label: "Confirmed", value: stats.confirmed, color: "text-green-500"  },
     { icon: UserX,     label: "Cancelled", value: stats.cancelled, color: "text-accent"     },
     { icon: Clock,     label: "Scheduled", value: stats.scheduled, color: "text-yellow-500" },
   ];
 
+
+  const pageTitleNode = (
+    <span className="flex items-center gap-2 flex-wrap">
+      {deptName} Dashboard
+      {modalities.length > 0 && (
+        <ModalityDropdown
+          modalities={modalities}
+          selectedModality={selectedModality}
+          onChange={setSelectedModality}
+        />
+      )}
+    </span>
+  );
+
   return (
     <AdminLayout
       navItems={navItems}
-      pageTitle={
-        <span className="flex items-center gap-3">
-          {deptName} Dashboard
-          {modalities.length > 0 && (
-            <ModalityDropdown
-              value={modalityFilter}
-              onChange={setModalityFilter}
-              options={modalities}
-            />
-          )}
-        </span>
-      }
+      pageTitle={pageTitleNode}
       pageSubtitle="Overview & Analytics"
       userRole={userRole}
     >
@@ -374,8 +391,7 @@ export default function FrontdeskDashboard() {
         <LoadingSkeleton />
       ) : (
         <>
-          {/* Stat cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6 mb-6">
             {statsCards.map(({ icon: Icon, label, value, color }) => (
               <div
                 key={label}
@@ -390,7 +406,6 @@ export default function FrontdeskDashboard() {
             ))}
           </div>
 
-          {/* Chart */}
           <div className="bg-white rounded-2xl shadow-card p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-primary font-montserrat">Status Chart</h2>
@@ -419,18 +434,19 @@ export default function FrontdeskDashboard() {
               ))}
             </div>
 
-            <div className="flex items-center justify-end gap-4 sm:gap-6 mb-4 flex-wrap">
-              {[
-                { color: "bg-green-500", label: "Confirmed" },
-                { color: "bg-accent",    label: "Cancelled" },
-                { color: "bg-yellow-500",label: "Scheduled" },
-              ].map(({ color, label }) => (
-                <div key={label} className="flex items-center gap-2">
-                  <div className={`w-3 h-3 ${color} rounded-sm`} />
-                  <span className="text-sm text-gray-600">{label}</span>
-                </div>
-              ))}
-            </div>
+              <div className="flex items-center justify-end gap-4 sm:gap-6 mb-4 flex-wrap">
+                {[
+                  { color: "bg-blue-500",   label: "Done"      },
+                  { color: "bg-green-500",  label: "Confirmed" },
+                  { color: "bg-accent",     label: "Cancelled" },
+                  { color: "bg-yellow-500", label: "Scheduled" },
+                ].map(({ color, label }) => (
+                  <div key={label} className="flex items-center gap-2">
+                    <div className={`w-3 h-3 ${color} rounded-sm`} />
+                    <span className="text-sm text-gray-600">{label}</span>
+                  </div>
+                ))}
+              </div>
 
             <p className="text-center text-sm font-semibold text-primary mb-4">{chartDate}</p>
 
@@ -450,6 +466,7 @@ export default function FrontdeskDashboard() {
                         boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                       }}
                     />
+                    <Line type="monotone" dataKey="done"      stroke="#3B82F6" strokeWidth={2} dot={{ fill: "#3B82F6", r: 4 }} activeDot={{ r: 6 }} />
                     <Line type="monotone" dataKey="confirmed" stroke="#22C55E" strokeWidth={2} dot={{ fill: "#22C55E", r: 4 }} activeDot={{ r: 6 }} />
                     <Line type="monotone" dataKey="cancelled" stroke="#C0392B" strokeWidth={2} dot={{ fill: "#C0392B", r: 4 }} activeDot={{ r: 6 }} />
                     <Line type="monotone" dataKey="scheduled" stroke="#EAB308" strokeWidth={2} dot={{ fill: "#EAB308", r: 4 }} activeDot={{ r: 6 }} />
@@ -463,7 +480,6 @@ export default function FrontdeskDashboard() {
             </div>
           </div>
 
-          {/* Recent schedules */}
           <div className="bg-white rounded-2xl shadow-card overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-bold text-primary font-montserrat">Recent Schedules</h3>
@@ -489,15 +505,15 @@ export default function FrontdeskDashboard() {
                   {recentSchedules.length > 0 ? (
                     recentSchedules.map((s) => (
                       <tr key={s.scheduleId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">{s.patientName}</td>
                         <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">
-                          {s.startDateTime
-                            ? new Date(s.startDateTime.replace(" ", "T")).toLocaleDateString("en-CA", { month: "2-digit", day: "2-digit", year: "numeric" })
-                            : "—"}
+                          {s.patientFullName ?? "—"}
+                        </td>
+                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">
+                          {fmtDate(s.startDateTime)}
                         </td>
                         <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">
                           {s.startDateTime && s.endDateTime
-                            ? `${new Date(s.startDateTime.replace(" ", "T")).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true })} - ${new Date(s.endDateTime.replace(" ", "T")).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true })}`
+                            ? `${fmtTime(s.startDateTime)} - ${fmtTime(s.endDateTime)}`
                             : "—"}
                         </td>
                         <td className="px-4 sm:px-6 py-4 text-center">
@@ -510,7 +526,9 @@ export default function FrontdeskDashboard() {
                   ) : (
                     <tr>
                       <td colSpan={4} className="px-4 sm:px-6 py-8 text-center text-sm text-gray-400">
-                        No recent schedules found
+                        {selectedModality
+                          ? `No recent schedules found for ${selectedModality}`
+                          : "No recent schedules found"}
                       </td>
                     </tr>
                   )}
