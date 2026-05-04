@@ -50,7 +50,7 @@ const BLANK_FORM = {
   modality:     "",
   machine:      "",
   room:         "",
-  date:         new Date().toISOString().slice(0, 10),
+  date:         new Date().toLocaleDateString("en-CA"),
   startTime:    "",
   endTime:      "",
   firstName:    "",
@@ -235,7 +235,7 @@ function TimeDropdown({ formik, field, startBlocked = new Set(), endBlocked = ne
   const ic         = useInputClass(formik);
   const startTime  = formik.values.startTime;
   const blockedSet = field === "startTime" ? startBlocked : endBlocked;
-  const today      = new Date().toISOString().slice(0, 10);
+  const today      = new Date().toLocaleDateString("en-CA");
   const isToday    = selectedDate === today;
   const isPastDate = selectedDate && selectedDate < today;
   const nowMins    = isPastDate ? 24 * 60 : isToday
@@ -267,7 +267,9 @@ function TimeDropdown({ formik, field, startBlocked = new Set(), endBlocked = ne
   );
 }
 
-function SelectField({ formik, field, placeholder, options, keyProp, valueProp, labelProp, disabled }) {
+// FIX: added `required` prop — when true, placeholder is disabled (required fields);
+//      when false/omitted, placeholder is selectable (optional fields, acts as clear).
+function SelectField({ formik, field, placeholder, options, keyProp, valueProp, labelProp, disabled, required }) {
   const ic = useInputClass(formik);
   return (
     <div className="relative">
@@ -276,7 +278,7 @@ function SelectField({ formik, field, placeholder, options, keyProp, valueProp, 
         {...formik.getFieldProps(field)}
         disabled={disabled}
       >
-        <option value="" disabled>{placeholder}</option>
+        <option value="" disabled={required}>{placeholder}</option>
         {options.map((o) => (
           <option key={o[keyProp]} value={o[valueProp]}>{o[labelProp]}</option>
         ))}
@@ -347,13 +349,12 @@ function PatientSearchableInput({ formik }) {
     }, 350);
   }
 
-
   function handleSelect(patient) {
     setIsExisting(true); setOpen(false); setResults([]);
     setQuery(patient.fullName ?? "");
-    formik.setFieldValue("patientId",     String(patient.patientId ?? ""));
-    formik.setFieldValue("patientFullName", patient.fullName ?? "");
- 
+    formik.setFieldValue("patientId",       String(patient.patientId ?? ""));
+    formik.setFieldValue("patientFullName", patient.fullName          ?? "");
+
     formik.setFieldValue("firstName",  "");
     formik.setFieldValue("middleName", "");
     formik.setFieldValue("lastName",   "");
@@ -423,7 +424,6 @@ function PatientSearchableInput({ formik }) {
 }
 
 
-
 function useDateSchedules(selectedDate) {
   const [dateSchedules, setDateSchedules] = useState([]);
   useEffect(() => {
@@ -460,8 +460,8 @@ function useBookedRanges({ dateSchedules, selectedProfName, selectedMachineName,
         if (!s.startDateTime || !s.endDateTime) return false;
         return (
           (selectedProfName    && s.doctorFullName === selectedProfName)    ||
-          (selectedMachineName && s.machineName === selectedMachineName) ||
-          (selectedRoomName    && s.roomName    === selectedRoomName)
+          (selectedMachineName && s.machineName    === selectedMachineName) ||
+          (selectedRoomName    && s.roomName       === selectedRoomName)
         );
       })
       .map((s) => ({
@@ -472,6 +472,7 @@ function useBookedRanges({ dateSchedules, selectedProfName, selectedMachineName,
 }
 
 
+// FIX: hospPlan and hospCaseType are now required in both schemas
 const scheduleSchema = Yup.object({
   professional: Yup.string().required("Medical professional is required"),
   procedure:    Yup.string().required("Procedure is required"),
@@ -479,7 +480,7 @@ const scheduleSchema = Yup.object({
   machine:      Yup.string(),
   room:         Yup.string(),
   date:         Yup.string().required("Date is required")
-    .test("not-past", "Date cannot be in the past", (val) => !val || val >= new Date().toISOString().slice(0, 10)),
+    .test("not-past", "Date cannot be in the past", (val) => !val || val >= new Date().toLocaleDateString("en-CA")),
   startTime:    Yup.string().required("Start time is required"),
   endTime:      Yup.string()
     .required("End time is required")
@@ -498,8 +499,8 @@ const scheduleSchema = Yup.object({
     otherwise: (s) => s,
   }),
   address:      Yup.string().when("patientId", { is: (v) => !v, then: (s) => s.required("Address is required"), otherwise: (s) => s }),
-  hospPlan:     Yup.string(),
-  hospCaseType: Yup.string(),
+  hospPlan:     Yup.string().required("Hospitalization plan is required"),
+  hospCaseType: Yup.string().required("Case type is required"),
   remarks:      Yup.string().required("Remarks is required"),
 });
 
@@ -510,15 +511,15 @@ const editScheduleSchema = Yup.object({
   machine:      Yup.string(),
   room:         Yup.string(),
   date:         Yup.string().required("Date is required")
-    .test("not-past", "Date cannot be in the past", (val) => !val || val >= new Date().toISOString().slice(0, 10)),
+    .test("not-past", "Date cannot be in the past", (val) => !val || val >= new Date().toLocaleDateString("en-CA")),
   startTime:    Yup.string().required("Start time is required"),
   endTime:      Yup.string()
     .required("End time is required")
     .test("after-start", "End time must be after start time", function (v) {
       return !this.parent.startTime || !v || v > this.parent.startTime;
     }),
-  hospPlan:     Yup.string(),
-  hospCaseType: Yup.string(),
+  hospPlan:     Yup.string().required("Hospitalization plan is required"),
+  hospCaseType: Yup.string().required("Case type is required"),
   remarks:      Yup.string().required("Remarks is required"),
 });
 
@@ -586,9 +587,10 @@ function ScheduleForm({ initialValues, submitLabel, onSubmit, onClose, professio
     <form onSubmit={formik.handleSubmit} noValidate className="space-y-4">
 
       <SectionGroup title="Schedule Details">
+        {/* FIX: required prop added — placeholder is disabled */}
         <FormField label="Medical Professional" error={formik.touched.professional && formik.errors.professional}>
           <SelectField formik={formik} field="professional" placeholder="Select Medical Professional"
-            options={professionals} keyProp="doctorId" valueProp="doctorId" labelProp="fullName" />
+            options={professionals} keyProp="doctorId" valueProp="doctorId" labelProp="fullName" required />
         </FormField>
 
         <FormField label="Procedure" error={formik.touched.procedure && formik.errors.procedure}>
@@ -597,6 +599,7 @@ function ScheduleForm({ initialValues, submitLabel, onSubmit, onClose, professio
         </FormField>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* No required prop — placeholder is selectable (acts as clear) */}
           <FormField label="Modality" error={formik.touched.modality && formik.errors.modality}>
             <SelectField formik={formik} field="modality" placeholder="Select Modality (optional)"
               options={modalities} keyProp="modalityId" valueProp="modalityId" labelProp="modalityName" />
@@ -613,7 +616,7 @@ function ScheduleForm({ initialValues, submitLabel, onSubmit, onClose, professio
         </FormField>
 
         <FormField label="Date" error={formik.touched.date && formik.errors.date}>
-          <input type="date" min={new Date().toISOString().slice(0, 10)}
+          <input type="date" min={new Date().toLocaleDateString("en-CA")}
             className={ic("date")} {...formik.getFieldProps("date")} />
         </FormField>
 
@@ -704,13 +707,14 @@ function ScheduleForm({ initialValues, submitLabel, onSubmit, onClose, professio
 
       <SectionGroup title="Hospitalization">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* FIX: required prop added — placeholder is disabled */}
           <FormField label="Hospitalization Plan" error={formik.touched.hospPlan && formik.errors.hospPlan}>
             <SelectField formik={formik} field="hospPlan" placeholder="Select Plan"
-              options={hospPlans} keyProp="planId" valueProp="planId" labelProp="companyName" />
+              options={hospPlans} keyProp="planId" valueProp="planId" labelProp="companyName" required />
           </FormField>
           <FormField label="Case Type" error={formik.touched.hospCaseType && formik.errors.hospCaseType}>
             <SelectField formik={formik} field="hospCaseType" placeholder="Select Case Type"
-              options={hospCaseTypes} keyProp="typeId" valueProp="typeId" labelProp="typeName" />
+              options={hospCaseTypes} keyProp="typeId" valueProp="typeId" labelProp="typeName" required />
           </FormField>
         </div>
 
@@ -824,9 +828,10 @@ function EditScheduleModal({ schedule, professionals, modalities, machines, room
               className={ic("procedure")} {...formik.getFieldProps("procedure")} />
           </FormField>
 
+          {/* FIX: required prop added */}
           <FormField label="Medical Professional" error={formik.touched.professional && formik.errors.professional}>
             <SelectField formik={formik} field="professional" placeholder="Select Medical Professional"
-              options={professionals} keyProp="doctorId" valueProp="doctorId" labelProp="fullName" />
+              options={professionals} keyProp="doctorId" valueProp="doctorId" labelProp="fullName" required />
           </FormField>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -846,7 +851,7 @@ function EditScheduleModal({ schedule, professionals, modalities, machines, room
           </FormField>
 
           <FormField label="Date" error={formik.touched.date && formik.errors.date}>
-            <input type="date" min={new Date().toISOString().slice(0, 10)}
+            <input type="date" min={new Date().toLocaleDateString("en-CA")}
               className={ic("date")} {...formik.getFieldProps("date")} />
           </FormField>
 
@@ -862,13 +867,14 @@ function EditScheduleModal({ schedule, professionals, modalities, machines, room
 
         <SectionGroup title="Hospitalization">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* FIX: required prop added */}
             <FormField label="Hospitalization Plan" error={formik.touched.hospPlan && formik.errors.hospPlan}>
               <SelectField formik={formik} field="hospPlan" placeholder="Select Plan"
-                options={hospPlans} keyProp="planId" valueProp="planId" labelProp="companyName" />
+                options={hospPlans} keyProp="planId" valueProp="planId" labelProp="companyName" required />
             </FormField>
             <FormField label="Case Type" error={formik.touched.hospCaseType && formik.errors.hospCaseType}>
               <SelectField formik={formik} field="hospCaseType" placeholder="Select Case Type"
-                options={hospCaseTypes} keyProp="typeId" valueProp="typeId" labelProp="typeName" />
+                options={hospCaseTypes} keyProp="typeId" valueProp="typeId" labelProp="typeName" required />
             </FormField>
           </div>
 
@@ -970,11 +976,10 @@ export default function FrontdeskScheduleManagement() {
   const [page,          setPage]          = useState(0);
   const [totalPages,    setTotalPages]    = useState(1);
 
-  
   const [filters, setFilters] = useState({
-    tab:            "All",  
-    modalityFilter: "all",  
-    search:         "",     
+    tab:            "All",
+    modalityFilter: "all",
+    search:         "",
   });
 
   const [professionals, setProfessionals] = useState([]);
@@ -984,16 +989,15 @@ export default function FrontdeskScheduleManagement() {
   const [hospPlans,     setHospPlans]     = useState([]);
   const [hospCaseTypes, setHospCaseTypes] = useState([]);
 
-  const setTab           = (tab)           => setFilters((f) => ({ ...f, tab }));
+  const setTab            = (tab)            => setFilters((f) => ({ ...f, tab }));
   const setModalityFilter = (modalityFilter) => setFilters((f) => ({ ...f, modalityFilter }));
-  const setSearch        = (search)        => setFilters((f) => ({ ...f, search }));
+  const setSearch         = (search)         => setFilters((f) => ({ ...f, search }));
 
   const debouncedSearch = useDebounce(filters.search, 400);
 
   useEffect(() => { setPage(0); }, [filters.tab, filters.modalityFilter, debouncedSearch]);
-  useEffect(() => { fetchSchedules(); }, [filters.tab, filters.modalityFilter, debouncedSearch, page]); 
+  useEffect(() => { fetchSchedules(); }, [filters.tab, filters.modalityFilter, debouncedSearch, page]);
   useEffect(() => { fetchDropdownData(); }, []);
-
 
   function buildParams() {
     const patientName  = debouncedSearch.trim() || undefined;
@@ -1014,7 +1018,7 @@ export default function FrontdeskScheduleManagement() {
         headers: getAuthHeader(),
         params:  buildParams(),
       });
-      setSchedules(res.data?.content   ?? []);
+      setSchedules(res.data?.content    ?? []);
       setTotalPages(res.data?.totalPages ?? 1);
     } catch (err) {
       console.error("Failed to fetch schedules:", err);
@@ -1028,12 +1032,12 @@ export default function FrontdeskScheduleManagement() {
     try {
       const headers = getAuthHeader();
       const [profRes, modalityRes, machineRes, roomRes, planRes, typeRes] = await Promise.all([
-        axios.get("/api/doctorDropdown",        { headers }),  
-        axios.get("/api/modalityDropdown",      { headers }),
-        axios.get("/api/machineDropdown",        { headers }),
-        axios.get("/api/roomDropdown",           { headers }),
-        axios.get("/api/plansDropdown",          { headers }),
-        axios.get("/api/typesDropdown",          { headers }),
+        axios.get("/api/doctorDropdown",   { headers }),
+        axios.get("/api/modalityDropdown", { headers }),
+        axios.get("/api/machineDropdown",  { headers }),
+        axios.get("/api/roomDropdown",     { headers }),
+        axios.get("/api/plansDropdown",    { headers }),
+        axios.get("/api/typesDropdown",    { headers }),
       ]);
       const toArray = (d) => Array.isArray(d) ? d : d?.content ?? [];
       setProfessionals(toArray(profRes.data));
@@ -1102,10 +1106,10 @@ export default function FrontdeskScheduleManagement() {
         procedureName:       values.procedure,
         remarks:             values.remarks || null,
         doctor:              { doctorId: Number(values.professional) },
-        machine:             values.machine     ? { machineId: Number(values.machine) }     : null,
-        room:                values.room        ? { roomId:    Number(values.room)    }     : null,
-        hospitalizationPlan: values.hospPlan    ? { planId:    Number(values.hospPlan)    } : null,
-        hospitalizationType: values.hospCaseType ? { typeId:   Number(values.hospCaseType) } : null,
+        machine:             values.machine      ? { machineId: Number(values.machine) }      : null,
+        room:                values.room         ? { roomId:    Number(values.room)    }      : null,
+        hospitalizationPlan: values.hospPlan     ? { planId:    Number(values.hospPlan)    }  : null,
+        hospitalizationType: values.hospCaseType ? { typeId:    Number(values.hospCaseType) } : null,
       },
     };
     await axios.post("/api/createScheduleAndPatient", payload, { headers: getAuthHeader() });
@@ -1114,13 +1118,13 @@ export default function FrontdeskScheduleManagement() {
 
   async function handleEdit(values) {
     const payload = {
-      startDateTime:          buildDatetime(values.date, values.startTime),
-      endDateTime:            buildDatetime(values.date, values.endTime),
-      procedureName:          values.procedure,
-      remarks:                values.remarks || null,
-      doctorId:               Number(values.professional),
-      machineId:              values.machine ? Number(values.machine) : null,
-      roomId:                 values.room    ? Number(values.room)    : null,
+      startDateTime: buildDatetime(values.date, values.startTime),
+      endDateTime:   buildDatetime(values.date, values.endTime),
+      procedureName: values.procedure,
+      remarks:       values.remarks || null,
+      doctorId:      Number(values.professional),
+      machineId:     values.machine ? Number(values.machine) : null,
+      roomId:        values.room    ? Number(values.room)    : null,
     };
     await axios.patch(`/api/updateSchedule/${editSchedule.scheduleId}`, payload, { headers: getAuthHeader() });
     await fetchSchedules();
@@ -1181,8 +1185,8 @@ export default function FrontdeskScheduleManagement() {
                 : "—"}
             </td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.doctorFullName ?? "—"}</td>
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.machineName  ?? "—"}</td>
-            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.roomName     ?? "—"}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.machineName    ?? "—"}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.roomName       ?? "—"}</td>
             <td className={`px-6 py-4 text-center text-sm font-semibold ${scheduleStatusColor(s.scheduleStatus)}`}>
               {s.scheduleStatus ? s.scheduleStatus.charAt(0).toUpperCase() + s.scheduleStatus.slice(1) : "—"}
             </td>
