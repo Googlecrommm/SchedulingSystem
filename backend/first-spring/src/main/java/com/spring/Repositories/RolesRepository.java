@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+
 @Repository
 public interface RolesRepository extends JpaRepository<Roles, Integer>, JpaSpecificationExecutor<Roles> {
     boolean existsByRoleName(String roleName);
@@ -22,5 +23,10 @@ public interface RolesRepository extends JpaRepository<Roles, Integer>, JpaSpeci
 
     Page<Roles> findAll(Pageable pageable);
 
+    Roles findByRoleName(String roleName);
+
+    List<Roles> findAllByRoleNameIgnoreCase(String roleName);
+
     List<Roles> findAllByRoleStatusNotAndRoleNameNotAndDepartment_DepartmentNameNot(SoftDelete roleStatus, String roleName, String departmentName);
+
 }

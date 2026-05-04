@@ -70,6 +70,19 @@ public class RolesService {
                 .toList();
     }
 
+    //FRONTDESK DROPDOWN
+    public List<RoleResponseDTO> frontdeskDropdown(){
+        return rolesRepository.findAllByRoleNameIgnoreCase("Frontdesk")
+        .stream()
+        .map(roles -> {
+            RoleResponseDTO roleDTO = modelMapper.map(roles, RoleResponseDTO.class);
+            roleDTO.setDepartmentName(roles.getDepartment().getDepartmentName());
+            return roleDTO;
+            })
+            .toList();
+    }
+
+    //DOCTORS DROPDOWN
     public List<RoleResponseDTO> doctorRoleDropdown(String departmentName) {
         Specification<Roles> filters = Specification
                 .where(RoleSpecification.excludeRole())       // excludes Admin

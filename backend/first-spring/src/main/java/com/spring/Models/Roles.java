@@ -26,7 +26,7 @@ public class Roles {
     @NotBlank
     @Size(max = 100)
     @Column(name = "roleName", nullable = false, length = 100)
-    private String roleName;
+    private String roleName = "Frontdesk";
 
     @Column(name = "roleStatus", nullable = false)
     @Enumerated(EnumType.STRING)

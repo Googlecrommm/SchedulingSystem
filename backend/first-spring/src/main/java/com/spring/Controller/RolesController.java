@@ -56,6 +56,13 @@ public class RolesController {
         return ResponseEntity.ok(rolesService.roleDropdown(effectiveDept));
     }
 
+    //FRONTDESK DROPDOWN
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("frontdeskDropdown")
+    public ResponseEntity<List<RoleResponseDTO>> frontdeskDropdown(Authentication authentication){
+        return ResponseEntity.ok(rolesService.frontdeskDropdown());
+    }
+
     //DOCTORS (DROPDOWN)
     @PreAuthorize("isAuthenticated()")
     @GetMapping("doctorRoleDropdown")

@@ -4,7 +4,9 @@ import com.spring.Enums.AccountStatus;
 import com.spring.Exceptions.AlreadyExists;
 import com.spring.Exceptions.NotAllowed;
 import com.spring.Exceptions.NotFound;
+import com.spring.Models.Roles;
 import com.spring.Models.Users;
+import com.spring.Repositories.RolesRepository;
 import com.spring.Repositories.UsersRepository;
 import com.spring.Security.JwtService;
 import com.spring.Security.TokenBlacklistService;
@@ -24,22 +26,27 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final TokenBlacklistService tokenBlacklistService;
+    private final RolesRepository rolesRepository;
 
     public AuthService(UsersRepository usersRepository, PasswordEncoder passwordEncoder,
                        JwtService jwtService, AuthenticationManager authenticationManager,
-                       TokenBlacklistService tokenBlacklistService) {
+                       TokenBlacklistService tokenBlacklistService, RolesRepository rolesRepository) {
         this.usersRepository = usersRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
         this.tokenBlacklistService = tokenBlacklistService;
+        this.rolesRepository = rolesRepository;
     }
 
     //REGISTER
     public Users register(Users user) throws AlreadyExists {
+        Roles frontdeskRole = rolesRepository.findById(3).orElseThrow(() -> new NotFound("Role not found"));
         if (usersRepository.existsByEmail(user.getEmail())) {
             throw new AlreadyExists("User already exists");
-        }
+        };
+
+        user.setRole(frontdeskRole);
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         return usersRepository.save(user);
     }
