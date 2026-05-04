@@ -24,21 +24,22 @@ public class ScheduleController {
     private final ScheduleService scheduleService;
     private final DepartmentSecurityHelper departmentSecurityHelper;
 
-    public ScheduleController(ScheduleService scheduleService, DepartmentSecurityHelper departmentSecurityHelper){
+    public ScheduleController(ScheduleService scheduleService, DepartmentSecurityHelper departmentSecurityHelper) {
         this.scheduleService = scheduleService;
         this.departmentSecurityHelper = departmentSecurityHelper;
     }
 
+    //CREATE
     @PreAuthorize("hasRole('FRONTDESK')")
     @PostMapping("createScheduleAndPatient")
     public ResponseEntity<SuccessResponse> createScheduleAndPatient(
             @RequestBody CreatePatientWithScheduleResponseDTO schedulePatientDTO,
-            Authentication authentication){
+            Authentication authentication) {
         scheduleService.createScheduleAndPatient(schedulePatientDTO, authentication);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Schedule Added"));
     }
 
-    //READ & FILTER — single endpoint, all roles, department scoped via helper
+    //READ & FILTER
     @PreAuthorize("isAuthenticated()")
     @GetMapping("getSchedules")
     public ResponseEntity<Page<ScheduleResponseDTO>> getSchedules(
@@ -57,19 +58,16 @@ public class ScheduleController {
                 scheduleService.getSchedules(scheduleStatus, name, patientName, effectiveDept, modalityName, pageable));
     }
 
-    // DELETED: getRadiologySched()  — replaced by getSchedules() with departmentName param
-    // DELETED: getRehabSched()      — replaced by getSchedules() with departmentName param
-
     //SEARCH
     @PreAuthorize("isAuthenticated()")
     @GetMapping("searchSchedule/{patientName}")
     public ResponseEntity<Page<ScheduleResponseDTO>> searchSchedule(
             @PathVariable String patientName,
-            Pageable pageable){
+            Pageable pageable) {
         return ResponseEntity.ok(scheduleService.searchSchedule(patientName, pageable));
     }
 
-    //DASHBOARD COUNTS — single endpoint, all roles, department scoped via helper
+    //DASHBOARD COUNTS
     @PreAuthorize("isAuthenticated()")
     @GetMapping("dashboard/counts")
     public ResponseEntity<Map<String, Long>> getDashboardCounts(
@@ -84,10 +82,12 @@ public class ScheduleController {
         return ResponseEntity.ok(scheduleService.getDashboardCounts(effectiveDept, filter, modalityName));
     }
 
-    //DASHBOARD MONTHLY BREAKDOWN — single endpoint, all roles, department scoped via helper
+    // DASHBOARD MONTHLY BREAKDOWN
+    // FIXED: now returns Map<String, Map<String, Long>>
+    // Shape: { "January": { "Scheduled": 2, "Cancelled": 1, "Done": 0, "Confirmed": 0 }, ... }
     @PreAuthorize("isAuthenticated()")
     @GetMapping("dashboard/monthly-breakdown")
-    public ResponseEntity<Map<String, Long>> getMonthlyBreakdown(
+    public ResponseEntity<Map<String, Map<String, Long>>> getMonthlyBreakdown(
             @RequestParam(required = false) String departmentName,
             @RequestParam(required = false) String modalityName,
             Authentication authentication) {
@@ -97,9 +97,6 @@ public class ScheduleController {
 
         return ResponseEntity.ok(scheduleService.getMonthlyBreakdown(effectiveDept, modalityName));
     }
-
-    // DELETED: dashboard/countRadio  — replaced by dashboard/counts with departmentName param
-    // DELETED: dashboard/countRehab  — replaced by dashboard/counts with departmentName param
 
     //UPDATE
     @PreAuthorize("isAuthenticated()")
@@ -115,7 +112,7 @@ public class ScheduleController {
     //ARCHIVE
     @PreAuthorize("isAuthenticated()")
     @PutMapping("archiveSchedule/{scheduleId}")
-    public ResponseEntity<SuccessResponse> archiveSchedule(@PathVariable int scheduleId){
+    public ResponseEntity<SuccessResponse> archiveSchedule(@PathVariable int scheduleId) {
         scheduleService.archiveSchedule(scheduleId);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Schedule Archived"));
     }
@@ -123,7 +120,7 @@ public class ScheduleController {
     //CANCELLED
     @PreAuthorize("isAuthenticated()")
     @PutMapping("cancelSchedule/{scheduleId}")
-    public ResponseEntity<SuccessResponse> cancelSchedule(@PathVariable int scheduleId){
+    public ResponseEntity<SuccessResponse> cancelSchedule(@PathVariable int scheduleId) {
         scheduleService.cancelSchedule(scheduleId);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Schedule Cancelled"));
     }
@@ -131,7 +128,7 @@ public class ScheduleController {
     //CONFIRMED
     @PreAuthorize("isAuthenticated()")
     @PutMapping("confirmSchedule/{scheduleId}")
-    public ResponseEntity<SuccessResponse> confirmSchedule(@PathVariable int scheduleId){
+    public ResponseEntity<SuccessResponse> confirmSchedule(@PathVariable int scheduleId) {
         scheduleService.confirmSchedule(scheduleId);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Schedule Confirmed"));
     }
@@ -139,7 +136,7 @@ public class ScheduleController {
     //DONE
     @PreAuthorize("isAuthenticated()")
     @PutMapping("doneSchedule/{scheduleId}")
-    public ResponseEntity<SuccessResponse> doneSchedule(@PathVariable int scheduleId){
+    public ResponseEntity<SuccessResponse> doneSchedule(@PathVariable int scheduleId) {
         scheduleService.doneSchedule(scheduleId);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Schedule Marked as Done"));
     }
@@ -147,12 +144,12 @@ public class ScheduleController {
     //RESTORE
     @PreAuthorize("isAuthenticated()")
     @PutMapping("restoreSchedule/{scheduleId}")
-    public ResponseEntity<SuccessResponse> restoreSchedule(@PathVariable int scheduleId){
+    public ResponseEntity<SuccessResponse> restoreSchedule(@PathVariable int scheduleId) {
         scheduleService.restoreSchedule(scheduleId);
         return ResponseEntity.ok().body(new SuccessResponse(200, "Schedule Marked as Scheduled"));
     }
 
-    //PRINT — department scoped via helper so non-admins can only export their own dept
+    //PRINT
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/export/pdf")
     public ResponseEntity<byte[]> exportPdf(

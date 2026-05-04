@@ -41,12 +41,10 @@ public class AuthService {
 
     //REGISTER
     public Users register(Users user) throws AlreadyExists {
-        Roles frontdeskRole = rolesRepository.findById(3).orElseThrow(() -> new NotFound("Role not found"));
         if (usersRepository.existsByEmail(user.getEmail())) {
             throw new AlreadyExists("User already exists");
         };
-
-        user.setRole(frontdeskRole);
+        
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         return usersRepository.save(user);
     }

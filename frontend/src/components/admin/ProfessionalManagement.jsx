@@ -264,7 +264,7 @@ export default function ProfessionalManagement() {
     async function fetchRoles() {
       setRolesLoading(true);
       try {
-        const res = await axios.get("/api/roleDropdown", { headers: getAuthHeader() });
+        const res = await axios.get("/api/doctorRoleDropdown", { headers: getAuthHeader() });
         setRoles(res.data ?? []);
       } catch (err) {
         console.error("Failed to fetch roles:", err);

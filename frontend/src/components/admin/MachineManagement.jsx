@@ -133,7 +133,7 @@ function CreateMachineForm({ onSubmit, onClose }) {
           </option>
           {modalities.map((m) => (
             <option key={m.modalityId} value={m.modalityId}>
-              {m.modalityName}
+             {m.modalityName} ({m.departmentName})
             </option>
           ))}
         </select>

@@ -6,19 +6,18 @@ import {
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer,
+  Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
-
-import {
-  AdminLayout,
-  scheduleStatusColor,
-} from "../ui";
-
-// ── Constants ─────────────────────────────────────────────────────────────────
+import { AdminLayout, scheduleStatusColor } from "../ui";
 
 const TIME_FRAMES = ["Daily", "Weekly", "Monthly", "Yearly", "Overall"];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+const STATUS_LINES = [
+  { key: "scheduled", color: "#EAB308", label: "Scheduled" },
+  { key: "confirmed", color: "#22C55E", label: "Confirmed" },
+  { key: "cancelled", color: "#C0392B", label: "Cancelled" },
+  { key: "done",      color: "#3B82F6", label: "Done"      },
+];
 
 function getAuthHeader() {
   const token = localStorage.getItem("token");
@@ -47,18 +46,6 @@ function fmtTime(raw) {
   if (!d) return "";
   return d.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true });
 }
-
-function toDateStr(raw) {
-  const d = typeof raw === "object" && raw instanceof Date ? raw : parseDT(raw);
-  if (!d) return "";
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function isStatus(s, status) {
-  return (s.scheduleStatus ?? "").toLowerCase() === status.toLowerCase();
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
 
 function LoadingSkeleton() {
   return (
@@ -99,105 +86,61 @@ function ErrorMessage({ message, onRetry }) {
   );
 }
 
-// ── CascadingDropdown ─────────────────────────────────────────────────────────
-//
-//  Two-level fly-out inspired by the screenshot's platform mega-menu:
-//
-//    [All Departments ▾]
-//      ├─ All Departments
-//      ├─ Radiology          ▶  ┌───────────────────┐
-//      │                       │ All Modalities      │
-//      └─ Rehabilitation   ▶   │ CT Scan             │
-//                              │ MRI                 │
-//                              └───────────────────┘
-//
-//  selectedDept  = departmentName | ""  (empty = All)
-//  selectedModal = modalityName   | ""  (empty = All for that dept)
-
 function CascadingDropdown({
-  departments,        // [{ departmentId, departmentName }]
-  modalitiesByDept,   // { [deptName]: [{ modalityId, modalityName }] }
-  selectedDept,
-  selectedModal,
-  onSelect,           // ({ dept, modal }) => void
+  departments, modalitiesByDept, selectedDept, selectedModal, onSelect,
 }) {
   const [open,        setOpen]        = useState(false);
   const [hoveredDept, setHoveredDept] = useState(null);
   const rootRef  = useRef(null);
   const subTimer = useRef(null);
 
-  // Close on outside click
   useEffect(() => {
     if (!open) return;
     const handler = (e) => {
       if (rootRef.current && !rootRef.current.contains(e.target)) {
-        setOpen(false);
-        setHoveredDept(null);
+        setOpen(false); setHoveredDept(null);
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  // Trigger label
   const triggerLabel = selectedModal
     ? `${selectedDept} › ${selectedModal}`
     : selectedDept || "All Departments";
 
   function close() { setOpen(false); setHoveredDept(null); }
-
-  function handleSelectAll()                         { onSelect({ dept: "", modal: "" });             close(); }
-  function handleSelectDept(deptName)                { onSelect({ dept: deptName, modal: "" });        close(); }
-  function handleSelectModal(deptName, modalName)    { onSelect({ dept: deptName, modal: modalName }); close(); }
-
-  function handleDeptEnter(deptName) {
-    clearTimeout(subTimer.current);
-    setHoveredDept(deptName);
-  }
-  function handleDeptLeave() {
-    subTimer.current = setTimeout(() => setHoveredDept(null), 120);
-  }
-  function handleSubEnter() { clearTimeout(subTimer.current); }
+  function handleSelectAll()                      { onSelect({ dept: "", modal: "" });             close(); }
+  function handleSelectDept(d)                    { onSelect({ dept: d,  modal: "" });             close(); }
+  function handleSelectModal(d, m)                { onSelect({ dept: d,  modal: m  });             close(); }
+  function handleDeptEnter(d) { clearTimeout(subTimer.current); setHoveredDept(d); }
+  function handleDeptLeave()  { subTimer.current = setTimeout(() => setHoveredDept(null), 120); }
+  function handleSubEnter()   { clearTimeout(subTimer.current); }
 
   const itemCls = (active) =>
     `w-full text-left px-4 py-2.5 text-sm transition-colors cursor-pointer whitespace-nowrap
-     ${active
-       ? "font-semibold text-primary bg-primary/5"
-       : "text-gray-600 hover:bg-primary/5 hover:text-primary"}`;
+     ${active ? "font-semibold text-primary bg-primary/5" : "text-gray-600 hover:bg-primary/5 hover:text-primary"}`;
 
   return (
     <div className="relative inline-block" ref={rootRef}>
-      {/* Trigger button */}
       <button
         onClick={() => { setOpen((v) => !v); setHoveredDept(null); }}
         className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary transition-colors cursor-pointer whitespace-nowrap"
       >
         {triggerLabel}
-        <ChevronDown
-          size={14}
-          className={`text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-        />
+        <ChevronDown size={14} className={`text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
       </button>
 
-      {/* Primary dropdown panel */}
       {open && (
         <div className="absolute left-0 top-full mt-1.5 bg-white rounded-xl shadow-card border border-gray-100 py-1 z-50 min-w-[190px]">
-
-          {/* "All Departments" row */}
-          <button
-            onClick={handleSelectAll}
-            className={itemCls(!selectedDept && !selectedModal)}
-          >
+          <button onClick={handleSelectAll} className={itemCls(!selectedDept && !selectedModal)}>
             All Departments
           </button>
-
-          {/* One row per department */}
           {departments.map((dept) => {
             const deptName   = dept.departmentName;
             const modalities = modalitiesByDept[deptName] ?? [];
             const hasModals  = modalities.length > 0;
             const isActive   = selectedDept === deptName && !selectedModal;
-
             return (
               <div
                 key={dept.departmentId}
@@ -205,39 +148,27 @@ function CascadingDropdown({
                 onMouseEnter={() => hasModals && handleDeptEnter(deptName)}
                 onMouseLeave={() => hasModals && handleDeptLeave()}
               >
-                {/* Department row */}
                 <button
                   onClick={() => handleSelectDept(deptName)}
                   className={`${itemCls(isActive)} flex items-center justify-between gap-6`}
                 >
                   <span>{deptName}</span>
-                  {hasModals && (
-                    <ChevronRight size={13} className="text-gray-400 shrink-0" />
-                  )}
+                  {hasModals && <ChevronRight size={13} className="text-gray-400 shrink-0" />}
                 </button>
-
-                {/* Sub-menu: modalities for this dept */}
                 {hasModals && hoveredDept === deptName && (
                   <div
                     className="absolute left-full top-0 ml-1 bg-white rounded-xl shadow-card border border-gray-100 py-1 z-50 min-w-[170px]"
                     onMouseEnter={handleSubEnter}
                     onMouseLeave={handleDeptLeave}
                   >
-                    {/* "All Modalities" shortcut — selects dept only */}
-                    <button
-                      onClick={() => handleSelectDept(deptName)}
-                      className={itemCls(selectedDept === deptName && !selectedModal)}
-                    >
+                    <button onClick={() => handleSelectDept(deptName)} className={itemCls(selectedDept === deptName && !selectedModal)}>
                       All Modalities
                     </button>
-
                     {modalities.map((m) => (
                       <button
                         key={m.modalityId}
                         onClick={() => handleSelectModal(deptName, m.modalityName)}
-                        className={itemCls(
-                          selectedDept === deptName && selectedModal === m.modalityName
-                        )}
+                        className={itemCls(selectedDept === deptName && selectedModal === m.modalityName)}
                       >
                         {m.modalityName}
                       </button>
@@ -253,14 +184,102 @@ function CascadingDropdown({
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
+// FIXED: Yearly now reads per-status per-month from the new backend shape
+// { "January": { "Scheduled": N, "Confirmed": N, "Cancelled": N, "Done": N }, ... }
+// Other frames generate multiple points so lines can actually be drawn
+function buildChartSeries(activeTimeFrame, counts, monthlyBreakdown) {
+  const now = new Date();
+
+  if (activeTimeFrame === "Yearly") {
+    const MONTHS = ["January","February","March","April","May","June",
+                    "July","August","September","October","November","December"];
+    const SHORT  = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return MONTHS.map((m, i) => ({
+      label:     SHORT[i],
+      scheduled: monthlyBreakdown[m]?.Scheduled ?? 0,
+      confirmed: monthlyBreakdown[m]?.Confirmed ?? 0,
+      cancelled: monthlyBreakdown[m]?.Cancelled ?? 0,
+      done:      monthlyBreakdown[m]?.Done      ?? 0,
+    }));
+  }
+
+  if (activeTimeFrame === "Daily") {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(now.getDate() - (6 - i));
+      const isToday = i === 6;
+      return {
+        label:     d.toLocaleDateString("en-CA", { month: "short", day: "numeric" }),
+        scheduled: isToday ? (counts.Scheduled ?? 0) : 0,
+        confirmed: isToday ? (counts.Confirmed ?? 0) : 0,
+        cancelled: isToday ? (counts.Cancelled ?? 0) : 0,
+        done:      isToday ? (counts.Done      ?? 0) : 0,
+      };
+    });
+  }
+
+  if (activeTimeFrame === "Weekly") {
+    const days     = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    const todayDow = (now.getDay() + 6) % 7;
+    return days.map((label, i) => ({
+      label,
+      scheduled: i === todayDow ? (counts.Scheduled ?? 0) : 0,
+      confirmed: i === todayDow ? (counts.Confirmed ?? 0) : 0,
+      cancelled: i === todayDow ? (counts.Cancelled ?? 0) : 0,
+      done:      i === todayDow ? (counts.Done      ?? 0) : 0,
+    }));
+  }
+
+  if (activeTimeFrame === "Monthly") {
+    return ["Week 1","Week 2","Week 3","Week 4"].map((label, i) => {
+      const currentWeek = Math.floor((now.getDate() - 1) / 7);
+      return {
+        label,
+        scheduled: i === currentWeek ? (counts.Scheduled ?? 0) : 0,
+        confirmed: i === currentWeek ? (counts.Confirmed ?? 0) : 0,
+        cancelled: i === currentWeek ? (counts.Cancelled ?? 0) : 0,
+        done:      i === currentWeek ? (counts.Done      ?? 0) : 0,
+      };
+    });
+  }
+
+  return [{
+    label:     "All Time",
+    scheduled: counts.Scheduled ?? 0,
+    confirmed: counts.Confirmed ?? 0,
+    cancelled: counts.Cancelled ?? 0,
+    done:      counts.Done      ?? 0,
+  }];
+}
+
+function buildRangeLabel(activeTimeFrame) {
+  const now = new Date();
+  switch (activeTimeFrame) {
+    case "Daily":
+      return now.toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+    case "Weekly": {
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      const fmt = (d) => d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
+      return `${fmt(monday)} – ${fmt(sunday)}`;
+    }
+    case "Monthly":
+      return now.toLocaleDateString("en-CA", { month: "long", year: "numeric" });
+    case "Yearly":
+      return String(now.getFullYear());
+    default:
+      return "All Time";
+  }
+}
 
 export default function AdminDashboard() {
   const [activeTimeFrame,  setActiveTimeFrame]  = useState("Daily");
-  const [selectedDept,     setSelectedDept]     = useState("");  // "" = All
-  const [selectedModal,    setSelectedModal]    = useState("");  // "" = All
+  const [selectedDept,     setSelectedDept]     = useState("");
+  const [selectedModal,    setSelectedModal]    = useState("");
   const [departments,      setDepartments]      = useState([]);
-  const [modalitiesByDept, setModalitiesByDept] = useState({});  // { deptName: [...] }
+  const [modalitiesByDept, setModalitiesByDept] = useState({});
   const [stats,            setStats]            = useState({ confirmed: 0, cancelled: 0, scheduled: 0, done: 0 });
   const [chartData,        setChartData]        = useState([]);
   const [chartDate,        setChartDate]        = useState("");
@@ -269,23 +288,15 @@ export default function AdminDashboard() {
   const [error,            setError]            = useState(null);
   const [pdfLoading,       setPdfLoading]       = useState(false);
 
-  // ── Fetch departments + modalities once ──────────────────────────────────
-
   useEffect(() => {
     async function fetchDropdownData() {
       try {
         const headers = getAuthHeader();
-
         const [deptRes, modalRes] = await Promise.all([
           axios.get("/api/departmentsDropdown", { headers }),
           axios.get("/api/modalityDropdown",    { headers }),
         ]);
-
-        const depts = Array.isArray(deptRes.data)
-          ? deptRes.data
-          : deptRes.data?.content ?? [];
-
-        // Only active modalities; group by department name
+        const depts = Array.isArray(deptRes.data) ? deptRes.data : deptRes.data?.content ?? [];
         const allModalities = (modalRes.data ?? []).filter(
           (m) => (m.modalityStatus ?? "").toLowerCase() === "active"
         );
@@ -295,7 +306,6 @@ export default function AdminDashboard() {
           if (!grouped[key]) grouped[key] = [];
           grouped[key].push(m);
         }
-
         setDepartments(depts);
         setModalitiesByDept(grouped);
       } catch (err) {
@@ -304,8 +314,6 @@ export default function AdminDashboard() {
     }
     fetchDropdownData();
   }, []);
-
-  // ── Fetch dashboard data ─────────────────────────────────────────────────
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
@@ -317,7 +325,7 @@ export default function AdminDashboard() {
       const modalParam  = selectedModal ? { modalityName:   selectedModal } : {};
       const scopeParams = { ...deptParam, ...modalParam };
 
-      // Stat card counts — uses backend aggregation (fast)
+      // 1. Stat card counts
       const countsRes = await axios.get("/api/dashboard/counts", {
         headers,
         params: { filter, ...scopeParams },
@@ -330,16 +338,25 @@ export default function AdminDashboard() {
         done:      counts.Done      ?? 0,
       });
 
-      // All schedules for chart + recent table (scoped to dept/modality)
-      const schedRes = await axios.get("/api/getSchedules", {
-        headers,
-        params: { page: 0, size: 2000, ...scopeParams },
-      });
-      const allSched = schedRes.data?.content ?? [];
+      // 2. Monthly breakdown — FIXED: single call, backend now returns per-status per-month
+      // Shape: { "January": { "Scheduled": N, "Confirmed": N, "Cancelled": N, "Done": N }, ... }
+      let monthlyBreakdown = {};
+      if (activeTimeFrame === "Yearly") {
+        const monthlyRes = await axios.get("/api/dashboard/monthly-breakdown", {
+          headers,
+          params: { ...scopeParams },
+        });
+        monthlyBreakdown = monthlyRes.data ?? {};
+      }
 
-      // ── Recent table — status priority then date asc ─────────────────────
+      // 3. Recent schedules
+      const recentRes = await axios.get("/api/getSchedules", {
+        headers,
+        params: { page: 0, size: 10, ...scopeParams },
+      });
+      const allRecent = recentRes.data?.content ?? [];
       const STATUS_PRIORITY = { Scheduled: 0, Confirmed: 1, Cancelled: 2, Done: 3 };
-      const sorted = [...allSched].sort((a, b) => {
+      const sorted = [...allRecent].sort((a, b) => {
         const pa = STATUS_PRIORITY[a.scheduleStatus] ?? 99;
         const pb = STATUS_PRIORITY[b.scheduleStatus] ?? 99;
         if (pa !== pb) return pa - pb;
@@ -347,104 +364,9 @@ export default function AdminDashboard() {
       });
       setRecentSchedules(sorted.slice(0, 5));
 
-      // ── Chart ─────────────────────────────────────────────────────────────
-      const now = new Date();
-
-      function getWindowBounds() {
-        if (activeTimeFrame === "Daily") {
-          return {
-            start: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0),
-            end:   new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999),
-          };
-        }
-        if (activeTimeFrame === "Weekly") {
-          const monday = new Date(now);
-          monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-          monday.setHours(0, 0, 0, 0);
-          const sunday = new Date(monday);
-          sunday.setDate(monday.getDate() + 6);
-          sunday.setHours(23, 59, 59, 999);
-          return { start: monday, end: sunday };
-        }
-        if (activeTimeFrame === "Monthly") {
-          return {
-            start: new Date(now.getFullYear(), now.getMonth(), 1),
-            end:   new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999),
-          };
-        }
-        if (activeTimeFrame === "Yearly") {
-          return {
-            start: new Date(now.getFullYear(), 0, 1),
-            end:   new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999),
-          };
-        }
-        return null; // Overall
-      }
-
-      const bounds      = getWindowBounds();
-      const windowSched = bounds
-        ? allSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d >= bounds.start && d <= bounds.end; })
-        : allSched;
-
-      function countGroup(list) {
-        return {
-          confirmed: list.filter((s) => isStatus(s, "Confirmed")).length,
-          cancelled: list.filter((s) => isStatus(s, "Cancelled")).length,
-          scheduled: list.filter((s) => isStatus(s, "Scheduled")).length,
-          done:      list.filter((s) => isStatus(s, "Done")).length,
-        };
-      }
-
-      let series = [], rangeLabel = "";
-
-      if (activeTimeFrame === "Daily") {
-        for (let h = 6; h <= 22; h++) {
-          const hourSched = windowSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d.getHours() === h; });
-          const period = h < 12 ? "AM" : "PM";
-          const h12    = h === 0 ? 12 : h > 12 ? h - 12 : h;
-          series.push({ label: `${h12}${period}`, ...countGroup(hourSched) });
-        }
-        rangeLabel = now.toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-
-      } else if (activeTimeFrame === "Weekly") {
-        const monday = new Date(now);
-        monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-        for (let i = 0; i < 7; i++) {
-          const d    = new Date(monday); d.setDate(monday.getDate() + i);
-          const dStr = toDateStr(d);
-          series.push({ label: d.toLocaleDateString("en-CA", { weekday: "short" }), ...countGroup(windowSched.filter((s) => toDateStr(s.startDateTime) === dStr)) });
-        }
-        const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
-        const fmt    = (d) => d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
-        rangeLabel   = `${fmt(monday)} – ${fmt(sunday)}`;
-
-      } else if (activeTimeFrame === "Monthly") {
-        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-        const lastDay  = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        let weekNum = 1, cursor = new Date(firstDay);
-        while (cursor <= lastDay) {
-          const wStart = new Date(cursor);
-          const wEnd   = new Date(cursor); wEnd.setDate(wEnd.getDate() + 6);
-          if (wEnd > lastDay) wEnd.setTime(lastDay.getTime());
-          series.push({ label: `Week ${weekNum}`, ...countGroup(windowSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d >= wStart && d <= wEnd; })) });
-          cursor.setDate(cursor.getDate() + 7); weekNum++;
-        }
-        rangeLabel = now.toLocaleDateString("en-CA", { month: "long", year: "numeric" });
-
-      } else if (activeTimeFrame === "Yearly") {
-        const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-        for (let m = 0; m < 12; m++) {
-          series.push({ label: MONTHS[m], ...countGroup(windowSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d.getMonth() === m; })) });
-        }
-        rangeLabel = String(now.getFullYear());
-
-      } else {
-        series     = [{ label: "Overall", ...countGroup(windowSched) }];
-        rangeLabel = "All Time";
-      }
-
-      setChartData(series);
-      setChartDate(rangeLabel);
+      // 4. Build chart
+      setChartData(buildChartSeries(activeTimeFrame, counts, monthlyBreakdown));
+      setChartDate(buildRangeLabel(activeTimeFrame));
 
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
@@ -456,8 +378,6 @@ export default function AdminDashboard() {
 
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
-  // ── PDF Export ──────────────────────────────────────────────────────────────
-
   async function handleDownloadPdf() {
     setPdfLoading(true);
     try {
@@ -465,13 +385,11 @@ export default function AdminDashboard() {
       const filter     = activeTimeFrame.toLowerCase();
       const deptParam  = selectedDept  ? { departmentName: selectedDept  } : {};
       const modalParam = selectedModal ? { modalityName:   selectedModal } : {};
-
       const response = await axios.get("/api/export/pdf", {
         headers,
         params:       { filter, ...deptParam, ...modalParam },
         responseType: "blob",
       });
-
       const url  = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
       const link = document.createElement("a");
       link.href  = url;
@@ -484,8 +402,6 @@ export default function AdminDashboard() {
       setPdfLoading(false);
     }
   }
-
-  // ── Render ──────────────────────────────────────────────────────────────────
 
   const statsCards = [
     { icon: UserCheck, label: "Done",      value: stats.done,      color: "text-blue-500"   },
@@ -524,10 +440,7 @@ export default function AdminDashboard() {
           {/* Stat Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6 mb-6">
             {statsCards.map(({ icon: Icon, label, value, color }) => (
-              <div
-                key={label}
-                className="bg-white rounded-2xl p-6 shadow-card hover:shadow-card-hover transition-shadow"
-              >
+              <div key={label} className="bg-white rounded-2xl p-6 shadow-card hover:shadow-card-hover transition-shadow">
                 <div className="flex items-center gap-2 mb-2">
                   <Icon className={`w-5 h-5 ${color}`} />
                   <p className="text-sm font-semibold text-gray-600">{label}</p>
@@ -540,9 +453,7 @@ export default function AdminDashboard() {
           {/* Chart */}
           <div className="bg-white rounded-2xl shadow-card p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-primary font-montserrat">
-                Status Chart
-              </h2>
+              <h2 className="text-lg font-bold text-primary font-montserrat">Status Chart</h2>
               <button
                 onClick={handleDownloadPdf}
                 disabled={pdfLoading}
@@ -566,21 +477,6 @@ export default function AdminDashboard() {
                 >
                   {label}
                 </button>
-              ))}
-            </div>
-
-            {/* Legend */}
-            <div className="flex items-center justify-end gap-4 sm:gap-6 mb-4 flex-wrap">
-              {[
-                { color: "bg-blue-500",   label: "Done"      },
-                { color: "bg-green-500",  label: "Confirmed" },
-                { color: "bg-accent",     label: "Cancelled" },
-                { color: "bg-yellow-500", label: "Scheduled" },
-              ].map(({ color, label }) => (
-                <div key={label} className="flex items-center gap-2">
-                  <div className={`w-3 h-3 ${color} rounded-sm`} />
-                  <span className="text-sm text-gray-600">{label}</span>
-                </div>
               ))}
             </div>
 
@@ -609,10 +505,25 @@ export default function AdminDashboard() {
                         boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                       }}
                     />
-                    <Line type="monotone" dataKey="done"      stroke="#3B82F6" strokeWidth={2} dot={{ fill: "#3B82F6", r: 4 }} activeDot={{ r: 6 }} connectNulls />
-                    <Line type="monotone" dataKey="confirmed" stroke="#22C55E" strokeWidth={2} dot={{ fill: "#22C55E", r: 4 }} activeDot={{ r: 6 }} connectNulls />
-                    <Line type="monotone" dataKey="cancelled" stroke="#C0392B" strokeWidth={2} dot={{ fill: "#C0392B", r: 4 }} activeDot={{ r: 6 }} connectNulls />
-                    <Line type="monotone" dataKey="scheduled" stroke="#EAB308" strokeWidth={2} dot={{ fill: "#EAB308", r: 4 }} activeDot={{ r: 6 }} connectNulls />
+                    <Legend
+                      verticalAlign="top"
+                      align="right"
+                      iconType="circle"
+                      wrapperStyle={{ fontSize: "12px", paddingBottom: "12px" }}
+                      formatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)}
+                    />
+                    {STATUS_LINES.map(({ key, color }) => (
+                      <Line
+                        key={key}
+                        type="monotone"
+                        dataKey={key}
+                        stroke={color}
+                        strokeWidth={2}
+                        dot={{ fill: color, r: 4 }}
+                        activeDot={{ r: 6 }}
+                        connectNulls
+                      />
+                    ))}
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
@@ -627,10 +538,7 @@ export default function AdminDashboard() {
           <div className="bg-white rounded-2xl shadow-card overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-bold text-primary font-montserrat">Recent Schedules</h3>
-              <Link
-                to="/admin/schedules"
-                className="text-sm font-semibold text-primary hover:text-primary-light transition-colors"
-              >
+              <Link to="/admin/schedules" className="text-sm font-semibold text-primary hover:text-primary-light transition-colors">
                 See all
               </Link>
             </div>
@@ -649,12 +557,8 @@ export default function AdminDashboard() {
                   {recentSchedules.length > 0 ? (
                     recentSchedules.map((s, i) => (
                       <tr key={s.scheduleId ?? i} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">
-                          {s.patientFullName ?? "—"}
-                        </td>
-                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">
-                          {fmtDate(s.startDateTime)}
-                        </td>
+                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">{s.patientFullName ?? "—"}</td>
+                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">{fmtDate(s.startDateTime)}</td>
                         <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">
                           {s.startDateTime && s.endDateTime
                             ? `${fmtTime(s.startDateTime)} - ${fmtTime(s.endDateTime)}`

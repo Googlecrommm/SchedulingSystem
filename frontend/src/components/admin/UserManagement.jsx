@@ -237,7 +237,7 @@ export default function UserManagement() {
   useEffect(() => {
     async function fetchRoles() {
       try {
-        const res = await axios.get("/api/roleDropdown", { headers: getAuthHeader() });
+        const res = await axios.get("/api/frontdeskDropdown", { headers: getAuthHeader() });
         const data = Array.isArray(res.data) ? res.data : res.data?.content ?? [];
         setRoles(
           data

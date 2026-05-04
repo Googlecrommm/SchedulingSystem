@@ -6,20 +6,24 @@ import {
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer,
+  Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { AdminLayout, scheduleStatusColor } from "../ui";
 import { useFrontdeskNav, useDeptMeta } from "./frontdeskUtils";
 
-
 const TIME_FRAMES = ["Daily", "Weekly", "Monthly", "Yearly", "Overall"];
 
+const STATUS_LINES = [
+  { key: "scheduled", color: "#EAB308", label: "Scheduled" },
+  { key: "confirmed", color: "#22C55E", label: "Confirmed" },
+  { key: "cancelled", color: "#C0392B", label: "Cancelled" },
+  { key: "done",      color: "#3B82F6", label: "Done"      },
+];
 
 function getAuthHeader() {
   const token = localStorage.getItem("token");
   return { Authorization: `Bearer ${token}` };
 }
-
 
 function parseDT(raw) {
   if (!raw) return null;
@@ -43,7 +47,6 @@ function fmtTime(raw) {
   if (!d) return "";
   return d.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true });
 }
-
 
 function LoadingSkeleton() {
   return (
@@ -84,8 +87,6 @@ function ErrorMessage({ message, onRetry }) {
   );
 }
 
-
-
 function ModalityDropdown({ modalities, selectedModality, onChange }) {
   const [open, setOpen] = useState(false);
   const ref             = useRef(null);
@@ -109,15 +110,12 @@ function ModalityDropdown({ modalities, selectedModality, onChange }) {
         {label}
         <ChevronDown size={14} className="text-gray-400" />
       </button>
-
       {open && (
         <div className="absolute left-0 mt-1.5 w-auto bg-white rounded-xl shadow-card border border-gray-100 py-1 z-50">
           <button
             onClick={() => { onChange(""); setOpen(false); }}
             className={`w-full text-left px-4 py-2.5 text-sm transition-colors whitespace-nowrap
-              ${!selectedModality
-                ? "text-primary font-semibold bg-primary/5"
-                : "text-gray-600 hover:bg-primary/5 hover:text-primary"}`}
+              ${!selectedModality ? "text-primary font-semibold bg-primary/5" : "text-gray-600 hover:bg-primary/5 hover:text-primary"}`}
           >
             All Modalities
           </button>
@@ -126,9 +124,7 @@ function ModalityDropdown({ modalities, selectedModality, onChange }) {
               key={m.modalityId}
               onClick={() => { onChange(m.modalityName); setOpen(false); }}
               className={`w-full text-left px-4 py-2.5 text-sm transition-colors whitespace-nowrap
-                ${selectedModality === m.modalityName
-                  ? "text-primary font-semibold bg-primary/5"
-                  : "text-gray-600 hover:bg-primary/5 hover:text-primary"}`}
+                ${selectedModality === m.modalityName ? "text-primary font-semibold bg-primary/5" : "text-gray-600 hover:bg-primary/5 hover:text-primary"}`}
             >
               {m.modalityName}
             </button>
@@ -139,22 +135,109 @@ function ModalityDropdown({ modalities, selectedModality, onChange }) {
   );
 }
 
+// FIXED: Yearly reads per-status per-month from new backend shape
+// { "January": { "Scheduled": N, "Confirmed": N, "Cancelled": N, "Done": N }, ... }
+function buildChartSeries(activeTimeFrame, counts, monthlyBreakdown) {
+  const now = new Date();
+
+  if (activeTimeFrame === "Yearly") {
+    const MONTHS = ["January","February","March","April","May","June",
+                    "July","August","September","October","November","December"];
+    const SHORT  = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return MONTHS.map((m, i) => ({
+      label:     SHORT[i],
+      scheduled: monthlyBreakdown[m]?.Scheduled ?? 0,
+      confirmed: monthlyBreakdown[m]?.Confirmed ?? 0,
+      cancelled: monthlyBreakdown[m]?.Cancelled ?? 0,
+      done:      monthlyBreakdown[m]?.Done      ?? 0,
+    }));
+  }
+
+  if (activeTimeFrame === "Daily") {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(now.getDate() - (6 - i));
+      const isToday = i === 6;
+      return {
+        label:     d.toLocaleDateString("en-CA", { month: "short", day: "numeric" }),
+        scheduled: isToday ? (counts.Scheduled ?? 0) : 0,
+        confirmed: isToday ? (counts.Confirmed ?? 0) : 0,
+        cancelled: isToday ? (counts.Cancelled ?? 0) : 0,
+        done:      isToday ? (counts.Done      ?? 0) : 0,
+      };
+    });
+  }
+
+  if (activeTimeFrame === "Weekly") {
+    const days     = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    const todayDow = (now.getDay() + 6) % 7;
+    return days.map((label, i) => ({
+      label,
+      scheduled: i === todayDow ? (counts.Scheduled ?? 0) : 0,
+      confirmed: i === todayDow ? (counts.Confirmed ?? 0) : 0,
+      cancelled: i === todayDow ? (counts.Cancelled ?? 0) : 0,
+      done:      i === todayDow ? (counts.Done      ?? 0) : 0,
+    }));
+  }
+
+  if (activeTimeFrame === "Monthly") {
+    return ["Week 1","Week 2","Week 3","Week 4"].map((label, i) => {
+      const currentWeek = Math.floor((now.getDate() - 1) / 7);
+      return {
+        label,
+        scheduled: i === currentWeek ? (counts.Scheduled ?? 0) : 0,
+        confirmed: i === currentWeek ? (counts.Confirmed ?? 0) : 0,
+        cancelled: i === currentWeek ? (counts.Cancelled ?? 0) : 0,
+        done:      i === currentWeek ? (counts.Done      ?? 0) : 0,
+      };
+    });
+  }
+
+  return [{
+    label:     "All Time",
+    scheduled: counts.Scheduled ?? 0,
+    confirmed: counts.Confirmed ?? 0,
+    cancelled: counts.Cancelled ?? 0,
+    done:      counts.Done      ?? 0,
+  }];
+}
+
+function buildRangeLabel(activeTimeFrame) {
+  const now = new Date();
+  switch (activeTimeFrame) {
+    case "Daily":
+      return now.toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+    case "Weekly": {
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      const fmt = (d) => d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
+      return `${fmt(monday)} – ${fmt(sunday)}`;
+    }
+    case "Monthly":
+      return now.toLocaleDateString("en-CA", { month: "long", year: "numeric" });
+    case "Yearly":
+      return String(now.getFullYear());
+    default:
+      return "All Time";
+  }
+}
 
 export default function FrontdeskDashboard() {
   const navItems = useFrontdeskNav();
   const { deptName, userRole } = useDeptMeta();
 
   const [activeTimeFrame,  setActiveTimeFrame]  = useState("Daily");
-  const [selectedModality, setSelectedModality] = useState("");   
+  const [selectedModality, setSelectedModality] = useState("");
   const [modalities,       setModalities]       = useState([]);
   const [stats,            setStats]            = useState({ scheduled: 0, confirmed: 0, cancelled: 0, done: 0 });
   const [chartData,        setChartData]        = useState([]);
-  const [recentSchedules,  setRecentSchedules]  = useState([]);
   const [chartDate,        setChartDate]        = useState("");
+  const [recentSchedules,  setRecentSchedules]  = useState([]);
   const [loading,          setLoading]          = useState(true);
   const [error,            setError]            = useState(null);
   const [pdfLoading,       setPdfLoading]       = useState(false);
-
 
   useEffect(() => {
     async function fetchModalities() {
@@ -171,7 +254,6 @@ export default function FrontdeskDashboard() {
     fetchModalities();
   }, []);
 
-
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -180,11 +262,11 @@ export default function FrontdeskDashboard() {
       const filter        = activeTimeFrame.toLowerCase();
       const modalityParam = selectedModality ? { modalityName: selectedModality } : {};
 
-      const [countsRes, recentRes] = await Promise.all([
-        axios.get("/api/dashboard/counts", { headers, params: { filter, ...modalityParam } }),
-        axios.get("/api/getSchedules",     { headers, params: { page: 0, size: 10, ...modalityParam } }),
-      ]);
-
+      // 1. Stat card counts
+      const countsRes = await axios.get("/api/dashboard/counts", {
+        headers,
+        params: { filter, ...modalityParam },
+      });
       const counts = countsRes.data ?? {};
       setStats({
         scheduled: counts.Scheduled ?? 0,
@@ -193,134 +275,33 @@ export default function FrontdeskDashboard() {
         done:      counts.Done      ?? 0,
       });
 
+      // 2. Monthly breakdown — FIXED: single call, backend returns per-status per-month
+      // Shape: { "January": { "Scheduled": N, "Confirmed": N, "Cancelled": N, "Done": N }, ... }
+      let monthlyBreakdown = {};
+      if (activeTimeFrame === "Yearly") {
+        const monthlyRes = await axios.get("/api/dashboard/monthly-breakdown", {
+          headers,
+          params: { ...modalityParam },
+        });
+        monthlyBreakdown = monthlyRes.data ?? {};
+      }
+
+      // 3. Recent schedules
+      const recentRes = await axios.get("/api/getSchedules", {
+        headers,
+        params: { page: 0, size: 10, ...modalityParam },
+      });
       const allRecent = recentRes.data?.content ?? [];
-      const sorted    = [...allRecent].sort((a, b) => {
+      const sorted = [...allRecent].sort((a, b) => {
         const da = parseDT(a.startDateTime), db = parseDT(b.startDateTime);
         if (!da || !db) return 0;
         return db - da;
       });
       setRecentSchedules(sorted.slice(0, 5));
 
-      const now = new Date();
-      let series = [], rangeLabel = "";
-
-      {
-        const schedRes = await axios.get("/api/getSchedules", {
-          headers,
-          params: { page: 0, size: 1000, ...modalityParam },
-        });
-        const allSched  = schedRes.data?.content ?? [];
-        const isStatus  = (s, st) => (s.scheduleStatus ?? "").toLowerCase() === st.toLowerCase();
-
-        const countByDate = (list, isoDate) => {
-          const day = list.filter((s) => {
-            const d = parseDT(s.startDateTime);
-            if (!d) return false;
-            const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-            return iso === isoDate;
-          });
-          return {
-            confirmed: day.filter((s) => isStatus(s, "Confirmed")).length,
-            cancelled: day.filter((s) => isStatus(s, "Cancelled")).length,
-            scheduled: day.filter((s) => isStatus(s, "Scheduled")).length,
-            done:      day.filter((s) => isStatus(s, "Done")).length,
-          };
-        };
-
-        if (activeTimeFrame === "Daily") {
-          const todayIso   = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
-          const todaySched = allSched.filter((s) => {
-            const d = parseDT(s.startDateTime);
-            if (!d) return false;
-            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` === todayIso;
-          });
-          for (let h = 6; h <= 22; h++) {
-            const hourSched = todaySched.filter((s) => { const d = parseDT(s.startDateTime); return d && d.getHours() === h; });
-            const period    = h < 12 ? "AM" : "PM";
-            const h12       = h === 0 ? 12 : h > 12 ? h - 12 : h;
-            series.push({
-              label:     `${h12}${period}`,
-              confirmed: hourSched.filter((s) => isStatus(s, "Confirmed")).length,
-              cancelled: hourSched.filter((s) => isStatus(s, "Cancelled")).length,
-              scheduled: hourSched.filter((s) => isStatus(s, "Scheduled")).length,
-              done:      hourSched.filter((s) => isStatus(s, "Done")).length,
-            });
-          }
-          rangeLabel = now.toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-
-        } else if (activeTimeFrame === "Weekly") {
-          const dow    = now.getDay();
-          const monday = new Date(now);
-          monday.setDate(now.getDate() - ((dow + 6) % 7));
-          for (let i = 0; i < 7; i++) {
-            const d   = new Date(monday);
-            d.setDate(monday.getDate() + i);
-            const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-            series.push({ label: d.toLocaleDateString("en-CA", { weekday: "short" }), ...countByDate(allSched, iso) });
-          }
-          const sunday = new Date(monday);
-          sunday.setDate(monday.getDate() + 6);
-          const fmt  = (d) => d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
-          rangeLabel = `${fmt(monday)} – ${fmt(sunday)}`;
-
-        } else if (activeTimeFrame === "Monthly") {
-          const year    = now.getFullYear(), month = now.getMonth();
-          const lastDay = new Date(year, month + 1, 0);
-          let weekNum = 1, cursor = new Date(year, month, 1);
-          while (cursor <= lastDay) {
-            const wStart = new Date(cursor);
-            const wEnd   = new Date(cursor);
-            wEnd.setDate(wEnd.getDate() + 6);
-            if (wEnd > lastDay) wEnd.setTime(lastDay.getTime());
-            const wSched = allSched.filter((s) => { const d = parseDT(s.startDateTime); return d && d >= wStart && d <= wEnd; });
-            series.push({
-              label:     `Week ${weekNum}`,
-              confirmed: wSched.filter((s) => isStatus(s, "Confirmed")).length,
-              cancelled: wSched.filter((s) => isStatus(s, "Cancelled")).length,
-              scheduled: wSched.filter((s) => isStatus(s, "Scheduled")).length,
-              done:      wSched.filter((s) => isStatus(s, "Done")).length,
-            });
-            cursor.setDate(cursor.getDate() + 7);
-            weekNum++;
-          }
-          rangeLabel = now.toLocaleDateString("en-CA", { month: "long", year: "numeric" });
-
-        } else if (activeTimeFrame === "Yearly") {
-          const MONTHS     = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-          const currentYear = now.getFullYear();
-          const yearSched   = allSched.filter((s) => {
-            const d = parseDT(s.startDateTime);
-            return d && d.getFullYear() === currentYear;
-          });
-          series = MONTHS.map((label, idx) => {
-            const mSched = yearSched.filter((s) => {
-              const d = parseDT(s.startDateTime);
-              return d && d.getMonth() === idx;
-            });
-            return {
-              label,
-              confirmed: mSched.filter((s) => isStatus(s, "Confirmed")).length,
-              cancelled: mSched.filter((s) => isStatus(s, "Cancelled")).length,
-              scheduled: mSched.filter((s) => isStatus(s, "Scheduled")).length,
-              done:      mSched.filter((s) => isStatus(s, "Done")).length,
-            };
-          });
-          rangeLabel = String(currentYear);
-
-        } else {
-          series = [{
-            label:     "Overall",
-            confirmed: allSched.filter((s) => isStatus(s, "Confirmed")).length,
-            cancelled: allSched.filter((s) => isStatus(s, "Cancelled")).length,
-            scheduled: allSched.filter((s) => isStatus(s, "Scheduled")).length,
-            done:      allSched.filter((s) => isStatus(s, "Done")).length,
-          }];
-          rangeLabel = "All Time";
-        }
-      }
-
-      setChartData(series);
-      setChartDate(rangeLabel);
+      // 4. Build chart
+      setChartData(buildChartSeries(activeTimeFrame, counts, monthlyBreakdown));
+      setChartDate(buildRangeLabel(activeTimeFrame));
 
     } catch (err) {
       setError(err.response?.data?.message || "Failed to load dashboard data");
@@ -331,21 +312,20 @@ export default function FrontdeskDashboard() {
 
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
-
   async function handleDownloadPdf() {
     setPdfLoading(true);
     try {
       const headers       = getAuthHeader();
       const filter        = activeTimeFrame.toLowerCase();
       const modalityParam = selectedModality ? { modalityName: selectedModality } : {};
-      const response      = await axios.get("/api/export/pdf", {
+      const response = await axios.get("/api/export/pdf", {
         headers,
         params:       { filter, ...modalityParam },
         responseType: "blob",
       });
-      const url     = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
-      const link    = document.createElement("a");
-      link.href     = url;
+      const url  = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
+      const link = document.createElement("a");
+      link.href  = url;
       link.download = `${deptName.toLowerCase()}-schedules-${filter}${selectedModality ? `-${selectedModality.toLowerCase().replace(/\s+/g, "-")}` : ""}.pdf`;
       link.click();
       window.URL.revokeObjectURL(url);
@@ -356,14 +336,12 @@ export default function FrontdeskDashboard() {
     }
   }
 
- 
   const statsCards = [
     { icon: UserCheck, label: "Done",      value: stats.done,      color: "text-blue-500"   },
     { icon: UserCheck, label: "Confirmed", value: stats.confirmed, color: "text-green-500"  },
     { icon: UserX,     label: "Cancelled", value: stats.cancelled, color: "text-accent"     },
     { icon: Clock,     label: "Scheduled", value: stats.scheduled, color: "text-yellow-500" },
   ];
-
 
   const pageTitleNode = (
     <span className="flex items-center gap-2 flex-wrap">
@@ -391,12 +369,10 @@ export default function FrontdeskDashboard() {
         <LoadingSkeleton />
       ) : (
         <>
+          {/* Stat Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6 mb-6">
             {statsCards.map(({ icon: Icon, label, value, color }) => (
-              <div
-                key={label}
-                className="bg-white rounded-2xl p-6 shadow-card hover:shadow-card-hover transition-shadow"
-              >
+              <div key={label} className="bg-white rounded-2xl p-6 shadow-card hover:shadow-card-hover transition-shadow">
                 <div className="flex items-center gap-2 mb-2">
                   <Icon className={`w-5 h-5 ${color}`} />
                   <p className="text-sm font-semibold text-gray-600">{label}</p>
@@ -406,6 +382,7 @@ export default function FrontdeskDashboard() {
             ))}
           </div>
 
+          {/* Chart */}
           <div className="bg-white rounded-2xl shadow-card p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-primary font-montserrat">Status Chart</h2>
@@ -419,6 +396,7 @@ export default function FrontdeskDashboard() {
               </button>
             </div>
 
+            {/* Time-frame tabs */}
             <div className="flex items-center gap-1 border-b border-gray-200 mb-6 overflow-x-auto overflow-y-hidden">
               {TIME_FRAMES.map((label) => (
                 <button
@@ -434,20 +412,6 @@ export default function FrontdeskDashboard() {
               ))}
             </div>
 
-              <div className="flex items-center justify-end gap-4 sm:gap-6 mb-4 flex-wrap">
-                {[
-                  { color: "bg-blue-500",   label: "Done"      },
-                  { color: "bg-green-500",  label: "Confirmed" },
-                  { color: "bg-accent",     label: "Cancelled" },
-                  { color: "bg-yellow-500", label: "Scheduled" },
-                ].map(({ color, label }) => (
-                  <div key={label} className="flex items-center gap-2">
-                    <div className={`w-3 h-3 ${color} rounded-sm`} />
-                    <span className="text-sm text-gray-600">{label}</span>
-                  </div>
-                ))}
-              </div>
-
             <p className="text-center text-sm font-semibold text-primary mb-4">{chartDate}</p>
 
             <div className="w-full h-[300px] sm:h-[350px]">
@@ -456,7 +420,12 @@ export default function FrontdeskDashboard() {
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                     <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6B7280" }} stroke="#D1D5DB" />
-                    <YAxis                 tick={{ fontSize: 12, fill: "#6B7280" }} stroke="#D1D5DB" />
+                    <YAxis
+                      tick={{ fontSize: 12, fill: "#6B7280" }}
+                      stroke="#D1D5DB"
+                      allowDecimals={false}
+                      domain={[0, (dataMax) => Math.max(dataMax + 1, 5)]}
+                    />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "#fff",
@@ -466,10 +435,25 @@ export default function FrontdeskDashboard() {
                         boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                       }}
                     />
-                    <Line type="monotone" dataKey="done"      stroke="#3B82F6" strokeWidth={2} dot={{ fill: "#3B82F6", r: 4 }} activeDot={{ r: 6 }} />
-                    <Line type="monotone" dataKey="confirmed" stroke="#22C55E" strokeWidth={2} dot={{ fill: "#22C55E", r: 4 }} activeDot={{ r: 6 }} />
-                    <Line type="monotone" dataKey="cancelled" stroke="#C0392B" strokeWidth={2} dot={{ fill: "#C0392B", r: 4 }} activeDot={{ r: 6 }} />
-                    <Line type="monotone" dataKey="scheduled" stroke="#EAB308" strokeWidth={2} dot={{ fill: "#EAB308", r: 4 }} activeDot={{ r: 6 }} />
+                    <Legend
+                      verticalAlign="top"
+                      align="right"
+                      iconType="circle"
+                      wrapperStyle={{ fontSize: "12px", paddingBottom: "12px" }}
+                      formatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)}
+                    />
+                    {STATUS_LINES.map(({ key, color }) => (
+                      <Line
+                        key={key}
+                        type="monotone"
+                        dataKey={key}
+                        stroke={color}
+                        strokeWidth={2}
+                        dot={{ fill: color, r: 4 }}
+                        activeDot={{ r: 6 }}
+                        connectNulls
+                      />
+                    ))}
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
@@ -480,13 +464,11 @@ export default function FrontdeskDashboard() {
             </div>
           </div>
 
+          {/* Recent Schedules */}
           <div className="bg-white rounded-2xl shadow-card overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-bold text-primary font-montserrat">Recent Schedules</h3>
-              <Link
-                to="/frontdesk/schedules"
-                className="text-sm font-semibold text-primary hover:text-primary-light transition-colors"
-              >
+              <Link to="/frontdesk/schedules" className="text-sm font-semibold text-primary hover:text-primary-light transition-colors">
                 See all
               </Link>
             </div>
@@ -505,12 +487,8 @@ export default function FrontdeskDashboard() {
                   {recentSchedules.length > 0 ? (
                     recentSchedules.map((s) => (
                       <tr key={s.scheduleId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">
-                          {s.patientFullName ?? "—"}
-                        </td>
-                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">
-                          {fmtDate(s.startDateTime)}
-                        </td>
+                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">{s.patientFullName ?? "—"}</td>
+                        <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">{fmtDate(s.startDateTime)}</td>
                         <td className="px-4 sm:px-6 py-4 text-center text-sm text-gray-600">
                           {s.startDateTime && s.endDateTime
                             ? `${fmtTime(s.startDateTime)} - ${fmtTime(s.endDateTime)}`

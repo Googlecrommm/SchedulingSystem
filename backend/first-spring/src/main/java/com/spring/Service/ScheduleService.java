@@ -85,7 +85,7 @@ public class ScheduleService {
         }
     }
 
-    // Reusable DTO mapping helper
+    // ─── Reusable DTO mapping helper ─────────────────────────────────────────────
     private ScheduleResponseDTO mapToDTO(Schedules schedules) {
         ScheduleResponseDTO scheduleDTO = modelMapper.map(schedules, ScheduleResponseDTO.class);
         scheduleDTO.setDoctorFullName(schedules.getDoctor().getLastName() + ", "
@@ -106,7 +106,7 @@ public class ScheduleService {
         return scheduleDTO;
     }
 
-    // ─── Reusable machine department validation helper ───────────────────────────
+    // ─── Reusable machine department validation helper ────────────────────────────
     private void validateMachineDepartment(Machines machine, Doctors doctor) {
         if (machine.getModality() == null || machine.getModality().getDepartment() == null) return;
 
@@ -118,7 +118,7 @@ public class ScheduleService {
         }
     }
 
-    // ─── Reusable room department validation helper ──────────────────────────────
+    // ─── Reusable room department validation helper ───────────────────────────────
     private void validateRoomDepartment(Rooms room, Doctors doctor) {
         int doctorDepartmentId = doctor.getRole().getDepartment().getDepartmentId();
         int roomDepartmentId = room.getDepartment().getDepartmentId();
@@ -162,12 +162,24 @@ public class ScheduleService {
                         + schedule.getDoctor().getDoctorId()));
         schedule.setDoctor(fullDoctor);
 
+        // 3b. Enforce: frontdesk can only schedule within their own department
+        Users user = (Users) authentication.getPrincipal();
+        if (user.getRole() != null && user.getRole().getDepartment() != null) {
+            String userDept   = user.getRole().getDepartment().getDepartmentName();
+            String doctorDept = fullDoctor.getRole().getDepartment().getDepartmentName();
+            if (!userDept.equals(doctorDept)) {
+                throw new NotAllowed(
+                        "You can only create schedules for doctors within your department (" + userDept + ")."
+                );
+            }
+        }
+
         // 4. Re-fetch and validate Machine if present
         if (schedule.getMachine() != null) {
             Machines fullMachine = machinesRepository.findById(schedule.getMachine().getMachineId())
                     .orElseThrow(() -> new RuntimeException("Machine not found with ID: "
                             + schedule.getMachine().getMachineId()));
-            validateMachineDepartment(fullMachine, fullDoctor); // ADDED
+            validateMachineDepartment(fullMachine, fullDoctor);
             schedule.setMachine(fullMachine);
         }
 
@@ -176,7 +188,7 @@ public class ScheduleService {
             Rooms fullRoom = roomsRepository.findById(schedule.getRoom().getRoomId())
                     .orElseThrow(() -> new RuntimeException("Room not found with ID: "
                             + schedule.getRoom().getRoomId()));
-            validateRoomDepartment(fullRoom, fullDoctor); // REPLACED inline check
+            validateRoomDepartment(fullRoom, fullDoctor);
             schedule.setRoom(fullRoom);
         }
 
@@ -207,14 +219,14 @@ public class ScheduleService {
         scheduleRepository.save(schedule);
     }
 
-    //READ & FILTER — single method handles all departments dynamically
+    //READ & FILTER
     public Page<ScheduleResponseDTO> getSchedules(
             ScheduleStatus scheduleStatus,
             String name,
             String patientName,
             String departmentName,
             String modalityName,
-            Pageable pageable){
+            Pageable pageable) {
 
         Specification<Schedules> filters = Specification
                 .where(ScheduleSpecification.hasStatus(scheduleStatus))
@@ -232,48 +244,51 @@ public class ScheduleService {
         return scheduleRepository.findAll(filters, sortedPageable).map(this::mapToDTO);
     }
 
-    // DELETED: getRadiologySched()  — replaced by getSchedules() with departmentName param
-    // DELETED: getRehabSched()      — replaced by getSchedules() with departmentName param
-
     //SEARCH
-    public Page<ScheduleResponseDTO> searchSchedule(String patientName, Pageable pageable){
+    public Page<ScheduleResponseDTO> searchSchedule(String patientName, Pageable pageable) {
         return scheduleRepository.searchByPatientName(patientName, pageable)
                 .map(this::mapToDTO);
     }
 
-    // DELETED: searchRadioSched()   — identical to searchSchedule(), was dead code
-    // DELETED: countAllSchedules()  — built a Radiology spec but never used it, was dead code
+    // COUNT MONTHLY — FIXED: now returns per-status counts per month
+    // Shape: { "January": { "Scheduled": 2, "Cancelled": 1, "Done": 0, "Confirmed": 0 }, ... }
+    public Map<String, Map<String, Long>> getMonthlyBreakdown(String department, String modalityName) {
+        Map<String, Map<String, Long>> breakdown = new LinkedHashMap<>();
 
-    // COUNT MONTHLY — dynamic, works for any department
-    public Map<String, Long> getMonthlyBreakdown(String department, String modalityName) {
-        Map<String, Long> counts = new LinkedHashMap<>();
-
-        String[] months = {"January", "February", "March", "April", "May", "June",
-                "July", "August", "September", "October", "November", "December"};
+        String[] months = {"January","February","March","April","May","June",
+                           "July","August","September","October","November","December"};
 
         for (int i = 1; i <= 12; i++) {
             LocalDateTime start = LocalDateTime.of(LocalDateTime.now().getYear(), i, 1, 0, 0);
-            LocalDateTime end = start.with(TemporalAdjusters.lastDayOfMonth()).withHour(23).withMinute(59);
+            LocalDateTime end   = start.with(TemporalAdjusters.lastDayOfMonth()).withHour(23).withMinute(59);
 
-            Specification<Schedules> spec = Specification
-                    .where(ScheduleSpecification.hasDepartment(department))
-                    .and(ScheduleSpecification.hasModality(modalityName))
-                    .and((root, query, cb) -> cb.between(root.get("startDateTime"), start, end));
+            Map<String, Long> statusCounts = new LinkedHashMap<>();
 
-            counts.put(months[i - 1], scheduleRepository.count(spec));
+            for (ScheduleStatus status : ScheduleStatus.values()) {
+                Specification<Schedules> spec = Specification
+                        .where(ScheduleSpecification.hasDepartment(department))
+                        .and(ScheduleSpecification.hasModality(modalityName))
+                        .and(ScheduleSpecification.hasExactStatus(status))
+                        .and((root, query, cb) ->
+                                cb.between(root.get("startDateTime"), start, end));
+
+                statusCounts.put(status.name(), scheduleRepository.count(spec));
+            }
+
+            breakdown.put(months[i - 1], statusCounts);
         }
 
-        return counts;
+        return breakdown;
     }
 
-    //DASHBOARD COUNTS — single method handles all departments dynamically
+    // DASHBOARD COUNTS
     public Map<String, Long> getDashboardCounts(String department, String filter, String modalityName) {
         Map<String, Long> counts = new HashMap<>();
 
         for (ScheduleStatus status : ScheduleStatus.values()) {
             Specification<Schedules> spec = Specification
                     .where(ScheduleSpecification.hasDepartment(department))
-                    .and(ScheduleSpecification.hasStatus(status))
+                    .and(ScheduleSpecification.hasExactStatus(status))
                     .and(ScheduleSpecification.byDateFilter(filter))
                     .and(ScheduleSpecification.hasModality(modalityName));
 
@@ -283,18 +298,13 @@ public class ScheduleService {
         return counts;
     }
 
-    // DELETED: getDashboardCountsRadio()  — replaced by getDashboardCounts() with department param
-    // DELETED: getDashboardCountsRehab()  — replaced by getDashboardCounts() with department param
-
-    //UPDATE (full replace — requires complete data)
+    //UPDATE (full replace)
     @Transactional
     public void updateSchedule(int scheduleId, Schedules updatedSchedule) {
 
-        // 1. Find existing schedule
         Schedules existing = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new RuntimeException("Schedule not found with ID: " + scheduleId));
 
-        // 2. Prevent restoring archived schedule if slot is already taken
         if (existing.getScheduleStatus() == ScheduleStatus.Archived) {
             int excludeId = existing.getScheduleId();
             LocalDateTime start = existing.getStartDateTime();
@@ -318,50 +328,43 @@ public class ScheduleService {
             }
         }
 
-        // 3. Re-fetch full Doctor entity
         Doctors fullDoctor = doctorsRepository.findById(updatedSchedule.getDoctor().getDoctorId())
                 .orElseThrow(() -> new RuntimeException("Doctor not found with ID: "
                         + updatedSchedule.getDoctor().getDoctorId()));
         existing.setDoctor(fullDoctor);
 
-        // 4. Re-fetch and validate Machine if present
         if (updatedSchedule.getMachine() != null) {
             Machines fullMachine = machinesRepository.findById(updatedSchedule.getMachine().getMachineId())
                     .orElseThrow(() -> new RuntimeException("Machine not found with ID: "
                             + updatedSchedule.getMachine().getMachineId()));
-            validateMachineDepartment(fullMachine, fullDoctor); // ADDED
+            validateMachineDepartment(fullMachine, fullDoctor);
             existing.setMachine(fullMachine);
         } else {
             existing.setMachine(null);
         }
 
-        // 5. Re-fetch and validate Room if present
         if (updatedSchedule.getRoom() != null) {
             Rooms fullRoom = roomsRepository.findById(updatedSchedule.getRoom().getRoomId())
                     .orElseThrow(() -> new RuntimeException("Room not found with ID: "
                             + updatedSchedule.getRoom().getRoomId()));
-            validateRoomDepartment(fullRoom, fullDoctor); // REPLACED inline check
+            validateRoomDepartment(fullRoom, fullDoctor);
             existing.setRoom(fullRoom);
         } else {
             existing.setRoom(null);
         }
 
-        // 6. Apply other fields
         existing.setScheduleStatus(updatedSchedule.getScheduleStatus());
         existing.setProcedureName(updatedSchedule.getProcedureName());
         existing.setRemarks(updatedSchedule.getRemarks());
         existing.setStartDateTime(updatedSchedule.getStartDateTime());
         existing.setEndDateTime(updatedSchedule.getEndDateTime());
 
-        // 7. Validate start before end
         if (!existing.getStartDateTime().isBefore(existing.getEndDateTime())) {
             throw new NotAllowed("Start date/time must be before end date/time.");
         }
 
-        // 8. Validate no conflict
         validateNoConflict(existing);
 
-        // 9. Save
         logsService.log(
                 "Schedule Updated",
                 "updated the schedule information of "
@@ -372,32 +375,30 @@ public class ScheduleService {
         scheduleRepository.save(existing);
     }
 
-    //PATCH (partial update — only updates fields that are provided)
+    //PATCH (partial update)
     @Transactional
     public void patchSchedule(int scheduleId, SchedulePatchRequest patch, Authentication authentication) {
 
         Schedules existing = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new RuntimeException("Schedule not found with ID: " + scheduleId));
 
-        // ─── Capture old values BEFORE any mutation ──────────────────────────────
-        LocalDateTime oldStart = existing.getStartDateTime();
-        LocalDateTime oldEnd = existing.getEndDateTime();
-        String oldProcedure = existing.getProcedureName();
-        String oldDoctor = existing.getDoctor().getLastName() + ", " + existing.getDoctor().getFirstName();
-        String oldMachine = existing.getMachine() == null ? "None" : existing.getMachine().getMachineName();
-        String oldRoom = existing.getRoom() == null ? "None" : existing.getRoom().getRoomName();
-        String oldStatus = existing.getScheduleStatus().name();
-        String oldRemarks = existing.getRemarks();
+        LocalDateTime oldStart     = existing.getStartDateTime();
+        LocalDateTime oldEnd       = existing.getEndDateTime();
+        String oldProcedure        = existing.getProcedureName();
+        String oldDoctor           = existing.getDoctor().getLastName() + ", " + existing.getDoctor().getFirstName();
+        String oldMachine          = existing.getMachine() == null ? "None" : existing.getMachine().getMachineName();
+        String oldRoom             = existing.getRoom() == null ? "None" : existing.getRoom().getRoomName();
+        String oldStatus           = existing.getScheduleStatus().name();
+        String oldRemarks          = existing.getRemarks();
 
-        // 2. Prevent restoring archived schedule if slot is already taken
         if (existing.getScheduleStatus() == ScheduleStatus.Archived) {
             int excludeId = existing.getScheduleId();
             LocalDateTime start = patch.getStartDateTime() != null ? patch.getStartDateTime() : existing.getStartDateTime();
-            LocalDateTime end = patch.getEndDateTime() != null ? patch.getEndDateTime() : existing.getEndDateTime();
+            LocalDateTime end   = patch.getEndDateTime()   != null ? patch.getEndDateTime()   : existing.getEndDateTime();
 
-            boolean doctorTaken = scheduleRepository.isDoctorBooked(excludeId, existing.getDoctor().getDoctorId(), start, end);
+            boolean doctorTaken  = scheduleRepository.isDoctorBooked(excludeId, existing.getDoctor().getDoctorId(), start, end);
             boolean machineTaken = existing.getMachine() != null && scheduleRepository.isMachineBooked(excludeId, existing.getMachine().getMachineId(), start, end);
-            boolean roomTaken = existing.getRoom() != null && scheduleRepository.isRoomBooked(excludeId, existing.getRoom().getRoomId(), start, end);
+            boolean roomTaken    = existing.getRoom()    != null && scheduleRepository.isRoomBooked(excludeId, existing.getRoom().getRoomId(), start, end);
             boolean patientTaken = scheduleRepository.isPatientBooked(excludeId, existing.getPatient().getPatientId(), start, end);
 
             if (doctorTaken || machineTaken || roomTaken || patientTaken) {
@@ -405,7 +406,6 @@ public class ScheduleService {
             }
         }
 
-        // 3. Update Doctor only if provided
         Doctors doctorForValidation = existing.getDoctor();
         if (patch.getDoctorId() != null) {
             Doctors fullDoctor = doctorsRepository.findById(patch.getDoctorId())
@@ -414,7 +414,6 @@ public class ScheduleService {
             doctorForValidation = fullDoctor;
         }
 
-        // 4. Update Machine only if provided
         if (patch.getMachineId() != null) {
             if (patch.getMachineId() == -1) {
                 existing.setMachine(null);
@@ -426,7 +425,6 @@ public class ScheduleService {
             }
         }
 
-        // 5. Update Room only if provided
         if (patch.getRoomId() != null) {
             if (patch.getRoomId() == -1) {
                 existing.setRoom(null);
@@ -438,69 +436,57 @@ public class ScheduleService {
             }
         }
 
-        // 6. Update simple fields only if provided
         if (patch.getScheduleStatus() != null) existing.setScheduleStatus(patch.getScheduleStatus());
-        if (patch.getProcedureName() != null) existing.setProcedureName(patch.getProcedureName());
-        if (patch.getRemarks() != null) existing.setRemarks(patch.getRemarks());
-        if (patch.getStartDateTime() != null) existing.setStartDateTime(patch.getStartDateTime());
-        if (patch.getEndDateTime() != null) existing.setEndDateTime(patch.getEndDateTime());
+        if (patch.getProcedureName()  != null) existing.setProcedureName(patch.getProcedureName());
+        if (patch.getRemarks()        != null) existing.setRemarks(patch.getRemarks());
+        if (patch.getStartDateTime()  != null) existing.setStartDateTime(patch.getStartDateTime());
+        if (patch.getEndDateTime()    != null) existing.setEndDateTime(patch.getEndDateTime());
 
-        // 7. Validate start before end
         if (!existing.getStartDateTime().isBefore(existing.getEndDateTime())) {
             throw new NotAllowed("Start date/time must be before end date/time.");
         }
 
-        // 8. Validate no conflict
         validateNoConflict(existing);
 
-        // ─── Build change description by comparing old values vs patch values ────
         String patientName = existing.getPatient().getFirstName() + " "
                 + (existing.getPatient().getMiddleName() == null ? " " : existing.getPatient().getMiddleName() + " ")
                 + existing.getPatient().getLastName();
 
         StringBuilder changes = new StringBuilder();
 
-        if (patch.getStartDateTime() != null && !patch.getStartDateTime().equals(oldStart)) {
+        if (patch.getStartDateTime() != null && !patch.getStartDateTime().equals(oldStart))
             changes.append("start time from ").append(oldStart.format(formatter))
                     .append(" to ").append(patch.getStartDateTime().format(formatter)).append("; ");
-        }
-        if (patch.getEndDateTime() != null && !patch.getEndDateTime().equals(oldEnd)) {
+        if (patch.getEndDateTime() != null && !patch.getEndDateTime().equals(oldEnd))
             changes.append("end time from ").append(oldEnd.format(formatter))
                     .append(" to ").append(patch.getEndDateTime().format(formatter)).append("; ");
-        }
-        if (patch.getProcedureName() != null && !patch.getProcedureName().equals(oldProcedure)) {
+        if (patch.getProcedureName() != null && !patch.getProcedureName().equals(oldProcedure))
             changes.append("procedure from '").append(oldProcedure)
                     .append("' to '").append(patch.getProcedureName()).append("'; ");
-        }
         if (patch.getDoctorId() != null) {
             String newDoctor = existing.getDoctor().getLastName() + ", " + existing.getDoctor().getFirstName();
-            if (!newDoctor.equals(oldDoctor)) {
+            if (!newDoctor.equals(oldDoctor))
                 changes.append("doctor from '").append(oldDoctor)
                         .append("' to '").append(newDoctor).append("'; ");
-            }
         }
         if (patch.getMachineId() != null) {
             String newMachine = existing.getMachine() == null ? "None" : existing.getMachine().getMachineName();
-            if (!newMachine.equals(oldMachine)) {
+            if (!newMachine.equals(oldMachine))
                 changes.append("machine from '").append(oldMachine)
                         .append("' to '").append(newMachine).append("'; ");
-            }
         }
         if (patch.getRoomId() != null) {
             String newRoom = existing.getRoom() == null ? "None" : existing.getRoom().getRoomName();
-            if (!newRoom.equals(oldRoom)) {
+            if (!newRoom.equals(oldRoom))
                 changes.append("room from '").append(oldRoom)
                         .append("' to '").append(newRoom).append("'; ");
-            }
         }
-        if (patch.getScheduleStatus() != null && !patch.getScheduleStatus().name().equals(oldStatus)) {
+        if (patch.getScheduleStatus() != null && !patch.getScheduleStatus().name().equals(oldStatus))
             changes.append("status from '").append(oldStatus)
                     .append("' to '").append(patch.getScheduleStatus().name()).append("'; ");
-        }
-        if (patch.getRemarks() != null && !patch.getRemarks().equals(oldRemarks)) {
+        if (patch.getRemarks() != null && !patch.getRemarks().equals(oldRemarks))
             changes.append("remarks from '").append(oldRemarks)
                     .append("' to '").append(patch.getRemarks()).append("'; ");
-        }
 
         String description = changes.length() > 0
                 ? "updated " + patientName + "'s schedule: " + changes.toString().trim()
@@ -511,11 +497,11 @@ public class ScheduleService {
     }
 
     //ARCHIVE
-    public void archiveSchedule(int scheduleId){
+    public void archiveSchedule(int scheduleId) {
         Schedules scheduleToArchive = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new NotFound("Schedule not found"));
 
-        if (scheduleToArchive.getScheduleStatus().equals(ScheduleStatus.Archived)){
+        if (scheduleToArchive.getScheduleStatus().equals(ScheduleStatus.Archived)) {
             throw new NoChangesDetected("This schedule is already archived");
         }
         scheduleToArchive.setScheduleStatus(ScheduleStatus.Archived);
@@ -532,11 +518,11 @@ public class ScheduleService {
     }
 
     //CANCELLED
-    public void cancelSchedule(int scheduleId){
+    public void cancelSchedule(int scheduleId) {
         Schedules scheduleToCancel = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new NotFound("Schedule not found"));
 
-        if (scheduleToCancel.getScheduleStatus().equals(ScheduleStatus.Cancelled)){
+        if (scheduleToCancel.getScheduleStatus().equals(ScheduleStatus.Cancelled)) {
             throw new NoChangesDetected("This schedule is already cancelled");
         }
 
@@ -553,11 +539,11 @@ public class ScheduleService {
     }
 
     //CONFIRMED
-    public void confirmSchedule(int scheduleId){
+    public void confirmSchedule(int scheduleId) {
         Schedules scheduleToConfirm = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new NotFound("Schedule not found"));
 
-        if (scheduleToConfirm.getScheduleStatus().equals(ScheduleStatus.Confirmed)){
+        if (scheduleToConfirm.getScheduleStatus().equals(ScheduleStatus.Confirmed)) {
             throw new NoChangesDetected("This schedule is already confirmed");
         }
 
@@ -574,11 +560,11 @@ public class ScheduleService {
     }
 
     //DONE
-    public void doneSchedule(int scheduleId){
+    public void doneSchedule(int scheduleId) {
         Schedules scheduleToDone = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new NotFound("Schedule not found"));
 
-        if (scheduleToDone.getScheduleStatus().equals(ScheduleStatus.Done)){
+        if (scheduleToDone.getScheduleStatus().equals(ScheduleStatus.Done)) {
             throw new NoChangesDetected("This schedule is already marked as done");
         }
 
@@ -589,17 +575,17 @@ public class ScheduleService {
                         + scheduleToDone.getPatient().getFirstName() + " "
                         + (scheduleToDone.getPatient().getMiddleName() == null ? " " : scheduleToDone.getPatient().getMiddleName())
                         + scheduleToDone.getPatient().getLastName()
-                        + " as done" + " with the Schedule ID of " + scheduleId
+                        + " as done with the Schedule ID of " + scheduleId
         );
         scheduleRepository.save(scheduleToDone);
     }
 
     //RESTORE
-    public void restoreSchedule(int scheduleId){
+    public void restoreSchedule(int scheduleId) {
         Schedules scheduleToRestore = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new NotFound("Schedule not found"));
 
-        if (scheduleToRestore.getScheduleStatus().equals(ScheduleStatus.Scheduled)){
+        if (scheduleToRestore.getScheduleStatus().equals(ScheduleStatus.Scheduled)) {
             throw new NoChangesDetected("This schedule is already marked as scheduled");
         }
 
@@ -610,12 +596,12 @@ public class ScheduleService {
                         + scheduleToRestore.getPatient().getFirstName() + " "
                         + (scheduleToRestore.getPatient().getMiddleName() == null ? " " : scheduleToRestore.getPatient().getMiddleName())
                         + scheduleToRestore.getPatient().getLastName()
-                        + " as scheduled" + " with the Schedule ID of " + scheduleId
+                        + " as scheduled with the Schedule ID of " + scheduleId
         );
         scheduleRepository.save(scheduleToRestore);
     }
 
-    //PRINT — dynamic, works for any department
+    //PRINT
     public byte[] exportSchedulesToPdf(String department, String filter, String modalityName) {
         Specification<Schedules> spec = Specification
                 .where(ScheduleSpecification.hasDepartment(department))
@@ -623,7 +609,6 @@ public class ScheduleService {
                 .and(ScheduleSpecification.hasModality(modalityName));
 
         List<Schedules> schedules = scheduleRepository.findAll(spec);
-
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document document = new Document(PageSize.A4.rotate());
