@@ -2,7 +2,7 @@ import axios from "../../config/axiosInstance";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
-  UserCheck, UserX, Clock, AlertCircle, FileDown, ChevronDown,
+  UserCheck, UserX, Clock, AlertCircle, FileDown, ChevronDown,CheckCircle
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -337,7 +337,7 @@ export default function FrontdeskDashboard() {
   }
 
   const statsCards = [
-    { icon: UserCheck, label: "Done",      value: stats.done,      color: "text-blue-500"   },
+    { icon: CheckCircle, label: "Done",      value: stats.done,      color: "text-blue-500"   },
     { icon: UserCheck, label: "Confirmed", value: stats.confirmed, color: "text-green-500"  },
     { icon: UserX,     label: "Cancelled", value: stats.cancelled, color: "text-accent"     },
     { icon: Clock,     label: "Scheduled", value: stats.scheduled, color: "text-yellow-500" },
