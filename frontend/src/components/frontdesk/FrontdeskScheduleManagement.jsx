@@ -1196,7 +1196,7 @@ export default function FrontdeskScheduleManagement() {
         tabs={TABS}
         activeTab={filters.tab}
         onTabChange={(tab) => setTab(tab)}
-        addLabel="Add Patient"
+        addLabel="Create Schedule"
         onAdd={() => setShowAdd(true)}
       />
 
@@ -1236,7 +1236,7 @@ export default function FrontdeskScheduleManagement() {
       />
 
       {showAdd && (
-        <Modal title="Add Patient Schedule" onClose={() => setShowAdd(false)} maxWidth="max-w-2xl" scrollable>
+        <Modal title="Create Patient Schedule" onClose={() => setShowAdd(false)} maxWidth="max-w-2xl" scrollable>
           <ScheduleForm
             initialValues={BLANK_FORM}
             submitLabel="Submit"
