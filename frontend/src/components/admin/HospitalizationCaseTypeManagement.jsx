@@ -3,6 +3,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Tag, Archive, Pencil, RefreshCw } from "lucide-react";
 import axios from "../../config/axiosInstance";
+import { toast } from "../ui/Toast";
 
 import {
   AdminLayout,
@@ -159,9 +160,16 @@ export default function HospitalizationCaseTypeManagement() {
         headers: { ...getAuthHeader(), "Content-Type": "application/json" },
       });
 
+      toast(
+        type === "archive"
+          ? `"${caseType.typeName}" has been archived.`
+          : `"${caseType.typeName}" has been restored.`,
+        type === "archive" ? "warning" : "success"
+      );
       await fetchCaseTypes();
     } catch (err) {
       console.error(`Failed to ${type} hospitalization case type:`, err);
+      toast(`Failed to ${type} case type.`, "error");
     } finally {
       setConfirmAction(null);
     }
@@ -216,6 +224,7 @@ export default function HospitalizationCaseTypeManagement() {
                 { typeName: values.typeName },
                 { headers: getAuthHeader() }
               );
+              toast(`Case type "${values.typeName}" has been created.`);
               await fetchCaseTypes();
             }}
             onClose={() => setShowCreate(false)}
@@ -235,6 +244,7 @@ export default function HospitalizationCaseTypeManagement() {
                 { typeName: values.typeName },
                 { headers: getAuthHeader() }
               );
+              toast(`Case type "${values.typeName}" has been updated.`);
               await fetchCaseTypes();
             }}
             onClose={() => setEditCaseType(null)}

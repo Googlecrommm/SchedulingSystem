@@ -3,6 +3,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Users, MinusCircle, UserCog, RefreshCw, ChevronDown, Eye, EyeOff } from "lucide-react";
 import axios from "../../config/axiosInstance";
+import { toast } from "../ui/Toast";
 
 import {
   AdminLayout,
@@ -296,6 +297,13 @@ export default function UserManagement() {
 
       await axios.put(endpoint, {}, { headers: getAuthHeader() });
 
+      toast(
+        type === "disable"
+          ? `"${user.name}" has been disabled.`
+          : `"${user.name}" has been enabled.`,
+        type === "disable" ? "warning" : "success"
+      );
+
       // Optimistic UI update
       setUsers((prev) =>
         prev.map((u) =>
@@ -306,6 +314,7 @@ export default function UserManagement() {
       );
     } catch (err) {
       console.error(`Failed to ${type} user:`, err);
+      toast(`Failed to ${type} user.`, "error");
     } finally {
       setConfirmAction(null);
     }
@@ -326,6 +335,7 @@ export default function UserManagement() {
       },
       { headers: { ...getAuthHeader(), "Content-Type": "application/json" } }
     );
+    toast(`Account for "${values.lastName}, ${values.firstName}" has been created.`);
     await fetchUsers();
   }
 
@@ -344,6 +354,7 @@ export default function UserManagement() {
       },
       { headers: { ...getAuthHeader(), "Content-Type": "application/json" } }
     );
+    toast(`"${values.lastName}, ${values.firstName}" has been updated.`);
     await fetchUsers();
   }
 

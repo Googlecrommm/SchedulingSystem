@@ -3,6 +3,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Cpu, Archive, Pencil, RefreshCw, CheckCircle, Wrench } from "lucide-react";
 import axios from "../../config/axiosInstance";
+import { toast } from "../ui/Toast";
 
 import {
   AdminLayout,
@@ -345,6 +346,12 @@ export default function MachineManagement() {
     };
     try {
       await axios.put(endpointMap[type], {}, { headers: getAuthHeader() });
+      toast(
+        type === "archive"
+          ? `"${machine.machineName}" has been archived.`
+          : `"${machine.machineName}" has been restored.`,
+        type === "archive" ? "warning" : "success"
+      );
       // Refresh the current view after the status change
       if (debouncedSearch.trim()) {
         await fetchSearch();
@@ -353,6 +360,7 @@ export default function MachineManagement() {
       }
     } catch (err) {
       console.error("Failed to apply action (" + type + "):", err);
+      toast("Failed to update machine. Please try again.", "error");
       setError("Failed to update machine. Please try again.");
     } finally {
       setConfirmAction(null);
@@ -459,6 +467,7 @@ export default function MachineManagement() {
                 },
                 { headers: getAuthHeader() }
               );
+              toast(`Machine "${values.name.trim()}" has been created.`);
               setPage(1);
               setShowCreate(false);
               await fetchMachines();
@@ -484,6 +493,7 @@ export default function MachineManagement() {
                 { machineName: values.name.trim() },
                 { headers: getAuthHeader() }
               );
+              toast(`Machine "${values.name.trim()}" has been updated.`);
               setEditMachine(null);
               // FIX: refresh whichever view is currently active
               if (debouncedSearch.trim()) {

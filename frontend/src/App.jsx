@@ -1,5 +1,6 @@
 import { Component } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { ToastContainer } from "./components/ui/Toast"; // adjust path to wherever you place Toast.jsx
 
 // ── JWT helpers ───────────────────────────────────────────────────────────────
 
@@ -15,12 +16,9 @@ function decodeJwtPayload(token) {
 function isTokenExpired(token) {
   const payload = decodeJwtPayload(token);
   if (!payload || !payload.exp) return true;
-  // exp is in seconds; Date.now() is in ms
   return payload.exp * 1000 < Date.now();
 }
 
-// Returns the clean role string from either the JWT or localStorage fallback.
-// JwtService.java stores authorities as [{ authority: "ROLE_ADMIN" }].
 function getRoleFromToken(token) {
   const payload = decodeJwtPayload(token);
   if (!payload) return localStorage.getItem("userRole") ?? "";
@@ -30,15 +28,12 @@ function getRoleFromToken(token) {
 
   if (Array.isArray(raw) && raw.length > 0) {
     const first = raw[0];
-    // [{ authority: "ROLE_ADMIN" }]
     if (typeof first === "object") return (first.authority ?? "").replace(/^ROLE_/i, "");
-    // ["ADMIN"]
     return String(first).replace(/^ROLE_/i, "");
   }
   return String(raw).replace(/^ROLE_/i, "");
 }
 
-// Clears all auth keys from localStorage (mirrors handleSignOut in index.jsx)
 function clearAuth() {
   ["token", "userName", "userRole", "departmentName"].forEach((k) =>
     localStorage.removeItem(k)
@@ -63,7 +58,7 @@ import PatientManagement                 from "./components/admin/PatientManagem
 import RoomManagement                    from "./components/admin/RoomManagement";
 import ActivityLogs                      from "./components/admin/ActivityLogs";
 
-// ── Frontdesk (unified — works for every department) ─────────────────────────
+// ── Frontdesk ─────────────────────────────────────────────────────────────────
 import FrontdeskDashboard              from "./components/frontdesk/FrontdeskDashboard";
 import FrontdeskScheduleManagement     from "./components/frontdesk/FrontdeskScheduleManagement";
 import FrontdeskProfessionalManagement from "./components/frontdesk/FrontdeskProfessionalManagement";
@@ -104,23 +99,14 @@ class ErrorBoundary extends Component {
 }
 
 
-
 function AdminRoute({ children }) {
   const token = localStorage.getItem("token");
 
-  if (!token) {
-    clearAuth();
-    return <Navigate to="/" replace />;
-  }
-
-  if (isTokenExpired(token)) {
-    clearAuth();
-    return <Navigate to="/" replace />;
-  }
+  if (!token) { clearAuth(); return <Navigate to="/" replace />; }
+  if (isTokenExpired(token)) { clearAuth(); return <Navigate to="/" replace />; }
 
   const role = getRoleFromToken(token).toLowerCase();
   if (role !== "admin" && role !== "administrator") {
-    // Non-admin lands on their own dashboard instead of a blank page
     return <Navigate to="/frontdesk/dashboard" replace />;
   }
 
@@ -130,19 +116,11 @@ function AdminRoute({ children }) {
 function FrontdeskRoute({ children }) {
   const token = localStorage.getItem("token");
 
-  if (!token) {
-    clearAuth();
-    return <Navigate to="/" replace />;
-  }
-
-  if (isTokenExpired(token)) {
-    clearAuth();
-    return <Navigate to="/" replace />;
-  }
+  if (!token) { clearAuth(); return <Navigate to="/" replace />; }
+  if (isTokenExpired(token)) { clearAuth(); return <Navigate to="/" replace />; }
 
   const role = getRoleFromToken(token).toLowerCase();
   if (role === "admin" || role === "administrator") {
-    // Admin accidentally on a frontdesk URL → send to admin dashboard
     return <Navigate to="/admin/dashboard" replace />;
   }
 
@@ -153,6 +131,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <ErrorBoundary>
+        {/* Global toast portal — renders above everything */}
+        <ToastContainer />
+
         <Routes>
 
           {/* ── Auth ── */}
@@ -176,20 +157,20 @@ export default function App() {
           <Route path="/admin/room-management"       element={<AdminRoute><RoomManagement /></AdminRoute>} />
           <Route path="/admin/activity-logs"         element={<AdminRoute><ActivityLogs /></AdminRoute>} />
 
-          {/* ── Frontdesk — single route set for every department ── */}
+          {/* ── Frontdesk ── */}
           <Route path="/frontdesk/dashboard"     element={<FrontdeskRoute><FrontdeskDashboard /></FrontdeskRoute>} />
           <Route path="/frontdesk/schedules"     element={<FrontdeskRoute><FrontdeskScheduleManagement /></FrontdeskRoute>} />
           <Route path="/frontdesk/professionals" element={<FrontdeskRoute><FrontdeskProfessionalManagement /></FrontdeskRoute>} />
           <Route path="/frontdesk/machines"      element={<FrontdeskRoute><FrontdeskMachineManagement /></FrontdeskRoute>} />
           <Route path="/frontdesk/rooms"         element={<FrontdeskRoute><FrontdeskRoomManagement /></FrontdeskRoute>} />
 
-          {/* ── Legacy redirects — old Radiology / Rehab URLs → unified ── */}
-          <Route path="/radiology/dashboard"          element={<Navigate to="/frontdesk/dashboard"     replace />} />
-          <Route path="/radiology/schedules"          element={<Navigate to="/frontdesk/schedules"     replace />} />
-          <Route path="/radiology/machine"            element={<Navigate to="/frontdesk/machines"      replace />} />
-          <Route path="/radiology/professionals"      element={<Navigate to="/frontdesk/professionals" replace />} />
-          <Route path="/frontdesk/rehab-dashboard"    element={<Navigate to="/frontdesk/dashboard"     replace />} />
-          <Route path="/frontdesk/rehab-schedules"    element={<Navigate to="/frontdesk/schedules"     replace />} />
+          {/* ── Legacy redirects ── */}
+          <Route path="/radiology/dashboard"           element={<Navigate to="/frontdesk/dashboard"     replace />} />
+          <Route path="/radiology/schedules"           element={<Navigate to="/frontdesk/schedules"     replace />} />
+          <Route path="/radiology/machine"             element={<Navigate to="/frontdesk/machines"      replace />} />
+          <Route path="/radiology/professionals"       element={<Navigate to="/frontdesk/professionals" replace />} />
+          <Route path="/frontdesk/rehab-dashboard"     element={<Navigate to="/frontdesk/dashboard"     replace />} />
+          <Route path="/frontdesk/rehab-schedules"     element={<Navigate to="/frontdesk/schedules"     replace />} />
           <Route path="/frontdesk/rehab-professionals" element={<Navigate to="/frontdesk/professionals" replace />} />
 
           {/* ── 404 catch-all ── */}

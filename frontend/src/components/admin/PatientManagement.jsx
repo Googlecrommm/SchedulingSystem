@@ -3,6 +3,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { UserRoundPlus, Archive, Pencil, RefreshCw, ChevronDown, Eye } from "lucide-react";
 import axios from "../../config/axiosInstance";
+import { toast } from "../ui/Toast";
 
 import {
   AdminLayout,
@@ -391,9 +392,16 @@ export default function PatientManagement() {
       await axios.put(endpoint, null, {
         headers: { ...getAuthHeader(), "Content-Type": "application/json" },
       });
+      toast(
+        type === "archive"
+          ? `"${patient.name}" has been archived.`
+          : `"${patient.name}" has been restored.`,
+        type === "archive" ? "warning" : "success"
+      );
       await fetchPatients();
     } catch (err) {
       console.error(`Failed to ${type} patient:`, err);
+      toast(`Failed to ${type} patient.`, "error");
       setError(`Failed to ${type} patient. Please try again.`);
     } finally {
       setConfirmAction(null);
@@ -502,6 +510,7 @@ export default function PatientManagement() {
                 },
                 { headers: getAuthHeader() }
               );
+              toast(`Patient "${values.lastName}, ${values.firstName}" has been updated.`);
               await fetchPatients();
             }}
             onClose={() => setEditPatient(null)}

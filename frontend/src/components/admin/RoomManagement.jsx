@@ -3,6 +3,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { BedDouble, Archive, Pencil, RefreshCw, Wrench, CheckCircle, ChevronDown } from "lucide-react";
 import axios from "../../config/axiosInstance";
+import { toast } from "../ui/Toast";
 
 import {
   AdminLayout,
@@ -299,9 +300,16 @@ export default function RoomManagement() {
       await axios.put(endpoint, null, {
         headers: { ...getAuthHeader(), "Content-Type": "application/json" },
       });
+      toast(
+        type === "archive"
+          ? `"${room.name}" has been archived.`
+          : `"${room.name}" has been restored.`,
+        type === "archive" ? "warning" : "success"
+      );
       await fetchRooms();
     } catch (err) {
       console.error(`Failed to ${type} room:`, err);
+      toast(`Failed to ${type} room.`, "error");
       setError(`Failed to ${type} room. Please try again.`);
     } finally {
       setConfirmAction(null);
@@ -405,6 +413,7 @@ export default function RoomManagement() {
                 },
                 { headers: getAuthHeader() }
               );
+              toast(`Room "${values.name.trim()}" has been created.`);
               await fetchRooms();
             }}
             onClose={() => setShowCreate(false)}
@@ -439,6 +448,7 @@ export default function RoomManagement() {
                 { roomName: values.name.trim() },
                 { headers: getAuthHeader() }
               );
+              toast(`Room "${values.name.trim()}" has been updated.`);
               await fetchRooms();
             }}
             onClose={() => setEditRoom(null)}

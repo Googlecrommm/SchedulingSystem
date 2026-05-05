@@ -3,6 +3,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { UserCog, Archive, Pencil, RefreshCw, ChevronDown } from "lucide-react";
 import axios from "../../config/axiosInstance";
+import { toast } from "../ui/Toast";
 
 import {
   AdminLayout,
@@ -197,9 +198,16 @@ export default function RoleManagement() {
           : `/api/restoreRole/${role.id}`;
 
       await axios.put(endpoint, null, { headers: getAuthHeader() });
+      toast(
+        type === "archive"
+          ? `"${role.name}" has been archived.`
+          : `"${role.name}" has been restored.`,
+        type === "archive" ? "warning" : "success"
+      );
       await fetchRoles(page, activeTab, searchQuery);
     } catch (err) {
       console.error(`Failed to ${type} role:`, err);
+      toast(`Failed to ${type} role.`, "error");
     } finally {
       setConfirmAction(null);
     }
@@ -261,6 +269,7 @@ export default function RoleManagement() {
                 },
                 { headers: getAuthHeader() }
               );
+              toast(`Role "${values.name}" has been created.`);
               await fetchRoles(page, activeTab, searchQuery);
             }}
             onClose={() => setShowCreate(false)}
@@ -286,6 +295,7 @@ export default function RoleManagement() {
                 },
                 { headers: getAuthHeader() }
               );
+              toast(`Role "${values.name}" has been updated.`);
               await fetchRoles(page, activeTab, searchQuery);
               setEditRole(null);
             }}

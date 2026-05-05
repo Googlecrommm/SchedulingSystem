@@ -10,6 +10,7 @@ import {
   XCircle,
 } from "lucide-react";
 import axios from "../../config/axiosInstance";
+import { toast } from "../ui/Toast";
 
 import {
   AdminLayout,
@@ -332,9 +333,13 @@ export default function ProfessionalManagement() {
         {},
         { headers: getAuthHeader() }
       );
+      const statusLabel = { leave: "On Leave", unavailable: "Unavailable", available: "Available" }[type];
+      const statusToastType = { leave: "warning", unavailable: "warning", available: "success" }[type];
+      toast(`"${profFullName}" has been marked as ${statusLabel}.`, statusToastType);
       await fetchProfessionals();
     } catch (err) {
       console.error("Failed to apply action (" + type + "):", err);
+      toast("Failed to update professional status.", "error");
       setError("Failed to update doctor status. Please try again.");
     } finally {
       setConfirmAction(null);
@@ -474,6 +479,7 @@ export default function ProfessionalManagement() {
                 },
                 { headers: getAuthHeader() }
               );
+              toast(`"${values.lastName}, ${values.firstName}" has been added.`);
               await fetchProfessionals();
               setShowCreate(false);
             }}
@@ -510,6 +516,7 @@ export default function ProfessionalManagement() {
                   },
                   { headers: getAuthHeader() }
                 );
+                toast(`"${values.lastName}, ${values.firstName}" has been updated.`);
                 await fetchProfessionals();
                 setEditProfessional(null);
               }}

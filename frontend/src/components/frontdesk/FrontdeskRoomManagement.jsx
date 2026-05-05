@@ -10,6 +10,7 @@ import {
   ConfirmDialog,
 } from "../ui";
 import { useFrontdeskNav, useDeptMeta } from "./frontdeskUtils";
+import { useToast } from "../ui/Toast"; // adjust path to wherever you place Toast.jsx
 
 
 function getAuthHeader() {
@@ -52,6 +53,11 @@ const confirmMeta = {
   },
 };
 
+const toastMessages = {
+  maintenance: (n) => `"${n}" is now Under Maintenance.`,
+  available:   (n) => `"${n}" is now Available.`,
+};
+
 const STATUS_TABS = [
   { label: "All",               value: "All",               icon: BedDouble    },
   { label: "Available",         value: "Available",         icon: CheckCircle  },
@@ -62,6 +68,7 @@ const STATUS_TABS = [
 export default function FrontdeskRoomManagement() {
   const navItems               = useFrontdeskNav();
   const { deptName, userRole } = useDeptMeta();
+  const { showToast }          = useToast();
 
   const [rooms,         setRooms]         = useState([]);
   const [loading,       setLoading]       = useState(false);
@@ -73,8 +80,6 @@ export default function FrontdeskRoomManagement() {
 
   const debouncedSearch = useDebounce(searchQuery, 400);
 
-
-
   const fetchRooms = useCallback(async (currentPage, search, tab) => {
     setLoading(true);
     try {
@@ -84,15 +89,9 @@ export default function FrontdeskRoomManagement() {
       let params;
 
       if (isSearching) {
-     
         url = `/api/searchRoom/${encodeURIComponent(search.trim())}`;
-        params = {
-          page: currentPage,
-          size: 10,
-          sort: "roomName,asc",
-        };
+        params = { page: currentPage, size: 10, sort: "roomName,asc" };
       } else {
-     
         url = `/api/getRooms`;
         params = {
           page: currentPage,
@@ -106,10 +105,8 @@ export default function FrontdeskRoomManagement() {
       const pageData = res.data;
       let content    = Array.isArray(pageData) ? pageData : pageData?.content ?? [];
 
-    
       content = content.filter((r) => r.roomStatus !== "Archived");
 
-     
       if (isSearching && tab !== "All") {
         content = content.filter((r) => r.roomStatus === tab);
       }
@@ -123,7 +120,7 @@ export default function FrontdeskRoomManagement() {
     } finally {
       setLoading(false);
     }
-  }, []); 
+  }, []);
 
   useEffect(() => {
     fetchRooms(page, debouncedSearch, activeTab);
@@ -149,22 +146,23 @@ export default function FrontdeskRoomManagement() {
         available:   `/api/restoreRoom/${room.roomId}`,
       };
       await axios.put(endpointMap[type], {}, { headers: getAuthHeader() });
+      showToast(toastMessages[type](room.roomName), "success");
       await fetchRooms(page, debouncedSearch, activeTab);
     } catch (err) {
       console.error("Failed to update room status:", err);
+      showToast("Failed to update room status.", "error");
     } finally {
       setConfirmAction(null);
     }
   }
 
   function handleTabChange(tabValue) {
-    setSearchQuery("");   
+    setSearchQuery("");
     setActiveTab(tabValue);
     setPage(0);
   }
 
   const meta = confirmAction && confirmMeta[confirmAction.type];
-
 
   return (
     <AdminLayout

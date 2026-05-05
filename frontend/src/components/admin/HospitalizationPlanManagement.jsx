@@ -3,6 +3,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { ClipboardList, Archive, Pencil, RefreshCw } from "lucide-react";
 import axios from "../../config/axiosInstance";
+import { toast } from "../ui/Toast";
 
 import {
   AdminLayout,
@@ -169,9 +170,16 @@ export default function HospitalizationPlanManagement() {
         headers: { ...getAuthHeader(), "Content-Type": "application/json" },
       });
 
+      toast(
+        type === "archive"
+          ? `Plan "${plan.code}" has been archived.`
+          : `Plan "${plan.code}" has been restored.`,
+        type === "archive" ? "warning" : "success"
+      );
       await fetchPlans();
     } catch (err) {
       console.error(`Failed to ${type} hospitalization plan:`, err);
+      toast(`Failed to ${type} plan.`, "error");
     } finally {
       setConfirmAction(null);
     }
@@ -227,6 +235,7 @@ export default function HospitalizationPlanManagement() {
                 { code: values.code, companyName: values.companyName },
                 { headers: getAuthHeader() }
               );
+              toast(`Plan "${values.code}" has been created.`);
               await fetchPlans();
             }}
             onClose={() => setShowCreate(false)}
@@ -250,6 +259,7 @@ export default function HospitalizationPlanManagement() {
                 },
                 { headers: getAuthHeader() }
               );
+              toast(`Plan "${values.code}" has been updated.`);
               await fetchPlans();
             }}
             onClose={() => setEditPlan(null)}

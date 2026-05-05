@@ -3,6 +3,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Layers, Archive, Pencil, RefreshCw, ChevronDown } from "lucide-react";
 import axios from "../../config/axiosInstance";
+import { toast } from "../ui/Toast";
 
 import {
   AdminLayout,
@@ -226,9 +227,16 @@ export default function ModalityManagement() {
         : `/api/restoreModality/${modality.id}`;
 
       await axios.put(endpoint, null, { headers: getAuthHeader() });
+      toast(
+        type === "archive"
+          ? `"${modality.name}" has been archived.`
+          : `"${modality.name}" has been restored.`,
+        type === "archive" ? "warning" : "success"
+      );
       await fetchModalities(page, activeTab, searchQuery);
     } catch (err) {
       console.error(`Failed to ${type} modality:`, err);
+      toast(`Failed to ${type} modality.`, "error");
     } finally {
       setConfirmAction(null);
     }
@@ -244,6 +252,7 @@ export default function ModalityManagement() {
       },
       { headers: { ...getAuthHeader(), "Content-Type": "application/json" } }
     );
+    toast(`Modality "${values.name}" has been created.`);
     await fetchModalities(page, activeTab, searchQuery);
   }
 
@@ -257,6 +266,7 @@ export default function ModalityManagement() {
       },
       { headers: { ...getAuthHeader(), "Content-Type": "application/json" } }
     );
+    toast(`Modality "${values.name}" has been updated.`);
     await fetchModalities(page, activeTab, searchQuery);
     setEditModality(null);
   }

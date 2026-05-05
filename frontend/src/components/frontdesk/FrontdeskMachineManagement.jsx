@@ -10,6 +10,7 @@ import {
   ConfirmDialog,
 } from "../ui";
 import { useFrontdeskNav, useDeptMeta } from "./frontdeskUtils";
+import { useToast } from "../ui/Toast"; // adjust path to wherever you place Toast.jsx
 
 
 function getAuthHeader() {
@@ -52,6 +53,11 @@ const confirmMeta = {
   },
 };
 
+const toastMessages = {
+  maintenance: (n) => `"${n}" is now Under Maintenance.`,
+  available:   (n) => `"${n}" is now Available.`,
+};
+
 const STATUS_TABS = [
   { label: "All",               value: "All",               icon: Cpu          },
   { label: "Available",         value: "Available",         icon: CheckCircle  },
@@ -62,6 +68,7 @@ const STATUS_TABS = [
 export default function FrontdeskMachineManagement() {
   const navItems               = useFrontdeskNav();
   const { deptName, userRole } = useDeptMeta();
+  const { showToast }          = useToast();
 
   const [machines,      setMachines]      = useState([]);
   const [loading,       setLoading]       = useState(false);
@@ -73,7 +80,6 @@ export default function FrontdeskMachineManagement() {
 
   const debouncedSearch = useDebounce(searchQuery, 400);
 
-
   const fetchMachines = useCallback(async (currentPage, search, tab) => {
     setLoading(true);
     try {
@@ -83,15 +89,9 @@ export default function FrontdeskMachineManagement() {
       let params;
 
       if (isSearching) {
-   
         url = `/api/searchMachine/${encodeURIComponent(search.trim())}`;
-        params = {
-          page: currentPage,
-          size: 10,
-          sort: "machineName,asc",
-        };
+        params = { page: currentPage, size: 10, sort: "machineName,asc" };
       } else {
-
         url = `/api/getMachines`;
         params = {
           page: currentPage,
@@ -105,10 +105,8 @@ export default function FrontdeskMachineManagement() {
       const pageData = res.data;
       let content    = Array.isArray(pageData) ? pageData : pageData?.content ?? [];
 
-    
       content = content.filter((m) => m.machineStatus !== "Archived");
 
-    
       if (isSearching && tab !== "All") {
         content = content.filter((m) => m.machineStatus === tab);
       }
@@ -122,7 +120,7 @@ export default function FrontdeskMachineManagement() {
     } finally {
       setLoading(false);
     }
-  }, []); 
+  }, []);
 
   useEffect(() => {
     fetchMachines(page, debouncedSearch, activeTab);
@@ -148,22 +146,23 @@ export default function FrontdeskMachineManagement() {
         available:   `/api/activateMachine/${machine.machineId}`,
       };
       await axios.put(endpointMap[type], {}, { headers: getAuthHeader() });
+      showToast(toastMessages[type](machine.machineName), "success");
       await fetchMachines(page, debouncedSearch, activeTab);
     } catch (err) {
       console.error("Failed to update machine status:", err);
+      showToast("Failed to update machine status.", "error");
     } finally {
       setConfirmAction(null);
     }
   }
 
   function handleTabChange(tabValue) {
-    setSearchQuery("");     
+    setSearchQuery("");
     setActiveTab(tabValue);
     setPage(0);
   }
 
   const meta = confirmAction && confirmMeta[confirmAction.type];
-
 
   return (
     <AdminLayout

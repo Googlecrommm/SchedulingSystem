@@ -3,6 +3,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Building2, Archive, Pencil, RefreshCw } from "lucide-react";
 import axios from "../../config/axiosInstance";
+import { toast } from "../ui/Toast";
 
 import {
   AdminLayout,
@@ -150,9 +151,16 @@ export default function DepartmentManagement() {
         headers: { ...getAuthHeader(), "Content-Type": "application/json" },
       });
 
+      toast(
+        type === "archive"
+          ? `"${dept.name}" has been archived.`
+          : `"${dept.name}" has been restored.`,
+        type === "archive" ? "warning" : "success"
+      );
       await fetchDepartments();
     } catch (err) {
       console.error(`Failed to ${type} department:`, err);
+      toast(`Failed to ${type} department.`, "error");
     } finally {
       setConfirmAction(null);
     }
@@ -208,9 +216,11 @@ export default function DepartmentManagement() {
                   { departmentName: values.name },
                   { headers: getAuthHeader() }
                 );
+                toast(`Department "${values.name}" has been created.`);
                 await fetchDepartments();
               } catch (err) {
                 console.error("Failed to create department:", err);
+                toast("Failed to create department.", "error");
               }
             }}
             onClose={() => setShowCreate(false)}
@@ -233,9 +243,11 @@ export default function DepartmentManagement() {
                   },
                   { headers: getAuthHeader() }
                 );
+                toast(`Department "${values.name}" has been updated.`);
                 await fetchDepartments();
               } catch (err) {
                 console.error("Failed to update department:", err);
+                toast("Failed to update department.", "error");
               } finally {
                 setEditDept(null);
               }

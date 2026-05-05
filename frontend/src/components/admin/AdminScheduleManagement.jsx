@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 
 import axios from "../../config/axiosInstance";
+import { toast } from "../ui/Toast";
 
 import {
   AdminLayout,
@@ -308,9 +309,16 @@ export default function AdminScheduleManagement() {
         unarchive: `/api/restoreSchedule/${schedule.scheduleId}`,
       };
       await axios.put(endpointMap[type], {}, { headers: getAuthHeader() });
+      toast(
+        type === "archive"
+          ? `Schedule for "${confirmAction.schedule.patientFullName ?? "patient"}" has been archived.`
+          : `Schedule for "${confirmAction.schedule.patientFullName ?? "patient"}" has been restored.`,
+        type === "archive" ? "warning" : "success"
+      );
       await fetchSchedules();
     } catch (err) {
       console.error(`Failed to ${type} schedule:`, err);
+      toast(`Failed to ${type} schedule.`, "error");
     } finally {
       setConfirmAction(null);
     }

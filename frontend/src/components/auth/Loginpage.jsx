@@ -6,6 +6,7 @@ import { useNavigate, Navigate } from "react-router-dom";
 import hospitalBg from "../../assets/hospital-bg.jpg";
 import DGMCLogo from "../../assets/dgmc-logo.png";
 import axios from "axios";
+import { toast } from "../ui/Toast"; // adjust path to match your project
 
 // ── Auth guard helpers ────────────────────────────────────────────────────────
 
@@ -45,9 +46,6 @@ const loginSchema = Yup.object({
 });
 
 // ── Role → landing page ───────────────────────────────────────────────────────
-// Matches getUser.getRole().getRoleName() from AuthService.java.
-// The backend returns the exact roleName string stored in your DB.
-// Add any new role names your backend returns inside the switch below.
 function getRedirectPath(roleName) {
   if (!roleName) return "/";
 
@@ -56,8 +54,6 @@ function getRedirectPath(roleName) {
     case "administrator":
       return "/admin/dashboard";
 
-    // All frontdesk-type roles → unified frontdesk dashboard.
-    // Backend JWT scopes API data to the user's department automatically.
     case "frontdesk":
     case "front desk":
     case "radiology":
@@ -66,8 +62,6 @@ function getRedirectPath(roleName) {
       return "/frontdesk/dashboard";
 
     default:
-      // Safety net: unknown role goes back to login, never a white screen.
-      // Check your browser console for the actual roleName and add it above.
       console.warn("Unrecognised roleName — add it to getRedirectPath():", roleName);
       return "/";
   }
@@ -84,7 +78,6 @@ function FieldError({ message }) {
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const [serverError,  setServerError]  = useState(null);
   const navigate = useNavigate();
 
   // ── Already logged in? Skip the login page ────────────────────────────────
@@ -101,7 +94,6 @@ export default function LoginPage() {
     initialValues: { username: "", password: "" },
     validationSchema: loginSchema,
     onSubmit: async (values, { setSubmitting }) => {
-      setServerError(null);
       try {
         const response = await axios.post(
           "http://localhost:8080/auth/login",
@@ -117,12 +109,17 @@ export default function LoginPage() {
         localStorage.setItem("userRole",       role           ?? "");
         localStorage.setItem("departmentName", departmentName ?? "");
 
+        // ✅ Success toast
+        toast(`Welcome back, ${name || "User"}!`, "success");
+
         navigate(getRedirectPath(role), { replace: true });
       } catch (error) {
-        setServerError(
+        const message =
           error.response?.data?.message ||
-            "Login failed. Please check your credentials."
-        );
+          "Login failed. Please check your credentials.";
+
+        // ❌ Error toast
+        toast(message, "error");
       } finally {
         setSubmitting(false);
       }
@@ -220,13 +217,6 @@ export default function LoginPage() {
               </div>
               <FieldError message={formik.touched.password && formik.errors.password} />
             </div>
-
-            {/* Server error */}
-            {serverError && (
-              <div className="bg-red-50 border border-red-300 text-red-600 text-sm rounded-lg px-4 py-3">
-                {serverError}
-              </div>
-            )}
 
             {/* Submit */}
             <button

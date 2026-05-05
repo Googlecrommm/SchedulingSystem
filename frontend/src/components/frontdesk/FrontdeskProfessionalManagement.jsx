@@ -12,6 +12,7 @@ import {
   ConfirmDialog,
 } from "../ui";
 import { useFrontdeskNav, useDeptMeta } from "./frontdeskUtils";
+import { useToast } from "../ui/Toast"; // adjust path to wherever you place Toast.jsx
 
 
 const TABS = [
@@ -40,6 +41,18 @@ const confirmMeta = {
     label:  "Confirm",
     danger: false,
   },
+};
+
+const toastMessages = {
+  leave:       (n) => `"${n}" has been marked as On Leave.`,
+  unavailable: (n) => `"${n}" has been marked as Unavailable.`,
+  available:   (n) => `"${n}" is now Available.`,
+};
+
+const toastTypes = {
+  leave:       "warning",
+  unavailable: "error",
+  available:   "success",
 };
 
 
@@ -87,6 +100,7 @@ function getDoctorActions(status) {
 export default function FrontdeskProfessionalManagement() {
   const navItems               = useFrontdeskNav();
   const { deptName, userRole } = useDeptMeta();
+  const { showToast }          = useToast();
 
   const [activeTab,     setActiveTab]     = useState("All");
   const [professionals, setProfessionals] = useState([]);
@@ -106,12 +120,11 @@ export default function FrontdeskProfessionalManagement() {
     setLoading(true);
     try {
       if (isSearching) {
-      
         const res = await axios.get(
           `/api/searchDoctor/${encodeURIComponent(debouncedSearch.trim())}`,
           {
             headers: getAuthHeader(),
-            params: { page: 0, size: 200 }, 
+            params: { page: 0, size: 200 },
           }
         );
 
@@ -121,8 +134,8 @@ export default function FrontdeskProfessionalManagement() {
           ? all.filter((d) => d.availabilityStatus === activeTabStatus)
           : all;
 
-        const PAGE_SIZE   = 10;
-        const totalItems  = filtered.length;
+        const PAGE_SIZE     = 10;
+        const totalItems    = filtered.length;
         const computedPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
         const safePage      = Math.min(page, computedPages);
         const start         = (safePage - 1) * PAGE_SIZE;
@@ -133,7 +146,7 @@ export default function FrontdeskProfessionalManagement() {
         const res = await axios.get("/api/getDoctors", {
           headers: getAuthHeader(),
           params: {
-            page: page - 1, 
+            page: page - 1,
             size: 10,
             ...(activeTabStatus && { availabilityStatus: activeTabStatus }),
           },
@@ -169,9 +182,11 @@ export default function FrontdeskProfessionalManagement() {
         available:   `/api/availableDoctor/${professional.doctorId}`,
       };
       await axios.put(endpointMap[type], {}, { headers: getAuthHeader() });
+      showToast(toastMessages[type](professional.fullName), toastTypes[type]);
       await fetchProfessionals();
     } catch (err) {
       console.error("Failed to apply action:", err);
+      showToast("Failed to update professional status.", "error");
     } finally {
       setConfirmAction(null);
     }
