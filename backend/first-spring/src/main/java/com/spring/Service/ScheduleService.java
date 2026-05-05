@@ -11,6 +11,7 @@ import com.spring.dto.ScheduleResponseDTO;
 import jakarta.transaction.Transactional;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -22,6 +23,7 @@ import com.itextpdf.text.pdf.PdfPCell;
 import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfWriter;
 import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.time.format.DateTimeFormatter;
@@ -29,6 +31,7 @@ import java.time.temporal.TemporalAdjusters;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class ScheduleService {
@@ -219,7 +222,11 @@ public class ScheduleService {
         scheduleRepository.save(schedule);
     }
 
-    //READ & FILTER
+    // READ & FILTER
+    // CHANGED: Now sorts by closest to current date first.
+    // Fetches upcoming schedules (>= now) ASC and past schedules (< now) DESC,
+    // then merges them so the result is ordered: soonest upcoming first,
+    // then most recent past last — giving the user the most relevant schedules first.
     public Page<ScheduleResponseDTO> getSchedules(
             ScheduleStatus scheduleStatus,
             String name,
@@ -228,20 +235,56 @@ public class ScheduleService {
             String modalityName,
             Pageable pageable) {
 
-        Specification<Schedules> filters = Specification
+        LocalDateTime now = LocalDateTime.now();
+
+        Specification<Schedules> baseFilters = Specification
                 .where(ScheduleSpecification.hasStatus(scheduleStatus))
                 .and(ScheduleSpecification.toDoctor(name))
                 .and(ScheduleSpecification.searchPatient(patientName))
                 .and(ScheduleSpecification.hasDepartment(departmentName))
                 .and(ScheduleSpecification.hasModality(modalityName));
 
-        Pageable sortedPageable = PageRequest.of(
-                pageable.getPageNumber(),
-                pageable.getPageSize(),
+        // Upcoming: startDateTime >= now, sorted ASC (soonest first)
+        Specification<Schedules> upcomingSpec = baseFilters
+                .and((root, query, cb) ->
+                        cb.greaterThanOrEqualTo(root.get("startDateTime"), now));
+
+        // Past: startDateTime < now, sorted DESC (most recent past first)
+        Specification<Schedules> pastSpec = baseFilters
+                .and((root, query, cb) ->
+                        cb.lessThan(root.get("startDateTime"), now));
+
+        // Fetch all upcoming and all past without pagination first,
+        // then apply pagination manually on the merged result
+        List<Schedules> upcoming = scheduleRepository.findAll(
+                upcomingSpec,
                 Sort.by(Sort.Direction.ASC, "startDateTime")
         );
 
-        return scheduleRepository.findAll(filters, sortedPageable).map(this::mapToDTO);
+        List<Schedules> past = scheduleRepository.findAll(
+                pastSpec,
+                Sort.by(Sort.Direction.DESC, "startDateTime")
+        );
+
+        // Merge: upcoming first, then past
+        List<Schedules> merged = new ArrayList<>();
+        merged.addAll(upcoming);
+        merged.addAll(past);
+
+        // Apply pagination manually on the merged list
+        int total     = merged.size();
+        int pageSize  = pageable.getPageSize();
+        int pageNum   = pageable.getPageNumber();
+        int fromIndex = Math.min(pageNum * pageSize, total);
+        int toIndex   = Math.min(fromIndex + pageSize, total);
+
+        List<ScheduleResponseDTO> pagedContent = merged
+                .subList(fromIndex, toIndex)
+                .stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+
+        return new PageImpl<>(pagedContent, pageable, total);
     }
 
     //SEARCH
@@ -250,7 +293,7 @@ public class ScheduleService {
                 .map(this::mapToDTO);
     }
 
-    // COUNT MONTHLY — FIXED: now returns per-status counts per month
+    // COUNT MONTHLY — returns per-status counts per month
     // Shape: { "January": { "Scheduled": 2, "Cancelled": 1, "Done": 0, "Confirmed": 0 }, ... }
     public Map<String, Map<String, Long>> getMonthlyBreakdown(String department, String modalityName) {
         Map<String, Map<String, Long>> breakdown = new LinkedHashMap<>();
@@ -382,14 +425,14 @@ public class ScheduleService {
         Schedules existing = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new RuntimeException("Schedule not found with ID: " + scheduleId));
 
-        LocalDateTime oldStart     = existing.getStartDateTime();
-        LocalDateTime oldEnd       = existing.getEndDateTime();
-        String oldProcedure        = existing.getProcedureName();
-        String oldDoctor           = existing.getDoctor().getLastName() + ", " + existing.getDoctor().getFirstName();
-        String oldMachine          = existing.getMachine() == null ? "None" : existing.getMachine().getMachineName();
-        String oldRoom             = existing.getRoom() == null ? "None" : existing.getRoom().getRoomName();
-        String oldStatus           = existing.getScheduleStatus().name();
-        String oldRemarks          = existing.getRemarks();
+        LocalDateTime oldStart  = existing.getStartDateTime();
+        LocalDateTime oldEnd    = existing.getEndDateTime();
+        String oldProcedure     = existing.getProcedureName();
+        String oldDoctor        = existing.getDoctor().getLastName() + ", " + existing.getDoctor().getFirstName();
+        String oldMachine       = existing.getMachine() == null ? "None" : existing.getMachine().getMachineName();
+        String oldRoom          = existing.getRoom() == null ? "None" : existing.getRoom().getRoomName();
+        String oldStatus        = existing.getScheduleStatus().name();
+        String oldRemarks       = existing.getRemarks();
 
         if (existing.getScheduleStatus() == ScheduleStatus.Archived) {
             int excludeId = existing.getScheduleId();
