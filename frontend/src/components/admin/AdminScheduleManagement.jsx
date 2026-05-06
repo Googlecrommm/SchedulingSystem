@@ -219,6 +219,7 @@ export default function AdminScheduleManagement() {
   const [schedules,     setSchedules]     = useState([]);
   const [departments,   setDepartments]   = useState([]);
   const [loading,       setLoading]       = useState(false);
+  const [refreshing,    setRefreshing]    = useState(false);
   const [viewSchedule,  setViewSchedule]  = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
   const [page,          setPage]          = useState(0);
@@ -290,6 +291,16 @@ export default function AdminScheduleManagement() {
     }
   }
 
+  // ── Manual refresh ───────────────────────────────────────────────────────────
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await fetchSchedules();
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   // ── Actions ──────────────────────────────────────────────────────────────────
   function handleAction(action, schedule) {
     switch (action) {
@@ -347,22 +358,38 @@ export default function AdminScheduleManagement() {
       searchPlaceholder="Search Patient"
     >
 
-      {/* ── Tabs ── */}
-      <div className="flex items-center gap-1 border-b border-gray-200 mb-4 overflow-x-auto overflow-y-hidden">
-        {TABS.map(({ label, icon: Icon }) => (
-          <button
-            key={label}
-            onClick={() => setTab(label)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2
-              transition-colors duration-200 -mb-px whitespace-nowrap cursor-pointer
-              ${filters.tab === label
-                ? "border-primary text-primary"
-                : "border-transparent text-gray-400 hover:text-primary hover:border-gray-300"}`}
-          >
-            <Icon size={14} className="shrink-0" />
-            {label}
-          </button>
-        ))}
+      {/* ── Tabs + Refresh ── */}
+      <div className="flex items-center border-b border-gray-200 mb-4">
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing || loading}
+          title="Refresh"
+          className="p-2 mb-px rounded-lg text-gray-400 hover:text-primary
+                     hover:bg-primary/5 transition-colors duration-200
+                     cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+        >
+          <RefreshCw
+            size={16}
+            className={refreshing ? "animate-spin" : ""}
+          />
+        </button>
+
+        <div className="flex items-center gap-1 overflow-x-auto overflow-y-hidden">
+          {TABS.map(({ label, icon: Icon }) => (
+            <button
+              key={label}
+              onClick={() => setTab(label)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2
+                transition-colors duration-200 -mb-px whitespace-nowrap cursor-pointer
+                ${filters.tab === label
+                  ? "border-primary text-primary"
+                  : "border-transparent text-gray-400 hover:text-primary hover:border-gray-300"}`}
+            >
+              <Icon size={14} className="shrink-0" />
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Table ── */}

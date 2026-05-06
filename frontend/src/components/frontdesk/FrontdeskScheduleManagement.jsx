@@ -1000,6 +1000,7 @@ export default function FrontdeskScheduleManagement() {
   const [confirmAction, setConfirmAction] = useState(null);
   const [schedules,     setSchedules]     = useState([]);
   const [loading,       setLoading]       = useState(false);
+  const [refreshing,    setRefreshing]    = useState(false);
   const [page,          setPage]          = useState(0);
   const [totalPages,    setTotalPages]    = useState(1);
 
@@ -1052,6 +1053,15 @@ export default function FrontdeskScheduleManagement() {
       setSchedules([]); setTotalPages(1);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await fetchSchedules();
+    } finally {
+      setRefreshing(false);
     }
   }
 
@@ -1192,13 +1202,49 @@ export default function FrontdeskScheduleManagement() {
       onSearchChange={setSearch}
       searchPlaceholder="Search Patient"
     >
-      <TabBar
-        tabs={TABS}
-        activeTab={filters.tab}
-        onTabChange={(tab) => setTab(tab)}
-        addLabel="Create Schedule"
-        onAdd={() => setShowAdd(true)}
-      />
+      {/* ── Tabs + Refresh ── */}
+      <div className="flex items-center border-b border-gray-200 mb-4">
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing || loading}
+          title="Refresh"
+          className="p-2 mb-px rounded-lg text-gray-400 hover:text-primary
+                     hover:bg-primary/5 transition-colors duration-200
+                     cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+        >
+          <RefreshCw
+            size={16}
+            className={refreshing ? "animate-spin" : ""}
+          />
+        </button>
+
+        <div className="flex items-center gap-1 overflow-x-auto overflow-y-hidden">
+          {TABS.map(({ label, icon: Icon }) => (
+            <button
+              key={label}
+              onClick={() => setTab(label)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2
+                transition-colors duration-200 -mb-px whitespace-nowrap cursor-pointer
+                ${filters.tab === label
+                  ? "border-primary text-primary"
+                  : "border-transparent text-gray-400 hover:text-primary hover:border-gray-300"}`}
+            >
+              <Icon size={14} className="shrink-0" />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="ml-auto mb-px pl-4 shrink-0">
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white
+                       bg-primary rounded-lg hover:bg-primary/90 transition-colors duration-200 cursor-pointer"
+          >
+            + Create Schedule
+          </button>
+        </div>
+      </div>
 
       <DataTable
         columns={COLUMNS}
