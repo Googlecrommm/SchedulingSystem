@@ -31,7 +31,7 @@ const TABS = [
   { label: "Done",      icon: CheckCircle   },
 ];
 
-const COLUMNS = ["Name", "Date", "Time", "Department", "Status", "Action"];
+const COLUMNS = ["Name", "Date", "Time", "Department", "Medical Professional", "Machine", "Room", "Status", "Action"];
 
 function getActions(status) {
   switch (status?.toLowerCase()) {
@@ -140,10 +140,6 @@ function ViewScheduleModal({ schedule, onClose }) {
     ? `${startDT.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true })} – ${endDT.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true })}`
     : "—";
 
-  const dept    = schedule.departmentName?.toLowerCase() ?? "";
-  const isRadio = dept.includes("radiol");
-  const isRehab = dept.includes("rehab");
-
   return (
     <Modal title="View Schedule" onClose={onClose} maxWidth="max-w-2xl" scrollable>
       <div className="space-y-4">
@@ -175,8 +171,10 @@ function ViewScheduleModal({ schedule, onClose }) {
           <ReadonlyField label="Procedure"           value={schedule.procedureName} />
         </div>
 
-        {isRadio && <ReadonlyField label="Machine" value={schedule.machineName} />}
-        {isRehab && <ReadonlyField label="Room"    value={schedule.roomName} />}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <ReadonlyField label="Room"    value={schedule.roomName} />
+          <ReadonlyField label="Machine" value={schedule.machineName} />
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <ReadonlyField label="Hospitalization Plan"      value={schedule.hospitalizationPlan} />
@@ -394,6 +392,9 @@ export default function AdminScheduleManagement() {
                 : "—"}
             </td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.departmentName ?? "—"}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.doctorFullName ?? "—"}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.machineName ?? "—"}</td>
+            <td className="px-6 py-4 text-center text-sm text-gray-600">{s.roomName ?? "—"}</td>
             <td className={`px-6 py-4 text-center text-sm font-semibold ${scheduleStatusColor(s.scheduleStatus)}`}>
               {s.scheduleStatus
                 ? s.scheduleStatus.charAt(0).toUpperCase() + s.scheduleStatus.slice(1)

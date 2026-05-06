@@ -35,13 +35,14 @@ function getAuthHeader() {
 }
 
 // Maps UserResponseDTO fields exactly as the backend returns them:
-//   userId, fullName, email, roleName, departmentName, accountStatus
+//   userId, fullName, email, roleName, roleId, departmentName, accountStatus
 function mapUser(u) {
   return {
     id:         u.userId,
     name:       u.fullName        ?? "",   // fullName, not "name"
     email:      u.email           ?? "",
     role:       u.roleName        ?? "",   // roleName, not "role"
+    roleId:     u.roleId          ?? "",   // ← FIX: store roleId for Edit form
     department: u.departmentName  ?? "",   // departmentName, not "department"
     status:     u.accountStatus   ?? "",   // accountStatus, not "status"
   };
@@ -450,7 +451,7 @@ export default function UserManagement() {
               ...splitFullName(editUser.name),
               email:    editUser.email,
               password: "",
-              role:     String(editUser.roleId ?? ""),
+              role:     String(roles.find(r => r.name === editUser.role || r.name === `${editUser.role} (${editUser.department})`)?.id ?? ""),
             }}
             validationSchema={editSchema}
             submitLabel="Save"
