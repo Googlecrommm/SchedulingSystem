@@ -36,15 +36,19 @@ function getAuthHeader() {
 
 // Maps UserResponseDTO fields exactly as the backend returns them:
 //   userId, fullName, email, roleName, roleId, departmentName, accountStatus
+// FIXED: store name parts separately so splitFullName is never needed
 function mapUser(u) {
   return {
     id:         u.userId,
-    name:       u.fullName        ?? "",   // fullName, not "name"
+    name:       u.fullName        ?? "",
+    firstName:  u.firstName       ?? "",
+    middleName: u.middleName      ?? "",
+    lastName:   u.lastName        ?? "",
     email:      u.email           ?? "",
-    role:       u.roleName        ?? "",   // roleName, not "role"
-    roleId:     u.roleId          ?? "",   // ← FIX: store roleId for Edit form
-    department: u.departmentName  ?? "",   // departmentName, not "department"
-    status:     u.accountStatus   ?? "",   // accountStatus, not "status"
+    role:       u.roleName        ?? "",
+    roleId:     u.roleId          ?? "",
+    department: u.departmentName  ?? "",
+    status:     u.accountStatus   ?? "",
   };
 }
 
@@ -347,7 +351,7 @@ export default function UserManagement() {
       `/api/updateUser/${editUser.id}`,
       {
         firstName:  values.firstName,
-        middleName: values.middleName || null,
+        middleName: values.middleName?.trim() || null, // empty string → null
         lastName:   values.lastName,
         email:      values.email,
         role:       { roleId: Number(values.role) },
@@ -448,10 +452,15 @@ export default function UserManagement() {
         <Modal title="Edit User" onClose={() => setEditUser(null)} scrollable>
           <UserForm
             initialValues={{
-              ...splitFullName(editUser.name),
-              email:    editUser.email,
-              password: "",
-              role:     String(roles.find(r => r.name === editUser.role || r.name === `${editUser.role} (${editUser.department})`)?.id ?? ""),
+              firstName:  editUser.firstName,   // FIXED: use stored parts directly
+              middleName: editUser.middleName,  // no more parsing
+              lastName:   editUser.lastName,
+              email:      editUser.email,
+              password:   "",
+              role:       String(roles.find(r =>
+                r.name === editUser.role ||
+                r.name === `${editUser.role} (${editUser.department})`
+              )?.id ?? ""),
             }}
             validationSchema={editSchema}
             submitLabel="Save"

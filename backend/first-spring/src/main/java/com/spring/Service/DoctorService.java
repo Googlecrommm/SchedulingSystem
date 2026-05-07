@@ -59,8 +59,11 @@ public class DoctorService {
     private DoctorsResponseDTO mapToDTO(Doctors doctors) {
         DoctorsResponseDTO doctorDTO = modelMapper.map(doctors, DoctorsResponseDTO.class);
         doctorDTO.setFullName(doctors.getLastName() + ", "
-                        + doctors.getFirstName() + " "
-                        + (doctors.getMiddleName() == null ? "" : doctors.getMiddleName()));
+                + doctors.getFirstName() + " "
+                + (doctors.getMiddleName() == null ? "" : doctors.getMiddleName()));
+        doctorDTO.setFirstName(doctors.getFirstName());                           // ADDED
+        doctorDTO.setMiddleName(doctors.getMiddleName());                         // ADDED
+        doctorDTO.setLastName(doctors.getLastName());                             // ADDED
         doctorDTO.setRoleName(doctors.getRole().getRoleName());
         doctorDTO.setDepartmentName(doctors.getRole().getDepartment().getDepartmentName());
         return doctorDTO;
@@ -151,8 +154,12 @@ public class DoctorService {
             doctorToUpdate.setFirstName(doctor.getFirstName());
         }
 
-        if (doctor.getMiddleName() != null) {
-            doctorToUpdate.setMiddleName(doctor.getMiddleName());
+        // CHANGED: always update middle name — null or blank both clear it to null
+        String incomingMiddleName = doctor.getMiddleName();
+        if (incomingMiddleName == null || incomingMiddleName.trim().isEmpty()) {
+            doctorToUpdate.setMiddleName(null);
+        } else {
+            doctorToUpdate.setMiddleName(incomingMiddleName.trim());
         }
 
         if (doctor.getLastName() != null && !doctor.getLastName().isEmpty()) {
@@ -170,12 +177,11 @@ public class DoctorService {
                     .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
             if (!isAdmin) {
-                // Frontdesk can only reassign to a role within their own department
                 Users user = (Users) authentication.getPrincipal();
                 Roles newRole = rolesRepository.findById(doctor.getRole().getRoleId())
                         .orElseThrow(() -> new NotFound("Role not found"));
 
-                String userDept = user.getRole().getDepartment().getDepartmentName();
+                String userDept    = user.getRole().getDepartment().getDepartmentName();
                 String newRoleDept = newRole.getDepartment().getDepartmentName();
 
                 if (!userDept.equalsIgnoreCase(newRoleDept)) {

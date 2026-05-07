@@ -31,7 +31,6 @@ function getAuthHeader() {
   return { Authorization: `Bearer ${token}` };
 }
 
-// Backend DoctorStatus enum: "Available" | "On_Leave" | "Unavailable"
 function formatStatus(status) {
   if (status === "On_Leave")    return "On Leave";
   if (status === "Unavailable") return "Unavailable";
@@ -39,16 +38,12 @@ function formatStatus(status) {
   return status ?? "—";
 }
 
-// Backend mapToDTO builds fullName as:
-//   lastName + ", " + firstName + " " + (middleName ?? "")
-// e.g. "Santos, Maria Luisa" or "Santos, Maria " (trailing space when no middle).
-// We just trim the trailing whitespace for clean display.
 function formatFullName(fullName) {
   if (!fullName) return "—";
   const commaIdx = fullName.indexOf(", ");
   if (commaIdx === -1) return fullName.trim();
   const lastName  = fullName.slice(0, commaIdx);
-  const remainder = fullName.slice(commaIdx + 2).trim(); // trims trailing space from no-middle-name case
+  const remainder = fullName.slice(commaIdx + 2).trim();
   return `${lastName}, ${remainder}`;
 }
 
@@ -210,13 +205,11 @@ export default function ProfessionalManagement() {
   const [totalPages,       setTotalPages]       = useState(1);
   const [serverResults,    setServerResults]    = useState(null);
 
-  // FIX: memoize activeTabStatus so it can be a stable dep for useCallback
   const activeTabStatus = useMemo(
     () => TABS.find((t) => t.label === activeTab)?.tabStatus ?? null,
     [activeTab]
   );
 
-  // Reset page and search when tab changes
   useEffect(() => {
     setPage(1);
     setSearchQuery("");
@@ -225,17 +218,14 @@ export default function ProfessionalManagement() {
   }, [activeTab]);
 
   // ─── FETCH PROFESSIONALS ──────────────────────────────────────────────────
-  // GET /api/getDoctors?availabilityStatus=&page=&size=&sort=
-  // Response: Page<DoctorsResponseDTO>
   const fetchProfessionals = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const params = {
-        page: page - 1, // Spring Data is 0-indexed
+        page: page - 1,
         size: 10,
         sort: "lastName,asc",
-        // FIX: only send the param when a status is selected; omit for "All"
         ...(activeTabStatus && { availabilityStatus: activeTabStatus }),
       };
       const res = await axios.get("/api/getDoctors", {
@@ -252,15 +242,11 @@ export default function ProfessionalManagement() {
     } finally {
       setLoading(false);
     }
-  // FIX: depend on activeTabStatus (memoized), not raw activeTab string
   }, [activeTabStatus, page]);
 
-  useEffect(() => {
-    fetchProfessionals();
-  }, [fetchProfessionals]);
+  useEffect(() => { fetchProfessionals(); }, [fetchProfessionals]);
 
-  // ─── FETCH ROLES FOR DROPDOWN ─────────────────────────────────────────────
-  // GET /api/roleDropdown → [{ roleId, roleName }]
+  // ─── FETCH ROLES ──────────────────────────────────────────────────────────
   useEffect(() => {
     async function fetchRoles() {
       setRolesLoading(true);
@@ -277,23 +263,16 @@ export default function ProfessionalManagement() {
   }, []);
 
   // ─── DEBOUNCED SEARCH ─────────────────────────────────────────────────────
-  // GET /api/searchDoctor/{searchName}?page=0&size=100
-  // Response: Page<DoctorsResponseDTO>
-  // FIX: search clears serverResults when query is blank so the tab list shows
   useEffect(() => {
     if (!searchQuery.trim()) {
       setServerResults(null);
       return;
     }
-
     const timeout = setTimeout(async () => {
       try {
         const res = await axios.get(
           "/api/searchDoctor/" + encodeURIComponent(searchQuery.trim()),
-          {
-            headers: getAuthHeader(),
-            params: { page: 0, size: 100 },
-          }
+          { headers: getAuthHeader(), params: { page: 0, size: 100 } }
         );
         setServerResults(res.data.content ?? []);
       } catch (err) {
@@ -301,11 +280,9 @@ export default function ProfessionalManagement() {
         setServerResults(null);
       }
     }, 400);
-
     return () => clearTimeout(timeout);
   }, [searchQuery]);
 
-  // When searching, show search results; otherwise show paginated tab data
   const displayed = serverResults ?? professionals;
 
   // ─── ACTION HANDLER ───────────────────────────────────────────────────────
@@ -316,10 +293,7 @@ export default function ProfessionalManagement() {
     if (action === "Available")   return setConfirmAction({ type: "available",   professional });
   }
 
-  // ─── STATUS CHANGE CONFIRM ────────────────────────────────────────────────
-  // PUT /api/leaveDoctor/{doctorId}
-  // PUT /api/unavailableDoctor/{doctorId}
-  // PUT /api/availableDoctor/{doctorId}
+  // ─── STATUS CHANGE ────────────────────────────────────────────────────────
   async function applyConfirm() {
     const { type, professional } = confirmAction;
     const endpointMap = {
@@ -333,8 +307,8 @@ export default function ProfessionalManagement() {
         {},
         { headers: getAuthHeader() }
       );
-      const statusLabel = { leave: "On Leave", unavailable: "Unavailable", available: "Available" }[type];
-      const statusToastType = { leave: "warning", unavailable: "warning", available: "success" }[type];
+      const statusLabel     = { leave: "On Leave", unavailable: "Unavailable", available: "Available" }[type];
+      const statusToastType = { leave: "warning",  unavailable: "warning",     available: "success"   }[type];
       toast(`"${profFullName}" has been marked as ${statusLabel}.`, statusToastType);
       await fetchProfessionals();
     } catch (err) {
@@ -369,29 +343,6 @@ export default function ProfessionalManagement() {
     },
   }[confirmAction.type];
 
-  // ─── EDIT: parse fullName back into parts for the form ───────────────────
-  // Backend mapToDTO: lastName + ", " + firstName + " " + (middleName ?? "")
-  // e.g. "Santos, Maria Luisa" → lastName="Santos", firstName="Maria", middleName="Luisa"
-  //      "Santos, Maria "      → lastName="Santos", firstName="Maria", middleName=""
-  function getEditInitialValues(p) {
-    const fullName = p.fullName ?? "";
-    const commaIdx = fullName.indexOf(", ");
-    if (commaIdx === -1) return { firstName: fullName.trim(), middleName: "", lastName: "" };
-
-    const lastName  = fullName.slice(0, commaIdx).trim();
-    const remainder = fullName.slice(commaIdx + 2).trim(); // "firstName middleName" or "firstName "
-
-    // Split on the first space only — firstName is always one word
-    const spaceIdx = remainder.indexOf(" ");
-    if (spaceIdx === -1) {
-      return { firstName: remainder, middleName: "", lastName };
-    }
-
-    const firstName  = remainder.slice(0, spaceIdx).trim();
-    const middleName = remainder.slice(spaceIdx + 1).trim(); // "" when backend appended a trailing space
-    return { firstName, middleName, lastName };
-  }
-
   return (
     <AdminLayout
       pageTitle="Medical Professionals Management"
@@ -407,7 +358,6 @@ export default function ProfessionalManagement() {
         onAdd={() => setShowCreate(true)}
       />
 
-      {/* Error banner */}
       {error && (
         <div className="mb-4 px-4 py-3 rounded-md bg-red-50 border border-red-200 text-sm text-red-700">
           {error}
@@ -432,11 +382,9 @@ export default function ProfessionalManagement() {
             <td className="px-6 py-4 text-center text-sm text-gray-700 font-medium">
               {formatFullName(professional.fullName)}
             </td>
-
             <td className="px-6 py-4 text-center text-sm text-gray-600">
               {professional.roleName ?? "—"}
             </td>
-
             <td className="px-6 py-4 text-center">
               {(() => {
                 const s     = professional.availabilityStatus;
@@ -448,7 +396,6 @@ export default function ProfessionalManagement() {
                 return <span className={`text-sm ${colorClass}`}>{label}</span>;
               })()}
             </td>
-
             <td className="px-6 py-4 text-center">
               <ActionDropdown
                 items={getDoctorActions(professional)}
@@ -459,9 +406,7 @@ export default function ProfessionalManagement() {
         )}
       />
 
-      {/* ── CREATE MODAL ──────────────────────────────────────────────────── */}
-      {/* POST /api/createDoctor
-          Body: { firstName, middleName, lastName, role: { roleId } } */}
+      {/* ── CREATE MODAL ────────────────────────────────────────────────── */}
       {showCreate && (
         <Modal title="Add Professional" onClose={() => setShowCreate(false)}>
           <ProfessionalForm
@@ -473,7 +418,7 @@ export default function ProfessionalManagement() {
                 "/api/createDoctor",
                 {
                   firstName:  values.firstName.trim(),
-                  middleName: values.middleName?.trim() || null, // nullable in backend
+                  middleName: values.middleName?.trim() || null,
                   lastName:   values.lastName.trim(),
                   role: { roleId: Number(values.roleId) },
                 },
@@ -488,45 +433,44 @@ export default function ProfessionalManagement() {
         </Modal>
       )}
 
-      {/* ── EDIT MODAL ────────────────────────────────────────────────────── */}
-      {/* PUT /api/updateDoctor/{doctorId}
-          Body: { firstName, middleName, lastName, role: { roleId } } */}
-      {editProfessional && (() => {
-        const editValues = getEditInitialValues(editProfessional);
-        const editRoleId = roles.find((r) => r.roleName === editProfessional.roleName)
-          ?.roleId?.toString() ?? "";
-        return (
-          <Modal title="Edit Professional" onClose={() => setEditProfessional(null)}>
-            <ProfessionalForm
-              initialFirstName={editValues.firstName}
-              initialMiddleName={editValues.middleName}
-              initialLastName={editValues.lastName}
-              initialRoleId={editRoleId}
-              submitLabel="Save Changes"
-              roles={roles}
-              rolesLoading={rolesLoading}
-              onSubmit={async (values) => {
-                await axios.put(
-                  "/api/updateDoctor/" + editProfessional.doctorId,
-                  {
-                    firstName:  values.firstName.trim(),
-                    middleName: values.middleName?.trim() || null,
-                    lastName:   values.lastName.trim(),
-                    role: { roleId: Number(values.roleId) },
-                  },
-                  { headers: getAuthHeader() }
-                );
-                toast(`"${values.lastName}, ${values.firstName}" has been updated.`);
-                await fetchProfessionals();
-                setEditProfessional(null);
-              }}
-              onClose={() => setEditProfessional(null)}
-            />
-          </Modal>
-        );
-      })()}
+      {/* ── EDIT MODAL ──────────────────────────────────────────────────── */}
+      {/* FIXED: uses firstName, middleName, lastName directly from DTO
+          instead of parsing fullName — eliminates the multi-word first
+          name bug where "Ralf Vincent" would bleed into middleName     */}
+      {editProfessional && (
+        <Modal title="Edit Professional" onClose={() => setEditProfessional(null)}>
+          <ProfessionalForm
+            initialFirstName={editProfessional.firstName ?? ""}
+            initialMiddleName={editProfessional.middleName ?? ""}
+            initialLastName={editProfessional.lastName ?? ""}
+            initialRoleId={
+              roles.find((r) => r.roleName === editProfessional.roleName)
+                ?.roleId?.toString() ?? ""
+            }
+            submitLabel="Save Changes"
+            roles={roles}
+            rolesLoading={rolesLoading}
+            onSubmit={async (values) => {
+              await axios.put(
+                "/api/updateDoctor/" + editProfessional.doctorId,
+                {
+                  firstName:  values.firstName.trim(),
+                  middleName: values.middleName?.trim() || null,
+                  lastName:   values.lastName.trim(),
+                  role: { roleId: Number(values.roleId) },
+                },
+                { headers: getAuthHeader() }
+              );
+              toast(`"${values.lastName}, ${values.firstName}" has been updated.`);
+              await fetchProfessionals();
+              setEditProfessional(null);
+            }}
+            onClose={() => setEditProfessional(null)}
+          />
+        </Modal>
+      )}
 
-      {/* ── CONFIRM DIALOG ────────────────────────────────────────────────── */}
+      {/* ── CONFIRM DIALOG ──────────────────────────────────────────────── */}
       {confirmAction && (
         <ConfirmDialog
           title={confirmMeta.title}

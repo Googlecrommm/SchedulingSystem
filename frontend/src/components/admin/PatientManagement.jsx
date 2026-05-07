@@ -25,7 +25,6 @@ const TABS = [
   { label: "Archived", icon: Archive       },
 ];
 
-// No create endpoint exists in PatientController — Add button is intentionally absent.
 const activeActions = [
   { label: "View",    icon: Eye,      danger: false },
   { label: "Edit",    icon: Pencil,   danger: false },
@@ -36,10 +35,8 @@ const archiveActions = [
   { label: "Unarchive", icon: RefreshCw               },
 ];
 
-// Must match the backend Sex enum names exactly.
 const SEX_OPTIONS = ["Male", "Female"];
-
-const PAGE_SIZE = 10;
+const PAGE_SIZE   = 10;
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -48,51 +45,26 @@ function getAuthHeader() {
   return { Authorization: `Bearer ${token}` };
 }
 
-// Parses the DTO's fullName back into name parts for the edit/view forms.
-// PatientService builds fullName as:
-//   lastName + ", " + firstName + " " + (middleName ?? "")
-// e.g. "Santos, Maria Luisa" or "Santos, Maria "
-// Strategy: split on the first ", " to get lastName; then split the remainder
-// on the first space to get firstName and optional middleName.
-function parseFullName(fullName = "") {
-  if (!fullName) return { firstName: "", middleName: "", lastName: "" };
-
-  const commaIdx = fullName.indexOf(", ");
-  if (commaIdx === -1) return { firstName: fullName.trim(), middleName: "", lastName: "" };
-
-  const lastName  = fullName.slice(0, commaIdx).trim();
-  const remainder = fullName.slice(commaIdx + 2).trim(); // "firstName middleName" or "firstName "
-
-  // Split only on the FIRST space — firstName is always one word,
-  // everything after (if any) is the middle name.
-  const spaceIdx = remainder.indexOf(" ");
-  if (spaceIdx === -1) {
-    return { firstName: remainder, middleName: "", lastName };
-  }
-
-  const firstName  = remainder.slice(0, spaceIdx).trim();
-  const middleName = remainder.slice(spaceIdx + 1).trim(); // may be "" if backend appended a trailing space
-  return { firstName, middleName, lastName };
-}
-
-// Maps PatientResponseDTO → flat local object used throughout the component.
+// FIXED: reads firstName, middleName, lastName directly from DTO fields
+// instead of parsing fullName — eliminates the multi-word first name bug
+// where "Ralf Vincent" would bleed into middleName
 function mapPatient(p) {
-  const { firstName, middleName, lastName } = parseFullName(p.fullName);
   return {
     id:          p.patientId,
     name:        p.fullName       ?? "",
-    firstName,
-    middleName,
-    lastName,
+    firstName:   p.firstName      ?? "",   // FIXED: direct from DTO
+    middleName:  p.middleName     ?? "",   // FIXED: direct from DTO
+    lastName:    p.lastName       ?? "",   // FIXED: direct from DTO
     address:     p.address        ?? "",
     contact:     p.contactNumber  ?? "",
-    birthdate:   p.birthDate      ?? "",   // LocalDate → "YYYY-MM-DD"
-    sex:         p.sex            ?? "",   // Sex enum → string
+    birthdate:   p.birthDate      ?? "",
+    sex:         p.sex            ?? "",
     archived:    p.patientStatus === "Archived",
   };
 }
 
-// Formats ISO date string "YYYY-MM-DD" for display.
+// DELETED: parseFullName — no longer needed since DTO now sends name parts directly
+
 function formatBirthdate(iso) {
   if (!iso) return "—";
   const date = new Date(iso.includes("T") ? iso : iso + "T00:00:00");
@@ -100,14 +72,10 @@ function formatBirthdate(iso) {
 }
 
 // ─── VALIDATION ───────────────────────────────────────────────────────────────
-// Mirrors PatientService validation rules:
-//   - firstName, lastName: required, not blank
-//   - contactNumber: required, exactly 11 digits (service rejects < 11)
-//   - address, birthDate, sex: required
 
 const patientSchema = Yup.object({
   firstName:  Yup.string().trim().required("First name is required").max(100),
-  middleName: Yup.string(),                               // optional — backend allows null
+  middleName: Yup.string(),
   lastName:   Yup.string().trim().required("Last name is required").max(100),
   address:    Yup.string().trim().required("Address is required"),
   contact:    Yup.string()
@@ -127,7 +95,7 @@ function PatientForm({
 }) {
   const formik = useFormik({
     initialValues,
-    enableReinitialize: true,   // FIX: repopulate form when editPatient changes
+    enableReinitialize: true,
     validationSchema: patientSchema,
     onSubmit: async (values, { setSubmitting }) => {
       try {
@@ -286,44 +254,34 @@ function ViewPatientModal({ patient, onClose }) {
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function PatientManagement() {
-  const [activeTab,     setActiveTab]     = useState("All");
-  const [searchQuery,   setSearchQuery]   = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState(""); // FIX: debounce search
-  const [viewPatient,   setViewPatient]   = useState(null);
-  const [editPatient,   setEditPatient]   = useState(null);
-  const [confirmAction, setConfirmAction] = useState(null);
-  const [patients,      setPatients]      = useState([]);
-  const [loading,       setLoading]       = useState(false);
-  const [error,         setError]         = useState(null);
-  const [page,          setPage]          = useState(1);
-  const [totalPages,    setTotalPages]    = useState(1);
+  const [activeTab,       setActiveTab]       = useState("All");
+  const [searchQuery,     setSearchQuery]     = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [viewPatient,     setViewPatient]     = useState(null);
+  const [editPatient,     setEditPatient]     = useState(null);
+  const [confirmAction,   setConfirmAction]   = useState(null);
+  const [patients,        setPatients]        = useState([]);
+  const [loading,         setLoading]         = useState(false);
+  const [error,           setError]           = useState(null);
+  const [page,            setPage]            = useState(1);
+  const [totalPages,      setTotalPages]      = useState(1);
 
-  // FIX: debounce search input — only fire fetch 400ms after user stops typing
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedSearch(searchQuery), 400);
     return () => clearTimeout(timeout);
   }, [searchQuery]);
 
-  // Reset to page 1 whenever tab or debounced search changes
   useEffect(() => {
     setPage(1);
     setError(null);
   }, [activeTab, debouncedSearch]);
 
-  // FIX: memoize the patientStatus param so useCallback has a stable primitive dep
   const patientStatusParam = useMemo(() => {
-    if (debouncedSearch.trim()) return null; // search endpoint doesn't take a status param
-    return activeTab === "Archived" ? "Archived" : null; // null → backend uses hasStatus(null) → excludes Archived
+    if (debouncedSearch.trim()) return null;
+    return activeTab === "Archived" ? "Archived" : null;
   }, [activeTab, debouncedSearch]);
 
   // ─── FETCH ──────────────────────────────────────────────────────────────────
-  // GET /api/getPatients?patientStatus=&page=&size=&sort=   (no search)
-  // GET /api/searchPatient/{name}?page=&size=&sort=          (with search)
-  // Response: Page<PatientResponseDTO>
-  //
-  // FIX: useCallback was declared AFTER the useEffect that called it — moved up.
-  // FIX: dep array now uses stable primitives (patientStatusParam, debouncedSearch, page).
-  // FIX: removed the duplicate useEffect([activeTab, searchQuery, page]) that caused double fetches.
   const fetchPatients = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -334,12 +292,9 @@ export default function PatientManagement() {
         : `/api/getPatients`;
 
       const params = {
-        page: page - 1,      // Spring Pageable is 0-indexed
+        page: page - 1,
         size: PAGE_SIZE,
         sort: "lastName,asc",
-        // FIX: only pass patientStatus when NOT searching and a specific status is needed.
-        // When null, the backend's PatientSpecification.hasStatus(null) excludes Archived
-        // records automatically — no need to send "Active" explicitly.
         ...(patientStatusParam && { patientStatus: patientStatusParam }),
       };
 
@@ -359,13 +314,8 @@ export default function PatientManagement() {
     }
   }, [debouncedSearch, patientStatusParam, page]);
 
-  // FIX: single useEffect depending on the useCallback ref — no duplicate fetch
-  useEffect(() => {
-    fetchPatients();
-  }, [fetchPatients]);
+  useEffect(() => { fetchPatients(); }, [fetchPatients]);
 
-  // When searching, the backend returns all statuses — filter client-side by tab.
-  // When not searching, the backend already scopes by status.
   const displayed = debouncedSearch.trim()
     ? patients.filter((p) => activeTab === "Archived" ? p.archived : !p.archived)
     : patients;
@@ -379,8 +329,6 @@ export default function PatientManagement() {
     if (action === "Unarchive") return setConfirmAction({ type: "unarchive", patient });
   }
 
-  // PUT /api/archivePatient/{patientId}
-  // PUT /api/restorePatient/{patientId}
   async function applyConfirm() {
     const { type, patient } = confirmAction;
     const endpoint =
@@ -415,7 +363,6 @@ export default function PatientManagement() {
       onSearchChange={setSearchQuery}
       searchPlaceholder="Search Patient"
     >
-      {/* No addLabel/onAdd — no create endpoint in PatientController */}
       <TabBar
         tabs={TABS}
         activeTab={activeTab}
@@ -425,7 +372,6 @@ export default function PatientManagement() {
         }}
       />
 
-      {/* Error banner */}
       {error && (
         <div className="mb-4 px-4 py-3 rounded-md bg-red-50 border border-red-200 text-sm text-red-700">
           {error}
@@ -478,9 +424,6 @@ export default function PatientManagement() {
       )}
 
       {/* ── EDIT MODAL ────────────────────────────────────────────────────── */}
-      {/* PUT /api/updatePatient/{patientId}
-          Body uses Patients model field names:
-            firstName, middleName, lastName, address, contactNumber, birthDate, sex */}
       {editPatient && (
         <Modal title="Edit Patient Information" onClose={() => setEditPatient(null)} scrollable>
           <PatientForm
@@ -495,8 +438,6 @@ export default function PatientManagement() {
             }}
             submitLabel="Save Changes"
             onSubmit={async (values) => {
-              // FIX: field names match the Patients entity — not the DTO.
-              // contactNumber (not contact), birthDate (not birthdate), sex is the Sex enum.
               await axios.put(
                 `/api/updatePatient/${editPatient.id}`,
                 {
@@ -505,8 +446,8 @@ export default function PatientManagement() {
                   lastName:      values.lastName.trim(),
                   address:       values.address.trim(),
                   contactNumber: values.contact,
-                  birthDate:     values.birthdate,   // "YYYY-MM-DD" — matches LocalDate
-                  sex:           values.sex,          // "Male" | "Female" — matches Sex enum
+                  birthDate:     values.birthdate,
+                  sex:           values.sex,
                 },
                 { headers: getAuthHeader() }
               );

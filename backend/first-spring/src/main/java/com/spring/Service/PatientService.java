@@ -1,5 +1,13 @@
 package com.spring.Service;
 
+import java.util.List;
+
+import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+
 import com.spring.Enums.PatientStatus;
 import com.spring.Exceptions.AlreadyExists;
 import com.spring.Exceptions.NoChangesDetected;
@@ -9,13 +17,6 @@ import com.spring.Models.Patients;
 import com.spring.Repositories.PatientsRepository;
 import com.spring.Specifications.PatientSpecification;
 import com.spring.dto.PatientResponseDTO;
-import org.modelmapper.ModelMapper;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 public class PatientService {
@@ -23,97 +24,93 @@ public class PatientService {
     private final ModelMapper modelMapper;
     private final LogsService logsService;
 
-    public PatientService(PatientsRepository patientsRepository, ModelMapper modelMapper, LogsService logsService){
+    public PatientService(PatientsRepository patientsRepository, ModelMapper modelMapper, LogsService logsService) {
         this.patientsRepository = patientsRepository;
         this.modelMapper = modelMapper;
         this.logsService = logsService;
     }
 
+    // ─── Reusable DTO mapping helper ─────────────────────────────────────────────
+    private PatientResponseDTO mapToDTO(Patients patients) {
+        PatientResponseDTO patientDTO = modelMapper.map(patients, PatientResponseDTO.class);
+        patientDTO.setFullName(
+                patients.getLastName() + ", " + patients.getFirstName() + " "
+                + (patients.getMiddleName() == null ? "" : patients.getMiddleName())
+        );
+        patientDTO.setFirstName(patients.getFirstName());   // ADDED
+        patientDTO.setMiddleName(patients.getMiddleName()); // ADDED
+        patientDTO.setLastName(patients.getLastName());     // ADDED
+        return patientDTO;
+    }
+
     //READ & FILTER
-    public Page<PatientResponseDTO> getPatients(PatientStatus patientStatus, Pageable pageable){
+    public Page<PatientResponseDTO> getPatients(PatientStatus patientStatus, Pageable pageable) {
         Specification<Patients> filters = Specification
                 .where(PatientSpecification.hasStatus(patientStatus));
 
-        return patientsRepository.findAll(filters, pageable)
-                .map(patients -> {
-                    PatientResponseDTO patientDTO = modelMapper.map(patients, PatientResponseDTO.class);
-                    patientDTO.setFullName(
-                            patients.getLastName() + ", " + patients.getFirstName() + " "
-                            + (patients.getMiddleName() == null ? "" : patients.getMiddleName())
-                    );
-                    return patientDTO;
-                });
+        return patientsRepository.findAll(filters, pageable).map(this::mapToDTO);
     }
 
-    //SEARCH AND PAGINATED
-    public Page<PatientResponseDTO> searchPatients(String name, Pageable pageable){
-        return patientsRepository.findByFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(name, name, pageable)
-                .map(patients -> {
-                    PatientResponseDTO patientDTO = modelMapper.map(patients, PatientResponseDTO.class);
-                    patientDTO.setFullName(
-                            patients.getLastName() + ", " + patients.getFirstName() + " "
-                            + (patients.getMiddleName() == null ? " " : patients.getMiddleName())
-                    );
-                    return patientDTO;
-                });
+    //SEARCH PAGINATED
+    public Page<PatientResponseDTO> searchPatients(String name, Pageable pageable) {
+        return patientsRepository
+                .findByFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(name, name, pageable)
+                .map(this::mapToDTO);
     }
-
 
     //SEARCH UNPAGINATED
-    public List<PatientResponseDTO> SearchPatient(String name){
+    public List<PatientResponseDTO> SearchPatient(String name) {
         return patientsRepository.findByNameContainingAndStatusNot(name, PatientStatus.Archived)
                 .stream()
-                .map(patients -> {
-                    PatientResponseDTO patientDTO = modelMapper.map(patients, PatientResponseDTO.class);
-                    patientDTO.setFullName(
-                            patients.getLastName() + ", " + patients.getFirstName() + " "
-                            + (patients.getMiddleName() == null ? " " : patients.getMiddleName())
-                    );
-                    return patientDTO;
-                })
+                .map(this::mapToDTO)
                 .toList();
     }
-    //UPDATE
-    public void updatePatient(int patientId, Patients patient){
-        Patients patientToUpdate = patientsRepository.findById(patientId).orElseThrow(() -> new NotFound("Patient not found"));
 
-        if (patient.getFirstName() != null && !patient.getFirstName().isEmpty()){
+    //UPDATE
+    public void updatePatient(int patientId, Patients patient) {
+        Patients patientToUpdate = patientsRepository.findById(patientId)
+                .orElseThrow(() -> new NotFound("Patient not found"));
+
+        if (patient.getFirstName() != null && !patient.getFirstName().isEmpty()) {
             patientToUpdate.setFirstName(patient.getFirstName());
         }
 
-        if (patient.getMiddleName() != null){
-            patientToUpdate.setMiddleName(patient.getMiddleName());
+        String incomingMiddleName = patient.getMiddleName();
+        if (incomingMiddleName == null || incomingMiddleName.trim().isEmpty()) {
+            patientToUpdate.setMiddleName(null);
+        } else {
+            patientToUpdate.setMiddleName(incomingMiddleName.trim());
         }
 
-        if (patient.getLastName() != null && !patient.getLastName().isEmpty()){
+        if (patient.getLastName() != null && !patient.getLastName().isEmpty()) {
             if (patientsRepository.existsByFirstNameAndLastNameAndPatientIdNot(
                     patient.getFirstName() != null ? patient.getFirstName() : patientToUpdate.getFirstName(),
                     patient.getLastName(),
-                    patientId)){
+                    patientId)) {
                 throw new AlreadyExists("Patient already exists");
             }
             patientToUpdate.setLastName(patient.getLastName());
         }
 
-        if (patient.getAddress() != null && !patient.getAddress().isEmpty()){
+        if (patient.getAddress() != null && !patient.getAddress().isEmpty()) {
             patientToUpdate.setAddress(patient.getAddress());
         }
 
-        if (patient.getContactNumber() != null && !patient.getContactNumber().isEmpty()){
-            if (patient.getContactNumber().length() < 11){
+        if (patient.getContactNumber() != null && !patient.getContactNumber().isEmpty()) {
+            if (patient.getContactNumber().length() < 11) {
                 throw new NotAllowed("Contact number must be 11 digits");
             }
-            if (patientsRepository.existsByContactNumberAndPatientIdNot(patient.getContactNumber(), patientId)){
+            if (patientsRepository.existsByContactNumberAndPatientIdNot(patient.getContactNumber(), patientId)) {
                 throw new AlreadyExists("Contact number already exists");
             }
             patientToUpdate.setContactNumber(patient.getContactNumber());
         }
 
-        if (patient.getBirthDate() != null){
+        if (patient.getBirthDate() != null) {
             patientToUpdate.setBirthDate(patient.getBirthDate());
         }
 
-        if (patient.getSex() != null){
+        if (patient.getSex() != null) {
             patientToUpdate.setSex(patient.getSex());
         }
 
@@ -128,10 +125,11 @@ public class PatientService {
     }
 
     //ARCHIVE
-    public void archivePatient(int patientId){
-        Patients patientToArchive = patientsRepository.findById(patientId).orElseThrow(() -> new NotFound("Patient not found"));
+    public void archivePatient(int patientId) {
+        Patients patientToArchive = patientsRepository.findById(patientId)
+                .orElseThrow(() -> new NotFound("Patient not found"));
 
-        if (patientToArchive.getStatus().equals(PatientStatus.Archived)){
+        if (patientToArchive.getStatus().equals(PatientStatus.Archived)) {
             throw new NoChangesDetected("Patient is already archived");
         }
 
@@ -145,19 +143,20 @@ public class PatientService {
     }
 
     //RESTORE
-    public void restorePatient(int patientId){
-        Patients patientToArchive = patientsRepository.findById(patientId).orElseThrow(() -> new NotFound("Patient not found"));
+    public void restorePatient(int patientId) {
+        Patients patientToRestore = patientsRepository.findById(patientId)
+                .orElseThrow(() -> new NotFound("Patient not found"));
 
-        if (patientToArchive.getStatus().equals(PatientStatus.Active)){
+        if (patientToRestore.getStatus().equals(PatientStatus.Active)) {
             throw new NoChangesDetected("Patient is already active");
         }
 
-        String fullName = patientToArchive.getLastName() + ", "
-                + patientToArchive.getFirstName() + " "
-                + (patientToArchive.getMiddleName() == null ? "" : patientToArchive.getMiddleName());
+        String fullName = patientToRestore.getLastName() + ", "
+                + patientToRestore.getFirstName() + " "
+                + (patientToRestore.getMiddleName() == null ? "" : patientToRestore.getMiddleName());
 
-        patientToArchive.setStatus(PatientStatus.Active);
+        patientToRestore.setStatus(PatientStatus.Active);
         logsService.log("Patient Restored", "restored patient " + fullName);
-        patientsRepository.save(patientToArchive);
+        patientsRepository.save(patientToRestore);
     }
 }
