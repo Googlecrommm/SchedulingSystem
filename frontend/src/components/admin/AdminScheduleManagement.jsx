@@ -133,7 +133,7 @@ function ViewScheduleModal({ schedule, onClose }) {
   const endDT   = schedule.endDateTime   ? new Date(schedule.endDateTime.replace(" ", "T"))   : null;
 
   const dateValue = startDT
-    ? startDT.toLocaleDateString("en-CA", { month: "2-digit", day: "2-digit", year: "numeric" })
+    ? startDT.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
     : "—";
 
   const timeValue = startDT && endDT
@@ -150,7 +150,7 @@ function ViewScheduleModal({ schedule, onClose }) {
           <ReadonlyField label="Patient Name"  value={schedule.patientFullName} />
           <ReadonlyField label="Sex"           value={schedule.sex} />
           <ReadonlyField label="Date of Birth" value={schedule.birthDate
-            ? new Date(schedule.birthDate).toLocaleDateString("en-CA", { month: "2-digit", day: "2-digit", year: "numeric" })
+            ? new Date(schedule.birthDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
             : "—"} />
           <ReadonlyField label="Contact No."   value={schedule.contactNumber} />
         </div>
@@ -408,8 +408,8 @@ export default function AdminScheduleManagement() {
             <td className="px-6 py-4 text-center text-sm text-gray-600">{s.patientFullName}</td>
             <td className="px-6 py-4 text-center text-sm text-gray-600">
               {s.startDateTime
-                ? new Date(s.startDateTime.replace(" ", "T")).toLocaleDateString("en-CA", {
-                    month: "2-digit", day: "2-digit", year: "numeric",
+                ? new Date(s.startDateTime.replace(" ", "T")).toLocaleDateString("en-US", {
+                    month: "long", day: "numeric", year: "numeric",
                   })
                 : "—"}
             </td>

@@ -103,8 +103,8 @@ function splitDatetime(datetime) {
 
 function formatDate(iso) {
   if (!iso) return "—";
-  return new Date(iso.replace(" ", "T")).toLocaleDateString("en-CA", {
-    month: "2-digit", day: "2-digit", year: "numeric",
+  return new Date(iso.replace(" ", "T")).toLocaleDateString("en-US", {
+    month: "long", day: "numeric", year: "numeric",
   });
 }
 
