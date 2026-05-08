@@ -3,7 +3,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import {
   Calendar, CalendarCheck, CalendarX, Clock, Archive, CheckCircle,
-  Eye, UserCheck, UserX, Pencil, Trash2, RefreshCw, ChevronDown, Search, X,
+  Eye, UserCheck, UserX, Pencil, Trash2, RefreshCw, ChevronDown, Search, X, Plus,
 } from "lucide-react";
 import axios from "../../config/axiosInstance";
 
@@ -1203,7 +1203,7 @@ export default function FrontdeskScheduleManagement() {
       searchPlaceholder="Search Patient"
     >
       {/* ── Tabs + Refresh ── */}
-      <div className="flex items-center border-b border-gray-200 mb-4">
+      <div className="flex items-center gap-1 border-b border-gray-200 mb-4 overflow-x-auto overflow-y-hidden">
         <button
           onClick={handleRefresh}
           disabled={refreshing || loading}
@@ -1218,30 +1218,32 @@ export default function FrontdeskScheduleManagement() {
           />
         </button>
 
-        <div className="flex items-center gap-1 overflow-x-auto overflow-y-hidden">
-          {TABS.map(({ label, icon: Icon }) => (
-            <button
-              key={label}
-              onClick={() => setTab(label)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2
-                transition-colors duration-200 -mb-px whitespace-nowrap cursor-pointer
-                ${filters.tab === label
-                  ? "border-primary text-primary"
-                  : "border-transparent text-gray-400 hover:text-primary hover:border-gray-300"}`}
-            >
-              <Icon size={14} className="shrink-0" />
-              {label}
-            </button>
-          ))}
-        </div>
+        {TABS.map(({ label, icon: Icon }) => (
+          <button
+            key={label}
+            onClick={() => setTab(label)}
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2
+              transition-colors duration-200 -mb-px whitespace-nowrap cursor-pointer
+              ${filters.tab === label
+                ? "border-primary text-primary"
+                : "border-transparent text-gray-400 hover:text-primary hover:border-gray-300"}`}
+          >
+            <Icon size={15} className="shrink-0" />
+            {label}
+          </button>
+        ))}
 
-        <div className="ml-auto mb-px pl-4 shrink-0">
+        <div className="ml-auto pb-1 shrink-0">
           <button
             onClick={() => setShowAdd(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white
-                       bg-primary rounded-lg hover:bg-primary/90 transition-colors duration-200 cursor-pointer"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl
+                       bg-primary hover:bg-primary-light active:bg-primary-dark
+                       text-white text-sm font-semibold
+                       transition-colors duration-200 cursor-pointer whitespace-nowrap"
           >
-            + Create Schedule
+            <Plus size={16} />
+            <span className="hidden sm:inline">Create Schedule</span>
+            <span className="sm:hidden">Add</span>
           </button>
         </div>
       </div>
