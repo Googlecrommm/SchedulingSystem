@@ -21,7 +21,7 @@ import {
   ConfirmDialog,
 } from "../ui";
 import { useFrontdeskNav, useDeptMeta } from "./frontdeskUtils";
-import { useToast } from "../ui/Toast"; // adjust path to wherever you place Toast.jsx
+import { useToast, toast } from "../ui/Toast"; // ← added `toast` named import
 
 
 const TABS = [
@@ -466,24 +466,61 @@ function useDateSchedules(selectedDate) {
   return dateSchedules;
 }
 
-function useBookedRanges({ dateSchedules, selectedProfName, selectedMachineName, selectedRoomName, selectedDate, excludeId }) {
+// Normalise a name string for fuzzy matching:
+// "Dela Cruz, Juan M" and "Juan M Dela Cruz" both collapse to "dela cruz juan m"
+function normalizeName(name) {
+  if (!name) return "";
+  const s = name.trim().toLowerCase();
+  // If "Last, First" format → flip to "First Last" so both sides are comparable
+  if (s.includes(",")) {
+    const [last, rest] = s.split(",").map((p) => p.trim());
+    return `${rest} ${last}`;
+  }
+  return s;
+}
+
+function useBookedRanges({ dateSchedules, selectedProfId, selectedMachineName, selectedRoomName, selectedDate, excludeId, professionals }) {
   return useMemo(() => {
     if (!selectedDate) return [];
+
+    // Build a map: normalised-name → doctorId so we can resolve
+    // the schedule's doctorFullName (Last, First Middle format) back to an ID.
+    const nameToId = new Map();
+    (professionals ?? []).forEach((p) => {
+      if (p.doctorId && p.fullName) {
+        nameToId.set(normalizeName(p.fullName), p.doctorId);
+      }
+    });
+
     return dateSchedules
       .filter((s) => {
         if (excludeId != null && s.scheduleId === excludeId) return false;
         if (!s.startDateTime || !s.endDateTime) return false;
-        return (
-          (selectedProfName    && s.doctorFullName === selectedProfName)    ||
-          (selectedMachineName && s.machineName    === selectedMachineName) ||
-          (selectedRoomName    && s.roomName       === selectedRoomName)
-        );
+
+        // Resolve the schedule's doctor to an ID via the normalised name map
+        const scheduleDoctorId = nameToId.get(normalizeName(s.doctorFullName));
+        const doctorConflict =
+          selectedProfId &&
+          scheduleDoctorId != null &&
+          String(scheduleDoctorId) === String(selectedProfId);
+
+        const machineConflict =
+          selectedMachineName &&
+          s.machineName !== "Non-Machine" &&
+          s.machineName === selectedMachineName;
+
+        const roomConflict =
+          selectedRoomName &&
+          s.roomName !== "Non-Room" &&
+          s.roomName === selectedRoomName;
+
+        return doctorConflict || machineConflict || roomConflict;
       })
       .map((s) => ({
         startTime: s.startDateTime.toString().slice(11, 16),
         endTime:   s.endDateTime.toString().slice(11, 16),
       }));
-  }, [dateSchedules, selectedProfName, selectedMachineName, selectedRoomName, selectedDate, excludeId]);
+  }, [dateSchedules, selectedProfId, selectedMachineName, selectedRoomName, selectedDate, excludeId, professionals]);
 }
 
 
@@ -543,9 +580,33 @@ function ScheduleForm({ initialValues, submitLabel, onSubmit, onClose, professio
     initialValues,
     validationSchema: scheduleSchema,
     onSubmit: async (values, { setSubmitting }) => {
-      try { await onSubmit(values); onClose(); }
-      catch (err) { console.error("Form submit error:", err); }
-      finally { setSubmitting(false); }
+      try {
+        await onSubmit(values);
+        onClose();
+      } catch (err) {
+        // ── Duplicate contact number ──────────────────────────────────────────
+        const serverMsg = err?.response?.data?.message ?? err?.message ?? "";
+        const status    = err?.response?.status;
+
+                if (
+          status === 409 ||
+          serverMsg.toLowerCase().includes("already exists")
+        ) {
+          const cleanMsg = serverMsg
+            .replace(/\.\s*Please use existingPatientId instead\.?/i, ".")
+            .trim();
+          toast(
+            cleanMsg ||
+              "A patient with that contact number already exists. Please search for them using the field above.",
+            "warning"
+          );
+        } else {
+          toast("Something went wrong. Please try again.", "error");
+        }
+        console.error("Form submit error:", err);
+      } finally {
+        setSubmitting(false);
+      }
     },
   });
   const ic = useInputClass(formik);
@@ -563,12 +624,19 @@ function ScheduleForm({ initialValues, submitLabel, onSubmit, onClose, professio
   const selectedRoomId      = formik.values.room;
   const selectedDate        = formik.values.date;
 
-  const selectedProfName    = professionals.find((p) => String(p.doctorId) === String(selectedProfId))?.fullName ?? null;
   const selectedMachineName = machines.find((m) => String(m.machineId) === String(selectedMachineId))?.machineName ?? null;
   const selectedRoomName    = rooms.find((r) => String(r.roomId) === String(selectedRoomId))?.roomName ?? null;
 
   const dateSchedules = useDateSchedules(selectedDate);
-  const bookedRanges  = useBookedRanges({ dateSchedules, selectedProfName, selectedMachineName, selectedRoomName, selectedDate, excludeId: null });
+  const bookedRanges  = useBookedRanges({
+    dateSchedules,
+    selectedProfId,
+    selectedMachineName,
+    selectedRoomName,
+    selectedDate,
+    excludeId: null,
+    professionals,
+  });
   const { startBlocked, endBlocked } = useMemo(() => buildBlockedSets(bookedRanges), [bookedRanges]);
 
   const prevProfRef    = useRef(selectedProfId);
@@ -606,22 +674,23 @@ function ScheduleForm({ initialValues, submitLabel, onSubmit, onClose, professio
             options={professionals} keyProp="doctorId" valueProp="doctorId" labelProp="fullName" required />
         </FormField>
 
-        <FormField label="Procedure" error={formik.touched.procedure && formik.errors.procedure}>
-          <input type="text" placeholder="e.g. Physical Therapy"
-            className={ic("procedure")} {...formik.getFieldProps("procedure")} />
-        </FormField>
-
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <FormField label="Modality" error={formik.touched.modality && formik.errors.modality}>
             <SelectField formik={formik} field="modality" placeholder="Select Modality (optional)"
               options={modalities} keyProp="modalityId" valueProp="modalityId" labelProp="modalityName" />
           </FormField>
+
           <FormField label="Machine" error={formik.touched.machine && formik.errors.machine}>
             <SelectField formik={formik} field="machine" placeholder="Select Machine (optional)"
               options={filteredMachines} keyProp="machineId" valueProp="machineId" labelProp="machineName" />
           </FormField>
         </div>
 
+        <FormField label="Procedure" error={formik.touched.procedure && formik.errors.procedure}>
+          <input type="text" placeholder="e.g. Physical Therapy"
+            className={ic("procedure")} {...formik.getFieldProps("procedure")} />
+        </FormField>
+        
         <FormField label="Room" error={formik.touched.room && formik.errors.room}>
           <SelectField formik={formik} field="room" placeholder="Select Room (optional)"
             options={rooms} keyProp="roomId" valueProp="roomId" labelProp="roomName" />
@@ -748,9 +817,7 @@ function EditScheduleModal({ schedule, professionals, modalities, machines, room
   const initProfId = (() => {
     if (!schedule.doctorFullName) return "";
     const target = schedule.doctorFullName.trim().toLowerCase();
-    // Exact match (trimmed, case-insensitive)
     let match = professionals.find((p) => p.fullName?.trim().toLowerCase() === target);
-    // Fallback: handle "Last, First" vs "First Last" format differences
     if (!match) {
       const flipped = target.includes(",")
         ? target.split(",").map((s) => s.trim()).reverse().join(" ")
@@ -811,8 +878,13 @@ function EditScheduleModal({ schedule, professionals, modalities, machines, room
 
   const dateSchedules = useDateSchedules(selectedDate);
   const bookedRanges  = useBookedRanges({
-    dateSchedules, selectedProfName, selectedMachineName, selectedRoomName,
-    selectedDate, excludeId: schedule.scheduleId,
+    dateSchedules,
+    selectedProfId,
+    selectedMachineName,
+    selectedRoomName,
+    selectedDate,
+    excludeId: schedule.scheduleId,
+    professionals,
   });
   const { startBlocked, endBlocked } = useMemo(() => buildBlockedSets(bookedRanges), [bookedRanges]);
 
@@ -992,7 +1064,7 @@ function ViewScheduleModal({ schedule, onClose }) {
 export default function FrontdeskScheduleManagement() {
   const navItems = useFrontdeskNav();
   const { deptName, userRole } = useDeptMeta();
-  const { showToast } = useToast(); // ← toast hook
+  const { showToast } = useToast();
 
   const [showAdd,       setShowAdd]       = useState(false);
   const [viewSchedule,  setViewSchedule]  = useState(null);
@@ -1153,9 +1225,9 @@ export default function FrontdeskScheduleManagement() {
         hospitalizationType: values.hospCaseType ? { typeId:    Number(values.hospCaseType) } : null,
       },
     };
+    // Re-throw so ScheduleForm's catch block can handle error toasts
     await axios.post("/api/createScheduleAndPatient", payload, { headers: getAuthHeader() });
     await fetchSchedules();
-    // Patient name may come from form values
     const displayName = values.patientFullName || `${values.firstName} ${values.lastName}`.trim();
     showToast(`Schedule for "${displayName}" has been created.`, "success");
   }

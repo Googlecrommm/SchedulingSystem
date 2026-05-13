@@ -18,7 +18,6 @@ import {
   ConfirmDialog,
 } from "../ui";
 
-// ── Constants ─────────────────────────────────────────────────────────────────
 
 const TABS = [
   { label: "All",      icon: Users       },
@@ -27,16 +26,12 @@ const TABS = [
 
 const COLUMNS = ["Name", "Email", "Department", "Role", "Status", "Action"];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getAuthHeader() {
   const token = localStorage.getItem("token");
   return { Authorization: `Bearer ${token}` };
 }
 
-// Maps UserResponseDTO fields exactly as the backend returns them:
-//   userId, fullName, email, roleName, roleId, departmentName, accountStatus
-// FIXED: store name parts separately so splitFullName is never needed
 function mapUser(u) {
   return {
     id:         u.userId,
@@ -65,7 +60,6 @@ function getActions(user) {
   ];
 }
 
-// ── Validation schemas ────────────────────────────────────────────────────────
 
 const createSchema = Yup.object({
   firstName:  Yup.string().required("First name is required"),
@@ -81,11 +75,10 @@ const editSchema = Yup.object({
   middleName: Yup.string(),
   lastName:   Yup.string().required("Last name is required"),
   email:      Yup.string().email("Invalid email").required("Email is required"),
-  password:   Yup.string().min(6, "At least 6 characters"), // optional on edit
+  password:   Yup.string().min(6, "At least 6 characters"),
   role:       Yup.string().required("Role is required"),
 });
 
-// ── User Form ─────────────────────────────────────────────────────────────────
 
 function UserForm({ initialValues, validationSchema, submitLabel, onSubmit, onClose, roles }) {
   const [showPassword, setShowPassword] = useState(false);
@@ -191,7 +184,6 @@ function UserForm({ initialValues, validationSchema, submitLabel, onSubmit, onCl
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function UserManagement() {
   const [users,         setUsers]         = useState([]);
@@ -199,28 +191,25 @@ export default function UserManagement() {
   const [loading,       setLoading]       = useState(false);
   const [activeTab,     setActiveTab]     = useState("All");
   const [searchQuery,   setSearchQuery]   = useState("");
-  const [serverResults, setServerResults] = useState(null); // null = not searching
+  const [serverResults, setServerResults] = useState(null); 
   const [showCreate,    setShowCreate]    = useState(false);
   const [editUser,      setEditUser]      = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
   const [page,          setPage]          = useState(0);
   const [totalPages,    setTotalPages]    = useState(1);
 
-  // Reset search + page when switching tabs
   useEffect(() => {
     setSearchQuery("");
     setServerResults(null);
     setPage(0);
   }, [activeTab]);
 
-  // Fetch users whenever tab or page changes
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
       const params = {
         page,
         size: 10,
-        // Filter by accountStatus when on the Disabled tab
         ...(activeTab === "Disabled" && { accountStatus: "Disabled" }),
       };
       const res = await axios.get("/api/getUsers", {
@@ -239,7 +228,6 @@ export default function UserManagement() {
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  // Fetch role dropdown once on mount
   useEffect(() => {
     async function fetchRoles() {
       try {
@@ -262,7 +250,6 @@ export default function UserManagement() {
     fetchRoles();
   }, []);
 
-  // Debounced server-side search using /api/searchUser/{name}
   useEffect(() => {
     if (!searchQuery.trim()) { setServerResults(null); return; }
     const timeout = setTimeout(async () => {
@@ -281,10 +268,8 @@ export default function UserManagement() {
     return () => clearTimeout(timeout);
   }, [searchQuery]);
 
-  // What to display: search results override paged list
   const displayed = serverResults ?? users;
 
-  // ── Actions ─────────────────────────────────────────────────────────────────
 
   function handleAction(action, user) {
     if (action === "Edit")    return setEditUser(user);
@@ -309,14 +294,8 @@ export default function UserManagement() {
         type === "disable" ? "warning" : "success"
       );
 
-      // Optimistic UI update
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === user.id
-            ? { ...u, status: type === "disable" ? "Disabled" : "Active" }
-            : u
-        )
-      );
+      // Re-fetch from server so the list reflects the correct filter for the active tab
+      await fetchUsers();
     } catch (err) {
       console.error(`Failed to ${type} user:`, err);
       toast(`Failed to ${type} user.`, "error");
@@ -325,8 +304,6 @@ export default function UserManagement() {
     }
   }
 
-  // Create — POST /auth/register
-  // Backend Users model fields: firstName, middleName, lastName, email, password, role { roleId }
   async function handleCreate(values) {
     await axios.post(
       "/auth/register",
@@ -344,14 +321,12 @@ export default function UserManagement() {
     await fetchUsers();
   }
 
-  // Edit — PUT /api/updateUser/{id}
-  // Only send password if the user filled it in
   async function handleEdit(values) {
     await axios.put(
       `/api/updateUser/${editUser.id}`,
       {
         firstName:  values.firstName,
-        middleName: values.middleName?.trim() || null, // empty string → null
+        middleName: values.middleName?.trim() || null, 
         lastName:   values.lastName,
         email:      values.email,
         role:       { roleId: Number(values.role) },
@@ -363,10 +338,8 @@ export default function UserManagement() {
     await fetchUsers();
   }
 
-  // Split the editUser's fullName back into first/middle/last for the form.
-  // Backend stores "lastName, firstName middleName" — we reverse that here.
+
   function splitFullName(fullName = "") {
-    // Format: "LastName, FirstName MiddleName"
     const [lastName = "", rest = ""] = fullName.split(", ");
     const parts      = rest.trim().split(" ");
     const firstName  = parts[0] ?? "";
@@ -433,7 +406,7 @@ export default function UserManagement() {
         )}
       />
 
-      {/* Create Modal */}
+     
       {showCreate && (
         <Modal title="Create Account" onClose={() => setShowCreate(false)} scrollable>
           <UserForm
@@ -447,13 +420,12 @@ export default function UserManagement() {
         </Modal>
       )}
 
-      {/* Edit Modal */}
       {editUser && (
         <Modal title="Edit User" onClose={() => setEditUser(null)} scrollable>
           <UserForm
             initialValues={{
-              firstName:  editUser.firstName,   // FIXED: use stored parts directly
-              middleName: editUser.middleName,  // no more parsing
+              firstName:  editUser.firstName,   
+              middleName: editUser.middleName,  
               lastName:   editUser.lastName,
               email:      editUser.email,
               password:   "",
@@ -471,7 +443,7 @@ export default function UserManagement() {
         </Modal>
       )}
 
-      {/* Confirm Dialog */}
+
       {confirmAction && confirmMeta && (
         <ConfirmDialog
           title={confirmMeta.title}

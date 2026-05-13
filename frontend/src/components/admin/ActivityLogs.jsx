@@ -6,7 +6,7 @@ import {
 import axios from "../../config/axiosInstance";
 import { AdminLayout, TabBar } from "../ui";
 
-// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+
 
 const PAGE_SIZE = 10;
 
@@ -38,10 +38,10 @@ const TAB_TO_HEADER = {
   Activated: "Activated",
 };
 
-// Keywords that render the header in red (accent color)
+
 const DANGER_KEYWORDS = ["cancelled", "disabled", "archived"];
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
+
 
 function getAuthHeader() {
   const token = localStorage.getItem("token");
@@ -66,14 +66,14 @@ function isDanger(logHeader = "") {
   return DANGER_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
-// ─── SUB-COMPONENTS ───────────────────────────────────────────────────────────
+
 
 function LogCard({ log }) {
   const danger = isDanger(log.logHeader);
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl px-6 py-4 flex items-start gap-6">
-      {/* Header label — fixed width so descriptions align */}
+      
       <p
         className={`text-sm font-bold whitespace-nowrap shrink-0 w-52
           ${danger ? "text-accent" : "text-primary"}`}
@@ -81,7 +81,7 @@ function LogCard({ log }) {
         {log.logHeader}:
       </p>
 
-      {/* Description + timestamp */}
+     
       <p className="text-sm text-gray-600">
         {log.description}
         {log.createdAt && (
@@ -147,7 +147,6 @@ function Pagination({ page, totalPages, onPrev, onNext }) {
   );
 }
 
-// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function ActivityLogs() {
   const [activeTab,   setActiveTab]   = useState("All");
@@ -157,7 +156,6 @@ export default function ActivityLogs() {
   const [page,        setPage]        = useState(1);
   const [totalPages,  setTotalPages]  = useState(1);
 
-  // Reset to page 1 on tab/search change
   useEffect(() => {
     setPage(1);
   }, [activeTab, searchQuery]);
@@ -205,7 +203,7 @@ export default function ActivityLogs() {
       onSearchChange={setSearchQuery}
       searchPlaceholder="Search logs"
     >
-      {/* Tabs — no Add button */}
+
       <TabBar
         tabs={TABS}
         activeTab={activeTab}
@@ -215,7 +213,7 @@ export default function ActivityLogs() {
         }}
       />
 
-      {/* Log cards */}
+    
       <div className="space-y-3 mt-2">
         {loading ? (
           <LoadingSkeleton />
@@ -228,7 +226,7 @@ export default function ActivityLogs() {
         )}
       </div>
 
-      {/* Pagination */}
+     
       {!loading && logs.length > 0 && (
         <Pagination
           page={page}
