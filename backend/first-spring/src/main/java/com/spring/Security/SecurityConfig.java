@@ -55,7 +55,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000" ,"http://localhost:5173", "http://localhost:5174"));
+        configuration.setAllowedOriginPatterns(List.of("*"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
@@ -70,9 +70,23 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf.disable());
         http.authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/login", "/auth/register", "/auth/logout",
-                        "/api/createDepartment", "/api/createRole").permitAll()
-                .anyRequest().authenticated());
+        .requestMatchers(
+                "/",
+                "/index.html",
+                "/assets/**",
+                "/*.svg",
+                "/*.png",
+                "/*.jpg",
+                "/*.ico",
+                "/*.js",
+                "/*.css",
+                "/admin/**",
+                "/frontdesk/**",
+                "/{path:[^\\.]*}",
+                "/auth/login", "/auth/register", "/auth/logout",
+                "/api/createDepartment", "/api/createRole"
+        ).permitAll()
+        .anyRequest().authenticated());
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

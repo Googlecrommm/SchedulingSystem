@@ -47,7 +47,7 @@ public class UsersService {
     //READ
     public Page<UserResponseDTO> getUsers(String accountStatus, String departmentName, String roleName, Pageable pageable) {
         Specification<Users> filters = Specification
-                .where(UserSpecification.excludeRole())
+                .where(UserSpecification.excludeRole()) // Exclude soft-deleted users
                 .and(UserSpecification.hasDepartment(departmentName))
                 .and(UserSpecification.hasRole(roleName))
                 .and(UserSpecification.hasAccountStatus(accountStatus));

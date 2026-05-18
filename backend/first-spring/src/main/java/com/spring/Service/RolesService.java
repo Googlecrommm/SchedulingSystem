@@ -40,9 +40,9 @@ public class RolesService {
     //READ ALL
     public Page<RoleResponseDTO> getRoles(String status, String departmentName, Pageable pageable){
         Specification<Roles> filters = Specification
-                .where(RoleSpecification.hasStatus(status))
-                .and(RoleSpecification.hasDepartment(departmentName))
-                .and(RoleSpecification.excludeRole());
+                .where(RoleSpecification.excludeRole())
+                .and(RoleSpecification.hasStatus(status))
+                .and(RoleSpecification.hasDepartment(departmentName));
 
         return rolesRepository
                 .findAll(filters, pageable)
@@ -57,7 +57,7 @@ public class RolesService {
     // RolesService.java
     public List<RoleResponseDTO> roleDropdown(String departmentName) {
         Specification<Roles> filters = Specification
-                .where(RoleSpecification.excludeRole())          // excludes Admin
+                .where(RoleSpecification.excludeRole())
                 .and(RoleSpecification.hasStatus("Active"))      // only active roles
                 .and(RoleSpecification.hasDepartment(departmentName)); // null = all, set = scoped
 
@@ -120,15 +120,11 @@ public class RolesService {
     public void updateRole(int roleId, Roles role){
         Roles roleToUpdate = rolesRepository.findById(roleId).orElseThrow(() -> new RoleNotFound("Role doesn't exists"));
 
-        if (roleToUpdate.getRoleName().equalsIgnoreCase("Admin")){
-            throw new NotAllowed("Edit not allowed");
-        }
-
         if (role.getRoleName().equalsIgnoreCase("Admin")){
             throw new NotAllowed("Role can't be set to admin");
         }
 
-        if (role.getRoleName() != null && !role.getRoleName().isEmpty() && !roleToUpdate.getRoleName().equalsIgnoreCase("Admin")){
+        if (role.getRoleName() != null && !role.getRoleName().isEmpty()){
             roleToUpdate.setRoleName(role.getRoleName());
         }
 

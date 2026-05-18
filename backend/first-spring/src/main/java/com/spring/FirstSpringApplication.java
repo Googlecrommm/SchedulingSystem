@@ -12,10 +12,4 @@ public class FirstSpringApplication {
     public static void main(String[] args) {
         SpringApplication.run(FirstSpringApplication.class, args);
     }
-
-    @GetMapping
-    public String HelloWorld(){
-        return "Hello World";
-    }
-
 }

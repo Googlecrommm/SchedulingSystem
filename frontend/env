@@ -1,3 +1,2 @@
 # ← Ask your backend developer for this URL and replace it here
-VITE_API_URL=http://localhost:8000/api
-VITE_API_PRODUCTION_URL:http://localhost:8000/api
+VITE_API_URL=""

@@ -96,7 +96,7 @@ export default function LoginPage() {
     onSubmit: async (values, { setSubmitting }) => {
       try {
         const response = await axios.post(
-          "http://localhost:8080/auth/login",
+          `${""}/auth/login`,
           { email: values.username, password: values.password }
         );
 
@@ -168,7 +168,7 @@ export default function LoginPage() {
                 htmlFor="username"
                 className="block text-sm font-semibold text-primary mb-1.5"
               >
-                Email
+                Username
               </label>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
@@ -178,7 +178,7 @@ export default function LoginPage() {
                   id="username"
                   name="username"
                   type="text"
-                  placeholder="Enter Email"
+                  placeholder="Enter Username"
                   className={`${inputClass("username")} pl-10 pr-4`}
                   {...formik.getFieldProps("username")}
                 />

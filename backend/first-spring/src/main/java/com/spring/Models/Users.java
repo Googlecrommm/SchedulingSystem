@@ -44,7 +44,6 @@ public class Users implements UserDetails {
 
     @NotBlank
     @Size(max = 150)
-    @Email
     @Column(name = "email", nullable = false, length = 150)
     private String email;
 

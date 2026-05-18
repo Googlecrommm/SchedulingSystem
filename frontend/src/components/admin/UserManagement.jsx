@@ -24,7 +24,7 @@ const TABS = [
   { label: "Disabled", icon: MinusCircle },
 ];
 
-const COLUMNS = ["Name", "Email", "Department", "Role", "Status", "Action"];
+const COLUMNS = ["Name", "Username", "Department", "Role", "Status", "Action"];
 
 
 function getAuthHeader() {
@@ -65,7 +65,7 @@ const createSchema = Yup.object({
   firstName:  Yup.string().required("First name is required"),
   middleName: Yup.string(),
   lastName:   Yup.string().required("Last name is required"),
-  email:      Yup.string().email("Invalid email").required("Email is required"),
+  email:      Yup.string().required("Email is required"),
   password:   Yup.string().min(6, "At least 6 characters").required("Password is required"),
   role:       Yup.string().required("Role is required"),
 });
@@ -74,7 +74,7 @@ const editSchema = Yup.object({
   firstName:  Yup.string().required("First name is required"),
   middleName: Yup.string(),
   lastName:   Yup.string().required("Last name is required"),
-  email:      Yup.string().email("Invalid email").required("Email is required"),
+  email:      Yup.string().required("Email is required"),
   password:   Yup.string().min(6, "At least 6 characters"),
   role:       Yup.string().required("Role is required"),
 });
@@ -130,10 +130,10 @@ function UserForm({ initialValues, validationSchema, submitLabel, onSubmit, onCl
         />
       </FormField>
 
-      <FormField label="Email" error={formik.touched.email && formik.errors.email}>
+      <FormField label="Username" error={formik.touched.email && formik.errors.email}>
         <input
           type="email"
-          placeholder="Email"
+          placeholder="Username"
           className={ic("email")}
           {...formik.getFieldProps("email")}
         />
