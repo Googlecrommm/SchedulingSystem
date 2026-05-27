@@ -1,4 +1,6 @@
 target/
 .idea/
+src/main/resources/application-dev.properties
+src/test/resources
 *.iml
 HELP.md
