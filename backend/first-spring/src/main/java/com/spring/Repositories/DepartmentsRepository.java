@@ -26,6 +26,7 @@ public interface DepartmentsRepository extends JpaRepository<Departments, Intege
 
     List<Departments> findAllByDepartmentStatusNotAndDepartmentNameNot(SoftDelete departmentStatus, String departmentName);
 
+    //SEARCH DEPARTMENT
     @Query("SELECT department from Departments department WHERE department.departmentName LIKE %:searchDept%")
     Page<Departments> searchByDepartmentName(@Param("searchDept") String searchDept, Pageable pageable);
 }
