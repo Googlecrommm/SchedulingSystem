@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/SchedulingSystem.iml" filepath="$PROJECT_DIR$/.idea/SchedulingSystem.iml" />
+      <module fileurl="file://$PROJECT_DIR$/backend/first-spring/first-spring.iml" filepath="$PROJECT_DIR$/backend/first-spring/first-spring.iml" />
     </modules>
   </component>
 </project>
