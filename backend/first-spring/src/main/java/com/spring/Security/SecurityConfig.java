@@ -84,7 +84,7 @@ public class SecurityConfig {
                 "/frontdesk/**",
                 "/{path:[^\\.]*}",
                 "/auth/login", "/auth/register", "/auth/logout",
-                "/api/createDepartment", "/api/createRole"
+                "/api/createDepartment", "/api/createRole", "/ping/tapik"
         ).permitAll()
         .anyRequest().authenticated());
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
