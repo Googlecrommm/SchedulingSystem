@@ -1,5 +1,4 @@
 package com.spring.Models;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.spring.Enums.PatientStatus;
 import com.spring.Enums.Sex;
 import jakarta.persistence.*;

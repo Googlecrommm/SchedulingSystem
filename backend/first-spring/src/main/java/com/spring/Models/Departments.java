@@ -1,5 +1,4 @@
 package com.spring.Models;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.spring.Enums.SoftDelete;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -34,7 +33,6 @@ public class Departments {
     @OneToMany(mappedBy = "department")
     private List<Rooms> rooms;
 
-    @JsonIgnore
     @OneToMany(mappedBy = "department")
     private List<Roles> roles;
 

@@ -1,6 +1,5 @@
 package com.spring.Models;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.spring.Enums.SoftDelete;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
